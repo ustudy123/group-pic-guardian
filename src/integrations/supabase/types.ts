@@ -14,7 +14,119 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      fotos: {
+        Row: {
+          ano_mes: string
+          caption: string | null
+          created_at: string
+          data_envio: string
+          dia: string
+          encarregado: string
+          grupo_id: string
+          id: string
+          mime_type: string
+          remetente_jid: string | null
+          remetente_nome: string | null
+          storage_path: string
+          tamanho_bytes: number
+          whatsapp_msg_id: string
+        }
+        Insert: {
+          ano_mes: string
+          caption?: string | null
+          created_at?: string
+          data_envio: string
+          dia: string
+          encarregado: string
+          grupo_id: string
+          id?: string
+          mime_type: string
+          remetente_jid?: string | null
+          remetente_nome?: string | null
+          storage_path: string
+          tamanho_bytes: number
+          whatsapp_msg_id: string
+        }
+        Update: {
+          ano_mes?: string
+          caption?: string | null
+          created_at?: string
+          data_envio?: string
+          dia?: string
+          encarregado?: string
+          grupo_id?: string
+          id?: string
+          mime_type?: string
+          remetente_jid?: string | null
+          remetente_nome?: string | null
+          storage_path?: string
+          tamanho_bytes?: number
+          whatsapp_msg_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fotos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grupos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          encarregado: string
+          id: string
+          nome_exibicao: string
+          ultima_foto_em: string | null
+          updated_at: string
+          whatsapp_jid: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          encarregado: string
+          id?: string
+          nome_exibicao: string
+          ultima_foto_em?: string | null
+          updated_at?: string
+          whatsapp_jid: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          encarregado?: string
+          id?: string
+          nome_exibicao?: string
+          ultima_foto_em?: string | null
+          updated_at?: string
+          whatsapp_jid?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
