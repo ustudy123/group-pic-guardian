@@ -81,17 +81,28 @@ async function postFoto({ buffer, mime, meta }) {
       if (res.ok) {
         const json = await res.json().catch(() => ({}));
         logger.info({ msg_id: meta.msg_id, ...json }, "foto enviada");
-        return;
+        return { ok: true, json };
       }
       const text = await res.text();
       logger.warn({ status: res.status, text, attempt }, "falha no envio");
-      if (res.status === 401 || res.status === 415) return; // não retentar
+      if (res.status === 401 || res.status === 415) {
+        return { ok: false, status: res.status, text };
+      }
     } catch (err) {
       logger.error({ err: String(err), attempt }, "erro de rede");
     }
     await new Promise((r) => setTimeout(r, Math.min(30000, 1000 * 2 ** attempt)));
   }
   logger.error({ msg_id: meta.msg_id }, "desisti após 5 tentativas");
+  return { ok: false, status: 0, text: "timeout após 5 tentativas" };
+}
+
+async function safeReply(sock, jid, quoted, text) {
+  try {
+    await sock.sendMessage(jid, { text }, { quoted });
+  } catch (err) {
+    logger.warn({ err: String(err) }, "falha ao enviar resposta de status");
+  }
 }
 
 async function start() {
@@ -159,8 +170,15 @@ async function start() {
           m.message.viewOnceMessage?.message?.imageMessage;
         if (!imageMsg) continue;
 
+        await safeReply(sock, remoteJid, m, "📥 Foto recebida, baixando...");
+
         const buffer = await downloadMediaMessage(m, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage });
-        if (!buffer) continue;
+        if (!buffer) {
+          await safeReply(sock, remoteJid, m, "⚠️ Não consegui baixar a imagem.");
+          continue;
+        }
+
+        await safeReply(sock, remoteJid, m, `⬆️ Enviando para o servidor (${(buffer.length / 1024).toFixed(0)} KB)...`);
 
         let groupName = remoteJid;
         try {
@@ -181,7 +199,17 @@ async function start() {
           mime_type: imageMsg.mimetype || "image/jpeg",
         };
 
-        await postFoto({ buffer, mime: meta.mime_type, meta });
+        const result = await postFoto({ buffer, mime: meta.mime_type, meta });
+        if (result.ok) {
+          await safeReply(sock, remoteJid, m, "✅ Foto processada com sucesso!");
+        } else {
+          await safeReply(
+            sock,
+            remoteJid,
+            m,
+            `❌ Falha ao enviar (status ${result.status || "?"}): ${String(result.text || "").slice(0, 200)}`
+          );
+        }
       } catch (err) {
         logger.error({ err: String(err) }, "erro processando mensagem");
       }
