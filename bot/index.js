@@ -3,12 +3,16 @@ import {
   useMultiFileAuthState,
   DisconnectReason,
   downloadMediaMessage,
+  fetchLatestBaileysVersion,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
+import { rm } from "node:fs/promises";
 
 const LOVABLE_API_URL = process.env.LOVABLE_API_URL;
 const WHATSAPP_BOT_SECRET = process.env.WHATSAPP_BOT_SECRET;
 const AUTH_DIR = process.env.AUTH_DIR || "/app/auth_info";
+const FALLBACK_WA_VERSION = [2, 3000, 1028397221];
+let authResetTried = false;
 
 if (!LOVABLE_API_URL || !WHATSAPP_BOT_SECRET) {
   console.error("Defina as variáveis LOVABLE_API_URL e WHATSAPP_BOT_SECRET");
@@ -22,6 +26,44 @@ function logQrLink(qr) {
   const link = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=20&data=${encodeURIComponent(qr)}`;
   logger.info({ qrLink: link }, "QR disponível para escanear");
   console.log(`QR LINK: ${link}`);
+}
+
+function parseVersion(version) {
+  if (!version) return null;
+  const parsed = version
+    .split(",")
+    .map((part) => Number.parseInt(part.trim(), 10));
+
+  if (parsed.length !== 3 || parsed.some((part) => Number.isNaN(part))) {
+    return null;
+  }
+
+  return parsed;
+}
+
+async function resolveWaVersion() {
+  const envVersion = parseVersion(process.env.WA_VERSION);
+  if (envVersion) {
+    logger.info({ version: envVersion }, "Usando versão do WhatsApp Web definida por WA_VERSION");
+    return envVersion;
+  }
+
+  try {
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    logger.info({ version, isLatest }, "Usando versão do WhatsApp Web detectada pelo Baileys");
+    return version;
+  } catch (err) {
+    logger.warn(
+      { err: String(err), version: FALLBACK_WA_VERSION },
+      "Falha ao detectar versão do WhatsApp Web; usando fallback"
+    );
+    return FALLBACK_WA_VERSION;
+  }
+}
+
+async function resetAuthState() {
+  await rm(AUTH_DIR, { recursive: true, force: true });
+  logger.warn({ authDir: AUTH_DIR }, "Sessão local removida para forçar novo QR");
 }
 
 async function postFoto({ buffer, mime, meta }) {
@@ -55,9 +97,11 @@ async function postFoto({ buffer, mime, meta }) {
 async function start() {
   logger.info({ authDir: AUTH_DIR }, "Iniciando bot do WhatsApp");
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  const version = await resolveWaVersion();
 
   const sock = makeWASocket({
     auth: state,
+    version,
     logger: pino({ level: "warn" }),
     printQRInTerminal: false,
     syncFullHistory: false,
@@ -65,24 +109,38 @@ async function start() {
 
   sock.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
+  sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       logQrLink(qr);
     }
     if (connection === "open") {
+      authResetTried = false;
       logger.info("Conectado ao WhatsApp.");
     }
     if (connection === "close") {
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+        statusCode !== DisconnectReason.loggedOut;
       logger.warn(
         {
           shouldReconnect,
-          statusCode: lastDisconnect?.error?.output?.statusCode,
+          statusCode,
+          hasRegisteredSession: Boolean(state.creds?.registered),
           error: lastDisconnect?.error?.message || String(lastDisconnect?.error || "unknown"),
         },
         "conexão fechada"
       );
+
+      if (statusCode === 405 && !state.creds?.registered && !authResetTried) {
+        authResetTried = true;
+        logger.warn(
+          "WhatsApp recusou a sessão antes do QR; limpando auth para forçar um pareamento novo"
+        );
+        await resetAuthState();
+        setTimeout(start, 3000);
+        return;
+      }
+
       if (shouldReconnect) setTimeout(start, 3000);
     }
   });
