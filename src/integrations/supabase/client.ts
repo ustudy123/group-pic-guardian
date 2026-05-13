@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 function createSupabaseClient() {
+  const isBrowser = typeof window !== 'undefined';
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -20,9 +21,10 @@ function createSupabaseClient() {
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
-      storage: typeof window !== 'undefined' ? localStorage : undefined,
-      persistSession: true,
-      autoRefreshToken: true,
+      storage: isBrowser ? localStorage : undefined,
+      persistSession: isBrowser,
+      autoRefreshToken: isBrowser,
+      detectSessionInUrl: isBrowser,
     }
   });
 }
