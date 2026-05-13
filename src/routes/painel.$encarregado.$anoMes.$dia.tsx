@@ -39,7 +39,7 @@ function DiaPage() {
         .from("obras-fotos")
         .createSignedUrls(paths, 60 * 60);
       const urlMap = new Map(urls?.map((u) => [u.path, u.signedUrl]));
-      return (data ?? []).map((f) => ({ ...f, signedUrl: urlMap.get(f.storage_path) }));
+      return (data ?? []).map((f) => ({ ...f, signedUrl: urlMap.get(f.storage_path) ?? undefined }));
     },
   });
 
