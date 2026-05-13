@@ -170,8 +170,15 @@ async function start() {
           m.message.viewOnceMessage?.message?.imageMessage;
         if (!imageMsg) continue;
 
+        await safeReply(sock, remoteJid, m, "📥 Foto recebida, baixando...");
+
         const buffer = await downloadMediaMessage(m, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage });
-        if (!buffer) continue;
+        if (!buffer) {
+          await safeReply(sock, remoteJid, m, "⚠️ Não consegui baixar a imagem.");
+          continue;
+        }
+
+        await safeReply(sock, remoteJid, m, `⬆️ Enviando para o servidor (${(buffer.length / 1024).toFixed(0)} KB)...`);
 
         let groupName = remoteJid;
         try {
@@ -192,7 +199,17 @@ async function start() {
           mime_type: imageMsg.mimetype || "image/jpeg",
         };
 
-        await postFoto({ buffer, mime: meta.mime_type, meta });
+        const result = await postFoto({ buffer, mime: meta.mime_type, meta });
+        if (result.ok) {
+          await safeReply(sock, remoteJid, m, "✅ Foto processada com sucesso!");
+        } else {
+          await safeReply(
+            sock,
+            remoteJid,
+            m,
+            `❌ Falha ao enviar (status ${result.status || "?"}): ${String(result.text || "").slice(0, 200)}`
+          );
+        }
       } catch (err) {
         logger.error({ err: String(err) }, "erro processando mensagem");
       }
