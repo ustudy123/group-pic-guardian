@@ -60,8 +60,10 @@ async function start() {
 
   sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
-      console.log("\n=== Escaneie o QR code abaixo com o WhatsApp ===\n");
-      qrcode.generate(qr, { small: true });
+      const link = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=20&data=${encodeURIComponent(qr)}`;
+      console.log("\n=== Escaneie o QR code abrindo este link no navegador ===\n");
+      console.log(link);
+      console.log("\n(WhatsApp → Aparelhos conectados → Conectar um aparelho)\n");
     }
     if (connection === "open") {
       logger.info("Conectado ao WhatsApp.");
