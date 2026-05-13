@@ -81,17 +81,28 @@ async function postFoto({ buffer, mime, meta }) {
       if (res.ok) {
         const json = await res.json().catch(() => ({}));
         logger.info({ msg_id: meta.msg_id, ...json }, "foto enviada");
-        return;
+        return { ok: true, json };
       }
       const text = await res.text();
       logger.warn({ status: res.status, text, attempt }, "falha no envio");
-      if (res.status === 401 || res.status === 415) return; // não retentar
+      if (res.status === 401 || res.status === 415) {
+        return { ok: false, status: res.status, text };
+      }
     } catch (err) {
       logger.error({ err: String(err), attempt }, "erro de rede");
     }
     await new Promise((r) => setTimeout(r, Math.min(30000, 1000 * 2 ** attempt)));
   }
   logger.error({ msg_id: meta.msg_id }, "desisti após 5 tentativas");
+  return { ok: false, status: 0, text: "timeout após 5 tentativas" };
+}
+
+async function safeReply(sock, jid, quoted, text) {
+  try {
+    await sock.sendMessage(jid, { text }, { quoted });
+  } catch (err) {
+    logger.warn({ err: String(err) }, "falha ao enviar resposta de status");
+  }
 }
 
 async function start() {
