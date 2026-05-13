@@ -74,10 +74,11 @@ function LoginPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !mounted}
+          onClick={(e) => { if (mounted) { e.preventDefault(); void onSubmit(e as unknown as FormEvent); } }}
           className="w-full inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {loading ? "Aguarde..." : mode === "signin" ? "Entrar" : "Criar conta"}
+          {loading ? "Aguarde..." : !mounted ? "Carregando..." : mode === "signin" ? "Entrar" : "Criar conta"}
         </button>
 
         <button
