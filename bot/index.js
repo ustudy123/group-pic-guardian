@@ -4,6 +4,7 @@ import {
   DisconnectReason,
   downloadMediaMessage,
   fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import { rm } from "node:fs/promises";
@@ -111,7 +112,10 @@ async function start() {
   const version = await resolveWaVersion();
 
   const sock = makeWASocket({
-    auth: state,
+    auth: {
+      creds: state.creds,
+      keys: makeCacheableSignalKeyStore(state.keys, logger.child({ module: "signal-store" })),
+    },
     version,
     logger: pino({ level: "warn" }),
     printQRInTerminal: false,
