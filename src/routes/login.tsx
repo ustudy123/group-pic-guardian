@@ -40,7 +40,7 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 border rounded-lg p-6 bg-card">
+      <form onSubmit={onSubmit} method="post" action="?" className="w-full max-w-sm space-y-4 border rounded-lg p-6 bg-card">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">{mode === "signin" ? "Entrar" : "Criar conta"}</h1>
           <p className="text-sm text-muted-foreground">Acesso ao painel de fotos de obras.</p>
