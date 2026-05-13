@@ -5,10 +5,10 @@ import {
   downloadMediaMessage,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
-import qrcode from "qrcode-terminal";
 
 const LOVABLE_API_URL = process.env.LOVABLE_API_URL;
 const WHATSAPP_BOT_SECRET = process.env.WHATSAPP_BOT_SECRET;
+const AUTH_DIR = process.env.AUTH_DIR || "/app/auth_info";
 
 if (!LOVABLE_API_URL || !WHATSAPP_BOT_SECRET) {
   console.error("Defina as variáveis LOVABLE_API_URL e WHATSAPP_BOT_SECRET");
@@ -17,6 +17,12 @@ if (!LOVABLE_API_URL || !WHATSAPP_BOT_SECRET) {
 
 const INGEST_URL = `${LOVABLE_API_URL.replace(/\/$/, "")}/api/public/whatsapp/ingest`;
 const logger = pino({ level: "info" });
+
+function logQrLink(qr) {
+  const link = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=20&data=${encodeURIComponent(qr)}`;
+  logger.info({ qrLink: link }, "QR disponível para escanear");
+  console.log(`QR LINK: ${link}`);
+}
 
 async function postFoto({ buffer, mime, meta }) {
   const form = new FormData();
@@ -47,7 +53,8 @@ async function postFoto({ buffer, mime, meta }) {
 }
 
 async function start() {
-  const { state, saveCreds } = await useMultiFileAuthState("./auth_info");
+  logger.info({ authDir: AUTH_DIR }, "Iniciando bot do WhatsApp");
+  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
   const sock = makeWASocket({
     auth: state,
@@ -60,10 +67,7 @@ async function start() {
 
   sock.ev.on("connection.update", ({ connection, lastDisconnect, qr }) => {
     if (qr) {
-      const link = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=20&data=${encodeURIComponent(qr)}`;
-      console.log("\n=== Escaneie o QR code abrindo este link no navegador ===\n");
-      console.log(link);
-      console.log("\n(WhatsApp → Aparelhos conectados → Conectar um aparelho)\n");
+      logQrLink(qr);
     }
     if (connection === "open") {
       logger.info("Conectado ao WhatsApp.");
@@ -71,7 +75,14 @@ async function start() {
     if (connection === "close") {
       const shouldReconnect =
         lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      logger.warn({ shouldReconnect }, "conexão fechada");
+      logger.warn(
+        {
+          shouldReconnect,
+          statusCode: lastDisconnect?.error?.output?.statusCode,
+          error: lastDisconnect?.error?.message || String(lastDisconnect?.error || "unknown"),
+        },
+        "conexão fechada"
+      );
       if (shouldReconnect) setTimeout(start, 3000);
     }
   });
