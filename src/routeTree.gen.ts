@@ -9,38 +9,130 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PainelRouteImport } from './routes/painel'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PainelIndexRouteImport } from './routes/painel.index'
+import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
+import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
+import { Route as ApiPublicWhatsappIngestRouteImport } from './routes/api/public/whatsapp/ingest'
 
+const PainelRoute = PainelRouteImport.update({
+  id: '/painel',
+  path: '/painel',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PainelIndexRoute = PainelIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelEncarregadoRoute = PainelEncarregadoRouteImport.update({
+  id: '/$encarregado',
+  path: '/$encarregado',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelEncarregadoAnoMesDiaRoute =
+  PainelEncarregadoAnoMesDiaRouteImport.update({
+    id: '/$anoMes/$dia',
+    path: '/$anoMes/$dia',
+    getParentRoute: () => PainelEncarregadoRoute,
+  } as any)
+const ApiPublicWhatsappIngestRoute = ApiPublicWhatsappIngestRouteImport.update({
+  id: '/api/public/whatsapp/ingest',
+  path: '/api/public/whatsapp/ingest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/painel': typeof PainelRouteWithChildren
+  '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
+  '/painel/': typeof PainelIndexRoute
+  '/api/public/whatsapp/ingest': typeof ApiPublicWhatsappIngestRoute
+  '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
+  '/painel': typeof PainelIndexRoute
+  '/api/public/whatsapp/ingest': typeof ApiPublicWhatsappIngestRoute
+  '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/painel': typeof PainelRouteWithChildren
+  '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
+  '/painel/': typeof PainelIndexRoute
+  '/api/public/whatsapp/ingest': typeof ApiPublicWhatsappIngestRoute
+  '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/painel'
+    | '/painel/$encarregado'
+    | '/painel/'
+    | '/api/public/whatsapp/ingest'
+    | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/painel/$encarregado'
+    | '/painel'
+    | '/api/public/whatsapp/ingest'
+    | '/painel/$encarregado/$anoMes/$dia'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/painel'
+    | '/painel/$encarregado'
+    | '/painel/'
+    | '/api/public/whatsapp/ingest'
+    | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
+  PainelRoute: typeof PainelRouteWithChildren
+  ApiPublicWhatsappIngestRoute: typeof ApiPublicWhatsappIngestRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/painel': {
+      id: '/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof PainelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +140,66 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/painel/': {
+      id: '/painel/'
+      path: '/'
+      fullPath: '/painel/'
+      preLoaderRoute: typeof PainelIndexRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/$encarregado': {
+      id: '/painel/$encarregado'
+      path: '/$encarregado'
+      fullPath: '/painel/$encarregado'
+      preLoaderRoute: typeof PainelEncarregadoRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/$encarregado/$anoMes/$dia': {
+      id: '/painel/$encarregado/$anoMes/$dia'
+      path: '/$anoMes/$dia'
+      fullPath: '/painel/$encarregado/$anoMes/$dia'
+      preLoaderRoute: typeof PainelEncarregadoAnoMesDiaRouteImport
+      parentRoute: typeof PainelEncarregadoRoute
+    }
+    '/api/public/whatsapp/ingest': {
+      id: '/api/public/whatsapp/ingest'
+      path: '/api/public/whatsapp/ingest'
+      fullPath: '/api/public/whatsapp/ingest'
+      preLoaderRoute: typeof ApiPublicWhatsappIngestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface PainelEncarregadoRouteChildren {
+  PainelEncarregadoAnoMesDiaRoute: typeof PainelEncarregadoAnoMesDiaRoute
+}
+
+const PainelEncarregadoRouteChildren: PainelEncarregadoRouteChildren = {
+  PainelEncarregadoAnoMesDiaRoute: PainelEncarregadoAnoMesDiaRoute,
+}
+
+const PainelEncarregadoRouteWithChildren =
+  PainelEncarregadoRoute._addFileChildren(PainelEncarregadoRouteChildren)
+
+interface PainelRouteChildren {
+  PainelEncarregadoRoute: typeof PainelEncarregadoRouteWithChildren
+  PainelIndexRoute: typeof PainelIndexRoute
+}
+
+const PainelRouteChildren: PainelRouteChildren = {
+  PainelEncarregadoRoute: PainelEncarregadoRouteWithChildren,
+  PainelIndexRoute: PainelIndexRoute,
+}
+
+const PainelRouteWithChildren =
+  PainelRoute._addFileChildren(PainelRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
+  PainelRoute: PainelRouteWithChildren,
+  ApiPublicWhatsappIngestRoute: ApiPublicWhatsappIngestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
