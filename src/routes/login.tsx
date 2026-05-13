@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/login")({
@@ -16,6 +16,8 @@ function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [info, setInfo] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -38,7 +40,7 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 border rounded-lg p-6 bg-card">
+      <form onSubmit={onSubmit} method="post" action="?" className="w-full max-w-sm space-y-4 border rounded-lg p-6 bg-card">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">{mode === "signin" ? "Entrar" : "Criar conta"}</h1>
           <p className="text-sm text-muted-foreground">Acesso ao painel de fotos de obras.</p>
@@ -72,10 +74,11 @@ function LoginPage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !mounted}
+          onClick={(e) => { if (mounted) { e.preventDefault(); void onSubmit(e as unknown as FormEvent); } }}
           className="w-full inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
-          {loading ? "Aguarde..." : mode === "signin" ? "Entrar" : "Criar conta"}
+          {loading ? "Aguarde..." : !mounted ? "Carregando..." : mode === "signin" ? "Entrar" : "Criar conta"}
         </button>
 
         <button
