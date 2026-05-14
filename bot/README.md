@@ -54,3 +54,4 @@ A partir daí, toda imagem nova enviada nos grupos aparece automaticamente no pa
 - `foto enviada` — sucesso.
 - `falha no envio` (status 401) — `WHATSAPP_BOT_SECRET` não bate com o do painel.
 - `conexão fechada` — desconexão do WhatsApp; o bot tenta reconectar sozinho.
+- `conexão fechada` com `statusCode: 403` antes do QR — incompatibilidade de versão do WhatsApp Web no pareamento. O bot agora tenta reiniciar sozinho com uma versão compatível; se ainda persistir, defina `WA_VERSION=2,2413,51` nas variáveis do deploy e reinicie o serviço.
