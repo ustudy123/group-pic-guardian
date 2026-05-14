@@ -13,7 +13,9 @@ const LOVABLE_API_URL = process.env.LOVABLE_API_URL;
 const WHATSAPP_BOT_SECRET = process.env.WHATSAPP_BOT_SECRET;
 const AUTH_DIR = process.env.AUTH_DIR || "/app/auth_info";
 const FALLBACK_WA_VERSION = [2, 3000, 1028397221];
+const FORCE_WA_VERSION = [2, 2413, 51];
 let authResetTried = false;
+let lastForcedVersionKey = null;
 
 if (!LOVABLE_API_URL || !WHATSAPP_BOT_SECRET) {
   console.error("Defina as variáveis LOVABLE_API_URL e WHATSAPP_BOT_SECRET");
@@ -49,6 +51,11 @@ async function resolveWaVersion() {
     return envVersion;
   }
 
+  if (process.env.WA_FORCE_COMPAT === "1") {
+    logger.info({ version: FORCE_WA_VERSION }, "Usando versão compatível fixa do WhatsApp Web");
+    return FORCE_WA_VERSION;
+  }
+
   try {
     const { version, isLatest } = await fetchLatestBaileysVersion();
     logger.info({ version, isLatest }, "Usando versão do WhatsApp Web detectada pelo Baileys");
@@ -65,6 +72,10 @@ async function resolveWaVersion() {
 async function resetAuthState() {
   await rm(AUTH_DIR, { recursive: true, force: true });
   logger.warn({ authDir: AUTH_DIR }, "Sessão local removida para forçar novo QR");
+}
+
+function sameVersion(a, b) {
+  return Array.isArray(a) && Array.isArray(b) && a.length === 3 && b.length === 3 && a.every((part, idx) => part === b[idx]);
 }
 
 async function postFoto({ buffer, mime, meta }) {
@@ -110,6 +121,7 @@ async function start() {
   logger.info({ authDir: AUTH_DIR }, "Iniciando bot do WhatsApp");
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const version = await resolveWaVersion();
+  const versionKey = version.join(".");
 
   const sock = makeWASocket({
     auth: {
@@ -150,6 +162,26 @@ async function start() {
         authResetTried = true;
         logger.warn(
           "WhatsApp recusou a sessão antes do QR; limpando auth para forçar um pareamento novo"
+        );
+        await resetAuthState();
+        setTimeout(start, 3000);
+        return;
+      }
+
+      if (
+        statusCode === 403 &&
+        !state.creds?.registered &&
+        !authResetTried &&
+        !process.env.WA_VERSION &&
+        !sameVersion(version, FORCE_WA_VERSION) &&
+        lastForcedVersionKey !== versionKey
+      ) {
+        authResetTried = true;
+        lastForcedVersionKey = versionKey;
+        process.env.WA_VERSION = FORCE_WA_VERSION.join(",");
+        logger.warn(
+          { currentVersion: version, forcedVersion: FORCE_WA_VERSION },
+          "WhatsApp recusou a sessão com 403 antes do pareamento; limpando auth e reiniciando com versão compatível"
         );
         await resetAuthState();
         setTimeout(start, 3000);
