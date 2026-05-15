@@ -51,7 +51,7 @@ export const Route = createFileRoute("/api/public/whatsapp/zapi")({
             return new Response("Unauthorized", { status: 401 });
           }
 
-          if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+          if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
             return new Response("Server not configured", { status: 500 });
           }
 
