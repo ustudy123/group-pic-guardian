@@ -22,27 +22,33 @@ export const Route = createFileRoute("/api/public/whatsapp/ingest")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const expected = process.env.WHATSAPP_BOT_SECRET;
-        if (!expected) {
-          return new Response("Server not configured", { status: 500 });
-        }
-        const provided = request.headers.get("x-bot-secret") ?? "";
-        if (!provided || !safeEqual(provided, expected)) {
-          return new Response("Unauthorized", { status: 401 });
-        }
-
-        let form: FormData;
         try {
-          form = await request.formData();
-        } catch {
-          return new Response("Invalid multipart body", { status: 400 });
-        }
+          const expected = process.env.WHATSAPP_BOT_SECRET;
+          if (!expected) {
+            return new Response("Server not configured", { status: 500 });
+          }
+          const provided = request.headers.get("x-bot-secret") ?? "";
+          if (!provided || !safeEqual(provided, expected)) {
+            return new Response("Unauthorized", { status: 401 });
+          }
 
-        const file = form.get("file");
-        const metaRaw = form.get("meta");
-        if (!(file instanceof File) || typeof metaRaw !== "string") {
-          return new Response("Missing file or meta", { status: 400 });
-        }
+          if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.error("WhatsApp ingest misconfigured: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+            return new Response("Server not configured: missing Supabase admin access", { status: 500 });
+          }
+
+          let form: FormData;
+          try {
+            form = await request.formData();
+          } catch {
+            return new Response("Invalid multipart body", { status: 400 });
+          }
+
+          const file = form.get("file");
+          const metaRaw = form.get("meta");
+          if (!(file instanceof File) || typeof metaRaw !== "string") {
+            return new Response("Missing file or meta", { status: 400 });
+          }
 
         let meta: {
           group_jid: string;
@@ -161,7 +167,11 @@ export const Route = createFileRoute("/api/public/whatsapp/ingest")({
           .update({ ultima_foto_em: date.toISOString() })
           .eq("id", grupoId);
 
-        return Response.json({ ok: true, id: foto.id, storage_path: storagePath });
+          return Response.json({ ok: true, id: foto.id, storage_path: storagePath });
+        } catch (error) {
+          console.error("Unexpected WhatsApp ingest error:", error);
+          return new Response("Erro interno ao processar upload", { status: 500 });
+        }
       },
     },
   },
