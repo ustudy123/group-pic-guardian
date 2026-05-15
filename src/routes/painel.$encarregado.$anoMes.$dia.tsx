@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { gerarRFO } from "@/lib/gerar-rfo";
 
 export const Route = createFileRoute("/painel/$encarregado/$anoMes/$dia")({
   component: DiaPage,
@@ -10,44 +12,37 @@ export const Route = createFileRoute("/painel/$encarregado/$anoMes/$dia")({
 type Foto = {
   id: string;
   caption: string | null;
-  storage_path: string;
-  data_envio: string;
+  storage_url: string | null;
+  data_envio: string | null;
   remetente_nome: string | null;
   mime_type: string | null;
-  signedUrl?: string;
 };
 
 function DiaPage() {
   const { encarregado, anoMes, dia } = Route.useParams();
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<Foto | null>(null);
+  const [gerando, setGerando] = useState(false);
+  const dataPasta = `${anoMes}-${dia}`;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["fotos-dia", encarregado, anoMes, dia],
+    queryKey: ["fotos-dia", encarregado, dataPasta],
     queryFn: async (): Promise<Foto[]> => {
-      const { data: encs, error: errE } = await supabase
-        .from("encarregados")
-        .select("id")
-        .eq("nome", encarregado);
-      if (errE) throw errE;
-      const ids = (encs ?? []).map((e) => e.id);
-      if (ids.length === 0) return [];
-
-      const dataPasta = `${anoMes}-${dia}`;
       const { data, error } = await supabase
-        .from("fotos")
-        .select("id, caption, storage_path, data_envio, remetente_nome, mime_type")
-        .in("encarregado_id", ids)
+        .from("vw_fotos_completas")
+        .select("id, caption, storage_url, data_envio, remetente_nome, mime_type")
+        .eq("encarregado_nome", encarregado)
         .eq("data_pasta", dataPasta)
         .order("data_envio", { ascending: true });
       if (error) throw error;
-
-      const paths = (data ?? []).map((f) => f.storage_path);
-      const { data: urls } = await supabase.storage
-        .from("obras-fotos")
-        .createSignedUrls(paths, 60 * 60);
-      const urlMap = new Map(urls?.map((u) => [u.path, u.signedUrl]));
-      return (data ?? []).map((f) => ({ ...f, signedUrl: urlMap.get(f.storage_path) ?? undefined }));
+      return (data ?? []).map((f) => ({
+        id: f.id ?? "",
+        caption: f.caption,
+        storage_url: f.storage_url,
+        data_envio: f.data_envio,
+        remetente_nome: f.remetente_nome,
+        mime_type: f.mime_type,
+      }));
     },
   });
 
@@ -60,6 +55,31 @@ function DiaPage() {
     );
   }, [data, busca]);
 
+  const tituloData = useMemo(() => {
+    const [y, m, d] = dataPasta.split("-");
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  }, [dataPasta]);
+
+  const handleRFO = async () => {
+    if (!data || data.length === 0) {
+      toast.error("Nenhuma foto para gerar");
+      return;
+    }
+    setGerando(true);
+    try {
+      await gerarRFO({ encarregado, dataPasta, fotos: data });
+      toast.success("RFO gerado");
+    } catch (e) {
+      toast.error("Erro: " + (e as Error).message);
+    } finally {
+      setGerando(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -70,10 +90,19 @@ function DiaPage() {
         >
           ← {encarregado}
         </Link>
-        <h1 className="text-2xl font-bold mt-2">
-          {dia}/{anoMes.split("-")[1]}/{anoMes.split("-")[0]}
-        </h1>
-        <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
+        <div className="mt-2 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-2xl font-bold capitalize">{tituloData}</h1>
+            <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
+          </div>
+          <button
+            onClick={handleRFO}
+            disabled={gerando || !data || data.length === 0}
+            className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            {gerando ? "Gerando..." : "📄 Gerar RFO"}
+          </button>
+        </div>
       </div>
 
       <input
@@ -84,18 +113,30 @@ function DiaPage() {
         className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
 
-      {isLoading && <p className="text-muted-foreground">Carregando...</p>}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="aspect-square rounded-md bg-muted animate-pulse" />
+          ))}
+        </div>
+      )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+      {!isLoading && filtradas.length === 0 && (
+        <p className="text-muted-foreground py-8 text-center border rounded-md">
+          Nenhuma foto registrada nesse dia
+        </p>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         {filtradas.map((f) => (
           <button
             key={f.id}
             onClick={() => setAberta(f)}
             className="group relative aspect-square overflow-hidden rounded-md border bg-muted"
           >
-            {f.signedUrl ? (
+            {f.storage_url ? (
               <img
-                src={f.signedUrl}
+                src={f.storage_url}
                 alt={f.caption ?? "Foto"}
                 loading="lazy"
                 className="w-full h-full object-cover group-hover:scale-105 transition"
@@ -105,12 +146,16 @@ function DiaPage() {
                 sem preview
               </div>
             )}
-            <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[10px] px-2 py-1 opacity-0 group-hover:opacity-100 transition">
-              {new Date(f.data_envio).toLocaleTimeString("pt-BR", {
-                timeZone: "America/Sao_Paulo",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+            <div className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-xs px-2 py-1.5 opacity-0 group-hover:opacity-100 transition flex items-center justify-between gap-2">
+              <span className="font-medium">
+                {f.data_envio &&
+                  new Date(f.data_envio).toLocaleTimeString("pt-BR", {
+                    timeZone: "America/Sao_Paulo",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+              </span>
+              {f.caption && <span className="truncate">{f.caption}</span>}
             </div>
           </button>
         ))}
@@ -125,25 +170,34 @@ function DiaPage() {
             className="max-w-5xl w-full bg-card rounded-lg overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {aberta.signedUrl && (
-              <img src={aberta.signedUrl} alt={aberta.caption ?? ""} className="w-full max-h-[70vh] object-contain bg-black" />
+            {aberta.storage_url && (
+              <img
+                src={aberta.storage_url}
+                alt={aberta.caption ?? ""}
+                className="w-full max-h-[70vh] object-contain bg-black"
+              />
             )}
             <div className="p-4 space-y-2">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <p className="text-sm font-medium">{aberta.remetente_nome ?? "—"}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(aberta.data_envio).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                    {aberta.data_envio &&
+                      new Date(aberta.data_envio).toLocaleString("pt-BR", {
+                        timeZone: "America/Sao_Paulo",
+                      })}
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {aberta.signedUrl && (
+                  {aberta.storage_url && (
                     <a
-                      href={aberta.signedUrl}
+                      href={aberta.storage_url}
                       download
+                      target="_blank"
+                      rel="noreferrer"
                       className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
                     >
-                      Baixar
+                      Baixar foto
                     </a>
                   )}
                   <button

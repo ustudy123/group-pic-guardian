@@ -1,6 +1,8 @@
 import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { BotStatusIndicator } from "@/components/bot-status-indicator";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/painel")({
   component: PainelLayout,
@@ -28,9 +30,12 @@ function PainelLayout() {
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/painel" className="font-semibold">
-            Fotos de Obras
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/painel" className="font-semibold">
+              Fotos de Obras
+            </Link>
+            <BotStatusIndicator />
+          </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground hidden sm:inline">{user.email}</span>
             <button
@@ -48,6 +53,7 @@ function PainelLayout() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Outlet />
       </main>
+      <Toaster />
     </div>
   );
 }

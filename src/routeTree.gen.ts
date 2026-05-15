@@ -15,9 +15,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
-import { Route as ApiPublicWhatsappZapiRouteImport } from './routes/api/public/whatsapp/zapi'
-import { Route as ApiPublicWhatsappStatusRouteImport } from './routes/api/public/whatsapp/status'
-import { Route as ApiPublicWhatsappIngestRouteImport } from './routes/api/public/whatsapp/ingest'
 
 const PainelRoute = PainelRouteImport.update({
   id: '/painel',
@@ -50,21 +47,6 @@ const PainelEncarregadoAnoMesDiaRoute =
     path: '/$anoMes/$dia',
     getParentRoute: () => PainelEncarregadoRoute,
   } as any)
-const ApiPublicWhatsappZapiRoute = ApiPublicWhatsappZapiRouteImport.update({
-  id: '/api/public/whatsapp/zapi',
-  path: '/api/public/whatsapp/zapi',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicWhatsappStatusRoute = ApiPublicWhatsappStatusRouteImport.update({
-  id: '/api/public/whatsapp/status',
-  path: '/api/public/whatsapp/status',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicWhatsappIngestRoute = ApiPublicWhatsappIngestRouteImport.update({
-  id: '/api/public/whatsapp/ingest',
-  path: '/api/public/whatsapp/ingest',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -72,9 +54,6 @@ export interface FileRoutesByFullPath {
   '/painel': typeof PainelRouteWithChildren
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/': typeof PainelIndexRoute
-  '/api/public/whatsapp/ingest': typeof ApiPublicWhatsappIngestRoute
-  '/api/public/whatsapp/status': typeof ApiPublicWhatsappStatusRoute
-  '/api/public/whatsapp/zapi': typeof ApiPublicWhatsappZapiRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesByTo {
@@ -82,9 +61,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel': typeof PainelIndexRoute
-  '/api/public/whatsapp/ingest': typeof ApiPublicWhatsappIngestRoute
-  '/api/public/whatsapp/status': typeof ApiPublicWhatsappStatusRoute
-  '/api/public/whatsapp/zapi': typeof ApiPublicWhatsappZapiRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesById {
@@ -94,9 +70,6 @@ export interface FileRoutesById {
   '/painel': typeof PainelRouteWithChildren
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/': typeof PainelIndexRoute
-  '/api/public/whatsapp/ingest': typeof ApiPublicWhatsappIngestRoute
-  '/api/public/whatsapp/status': typeof ApiPublicWhatsappStatusRoute
-  '/api/public/whatsapp/zapi': typeof ApiPublicWhatsappZapiRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRouteTypes {
@@ -107,9 +80,6 @@ export interface FileRouteTypes {
     | '/painel'
     | '/painel/$encarregado'
     | '/painel/'
-    | '/api/public/whatsapp/ingest'
-    | '/api/public/whatsapp/status'
-    | '/api/public/whatsapp/zapi'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -117,9 +87,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/painel/$encarregado'
     | '/painel'
-    | '/api/public/whatsapp/ingest'
-    | '/api/public/whatsapp/status'
-    | '/api/public/whatsapp/zapi'
     | '/painel/$encarregado/$anoMes/$dia'
   id:
     | '__root__'
@@ -128,9 +95,6 @@ export interface FileRouteTypes {
     | '/painel'
     | '/painel/$encarregado'
     | '/painel/'
-    | '/api/public/whatsapp/ingest'
-    | '/api/public/whatsapp/status'
-    | '/api/public/whatsapp/zapi'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
 }
@@ -138,9 +102,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
-  ApiPublicWhatsappIngestRoute: typeof ApiPublicWhatsappIngestRoute
-  ApiPublicWhatsappStatusRoute: typeof ApiPublicWhatsappStatusRoute
-  ApiPublicWhatsappZapiRoute: typeof ApiPublicWhatsappZapiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -187,27 +148,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelEncarregadoAnoMesDiaRouteImport
       parentRoute: typeof PainelEncarregadoRoute
     }
-    '/api/public/whatsapp/zapi': {
-      id: '/api/public/whatsapp/zapi'
-      path: '/api/public/whatsapp/zapi'
-      fullPath: '/api/public/whatsapp/zapi'
-      preLoaderRoute: typeof ApiPublicWhatsappZapiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/whatsapp/status': {
-      id: '/api/public/whatsapp/status'
-      path: '/api/public/whatsapp/status'
-      fullPath: '/api/public/whatsapp/status'
-      preLoaderRoute: typeof ApiPublicWhatsappStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/whatsapp/ingest': {
-      id: '/api/public/whatsapp/ingest'
-      path: '/api/public/whatsapp/ingest'
-      fullPath: '/api/public/whatsapp/ingest'
-      preLoaderRoute: typeof ApiPublicWhatsappIngestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -239,9 +179,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
-  ApiPublicWhatsappIngestRoute: ApiPublicWhatsappIngestRoute,
-  ApiPublicWhatsappStatusRoute: ApiPublicWhatsappStatusRoute,
-  ApiPublicWhatsappZapiRoute: ApiPublicWhatsappZapiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
