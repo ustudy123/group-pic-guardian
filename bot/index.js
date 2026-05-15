@@ -307,6 +307,11 @@ async function start() {
 }
 
 start().catch((err) => {
+  void postStatus({
+    connection_status: "error",
+    qr_text: null,
+    last_error: String(err),
+  });
   logger.error({ err: String(err) }, "falha ao iniciar");
   process.exit(1);
 });
