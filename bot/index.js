@@ -221,17 +221,14 @@ async function start() {
       if (
         (statusCode === 401 || statusCode === 403 || statusCode === 405) &&
         !state.creds?.registered &&
-        !authResetTried &&
-        !process.env.WA_VERSION &&
-        !sameVersion(version, FORCE_WA_VERSION) &&
-        lastForcedVersionKey !== versionKey
+        !authResetTried
       ) {
         authResetTried = true;
         lastForcedVersionKey = versionKey;
         process.env.WA_VERSION = FORCE_WA_VERSION.join(",");
         logger.warn(
           { currentVersion: version, forcedVersion: FORCE_WA_VERSION },
-          "WhatsApp recusou a sessão com 403 antes do pareamento; limpando auth e reiniciando com versão compatível"
+          "WhatsApp recusou a sessão antes do pareamento; limpando auth e reiniciando com versão compatível"
         );
         await resetAuthState();
         setTimeout(start, 3000);
