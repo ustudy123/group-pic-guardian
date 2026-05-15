@@ -211,18 +211,8 @@ async function start() {
         },
       });
 
-      if ((statusCode === 401 || statusCode === 405) && !state.creds?.registered && !authResetTried) {
-        authResetTried = true;
-        logger.warn(
-          "WhatsApp recusou a sessão antes do QR; limpando auth para forçar um pareamento novo"
-        );
-        await resetAuthState();
-        setTimeout(start, 3000);
-        return;
-      }
-
       if (
-        statusCode === 403 &&
+        (statusCode === 401 || statusCode === 403 || statusCode === 405) &&
         !state.creds?.registered &&
         !authResetTried &&
         !process.env.WA_VERSION &&
