@@ -140,18 +140,16 @@ export const Route = createFileRoute("/api/public/whatsapp/ingest")({
         const { data: foto, error: errFoto } = await supabaseAdmin
           .from("fotos")
           .insert({
-            grupo_id: grupoId,
-            encarregado: encarregadoFinal,
-            whatsapp_msg_id: meta.msg_id,
-            remetente_jid: meta.sender_jid ?? null,
+            encarregado_id: encarregadoId,
+            message_id: meta.msg_id,
+            remetente_telefone: meta.sender_jid ?? null,
             remetente_nome: meta.sender_name ?? null,
             caption: meta.caption ?? null,
             mime_type: mime,
             tamanho_bytes: buffer.length,
             storage_path: storagePath,
             data_envio: date.toISOString(),
-            ano_mes: anoMes,
-            dia: dd,
+            data_pasta: `${yyyy}-${mm}-${dd}`,
           })
           .select("id")
           .single();
@@ -162,10 +160,19 @@ export const Route = createFileRoute("/api/public/whatsapp/ingest")({
           return new Response("Erro registrando foto", { status: 500 });
         }
 
-        await supabaseAdmin
+        // touch grupo if exists
+        const { data: grupoRow } = await supabaseAdmin
           .from("grupos")
-          .update({ ultima_foto_em: date.toISOString() })
-          .eq("id", grupoId);
+          .select("id")
+          .eq("whatsapp_jid", meta.group_jid)
+          .maybeSingle();
+        if (grupoRow) {
+          await supabaseAdmin
+            .from("grupos")
+            .update({ ultima_foto_em: date.toISOString() })
+            .eq("id", grupoRow.id);
+        }
+        void encarregadoFinal;
 
           return Response.json({ ok: true, id: foto.id, storage_path: storagePath });
         } catch (error) {
