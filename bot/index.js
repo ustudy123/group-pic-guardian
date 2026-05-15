@@ -7,6 +7,7 @@ import {
   makeCacheableSignalKeyStore,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
+import qrcodeTerminal from "qrcode-terminal";
 import { rm } from "node:fs/promises";
 
 const LOVABLE_API_URL = process.env.LOVABLE_API_URL;
@@ -30,6 +31,7 @@ function logQrLink(qr) {
   const link = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=20&data=${encodeURIComponent(qr)}`;
   logger.info({ qrLink: link }, "QR disponível para escanear");
   console.log(`QR LINK: ${link}`);
+  qrcodeTerminal.generate(qr, { small: true });
 }
 
 function parseVersion(version) {
@@ -52,22 +54,27 @@ async function resolveWaVersion() {
     return envVersion;
   }
 
+  if (process.env.WA_LATEST === "1") {
+    try {
+      const { version, isLatest } = await fetchLatestBaileysVersion();
+      logger.info({ version, isLatest }, "Usando versão do WhatsApp Web detectada pelo Baileys");
+      return version;
+    } catch (err) {
+      logger.warn(
+        { err: String(err), version: FORCE_WA_VERSION },
+        "Falha ao detectar versão latest; usando versão compatível fixa"
+      );
+      return FORCE_WA_VERSION;
+    }
+  }
+
   if (process.env.WA_FORCE_COMPAT === "1") {
     logger.info({ version: FORCE_WA_VERSION }, "Usando versão compatível fixa do WhatsApp Web");
     return FORCE_WA_VERSION;
   }
 
-  try {
-    const { version, isLatest } = await fetchLatestBaileysVersion();
-    logger.info({ version, isLatest }, "Usando versão do WhatsApp Web detectada pelo Baileys");
-    return version;
-  } catch (err) {
-    logger.warn(
-      { err: String(err), version: FALLBACK_WA_VERSION },
-      "Falha ao detectar versão do WhatsApp Web; usando fallback"
-    );
-    return FALLBACK_WA_VERSION;
-  }
+  logger.info({ version: FORCE_WA_VERSION }, "Usando versão compatível fixa do WhatsApp Web por padrão");
+  return FORCE_WA_VERSION;
 }
 
 async function resetAuthState() {
@@ -214,17 +221,14 @@ async function start() {
       if (
         (statusCode === 401 || statusCode === 403 || statusCode === 405) &&
         !state.creds?.registered &&
-        !authResetTried &&
-        !process.env.WA_VERSION &&
-        !sameVersion(version, FORCE_WA_VERSION) &&
-        lastForcedVersionKey !== versionKey
+        !authResetTried
       ) {
         authResetTried = true;
         lastForcedVersionKey = versionKey;
         process.env.WA_VERSION = FORCE_WA_VERSION.join(",");
         logger.warn(
           { currentVersion: version, forcedVersion: FORCE_WA_VERSION },
-          "WhatsApp recusou a sessão com 403 antes do pareamento; limpando auth e reiniciando com versão compatível"
+          "WhatsApp recusou a sessão antes do pareamento; limpando auth e reiniciando com versão compatível"
         );
         await resetAuthState();
         setTimeout(start, 3000);
