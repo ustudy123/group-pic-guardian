@@ -32,8 +32,8 @@ export const Route = createFileRoute("/api/public/whatsapp/ingest")({
             return new Response("Unauthorized", { status: 401 });
           }
 
-          if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            console.error("WhatsApp ingest misconfigured: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+          if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.error("WhatsApp ingest misconfigured: missing SUPABASE_SERVICE_ROLE_KEY");
             return new Response("Server not configured: missing Supabase admin access", { status: 500 });
           }
 
