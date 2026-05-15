@@ -148,6 +148,42 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_bot_status: {
+        Row: {
+          connection_status: string
+          created_at: string
+          id: string
+          last_error: string | null
+          last_event_at: string
+          meta: Json
+          phone_jid: string | null
+          qr_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          connection_status?: string
+          created_at?: string
+          id: string
+          last_error?: string | null
+          last_event_at?: string
+          meta?: Json
+          phone_jid?: string | null
+          qr_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          connection_status?: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          last_event_at?: string
+          meta?: Json
+          phone_jid?: string | null
+          qr_text?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
