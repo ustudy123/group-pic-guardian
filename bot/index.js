@@ -143,6 +143,11 @@ async function safeReply(sock, jid, quoted, text) {
 
 async function start() {
   logger.info({ authDir: AUTH_DIR }, "Iniciando bot do WhatsApp");
+  await postStatus({
+    connection_status: "starting",
+    qr_text: null,
+    last_error: null,
+  });
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const version = await resolveWaVersion();
   const versionKey = version.join(".");
@@ -163,10 +168,21 @@ async function start() {
   sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       logQrLink(qr);
+      await postStatus({
+        connection_status: "qr_ready",
+        qr_text: qr,
+        last_error: null,
+      });
     }
     if (connection === "open") {
       authResetTried = false;
       logger.info("Conectado ao WhatsApp.");
+      await postStatus({
+        connection_status: "connected",
+        qr_text: null,
+        last_error: null,
+        phone_jid: sock.user?.id ?? null,
+      });
     }
     if (connection === "close") {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
@@ -182,7 +198,20 @@ async function start() {
         "conexão fechada"
       );
 
-      if (statusCode === 405 && !state.creds?.registered && !authResetTried) {
+      await postStatus({
+        connection_status: statusCode === 401 || statusCode === 403 || statusCode === 405 ? "error" : "disconnected",
+        qr_text: null,
+        last_error: `status ${statusCode ?? "?"}: ${lastDisconnect?.error?.message || "Connection Failure"}`,
+        phone_jid: sock.user?.id ?? null,
+        meta: {
+          statusCode: statusCode ?? null,
+          shouldReconnect,
+          hasRegisteredSession: Boolean(state.creds?.registered),
+          version,
+        },
+      });
+
+      if ((statusCode === 401 || statusCode === 405) && !state.creds?.registered && !authResetTried) {
         authResetTried = true;
         logger.warn(
           "WhatsApp recusou a sessão antes do QR; limpando auth para forçar um pareamento novo"
