@@ -14,62 +14,154 @@ export type Database = {
   }
   public: {
     Tables: {
+      encarregados: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          grupo_whatsapp_id: string
+          grupo_whatsapp_nome: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          grupo_whatsapp_id: string
+          grupo_whatsapp_nome?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          grupo_whatsapp_id?: string
+          grupo_whatsapp_nome?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      eventos_raw: {
+        Row: {
+          chat_id: string | null
+          created_at: string
+          erro: string | null
+          id: string
+          message_id: string | null
+          payload: Json
+          processado: boolean
+          tipo_evento: string
+        }
+        Insert: {
+          chat_id?: string | null
+          created_at?: string
+          erro?: string | null
+          id?: string
+          message_id?: string | null
+          payload: Json
+          processado?: boolean
+          tipo_evento: string
+        }
+        Update: {
+          chat_id?: string | null
+          created_at?: string
+          erro?: string | null
+          id?: string
+          message_id?: string | null
+          payload?: Json
+          processado?: boolean
+          tipo_evento?: string
+        }
+        Relationships: []
+      }
       fotos: {
         Row: {
-          ano_mes: string
+          altura: number | null
           caption: string | null
           created_at: string
           data_envio: string
-          dia: string
-          encarregado: string
-          grupo_id: string
+          data_pasta: string
+          encarregado_id: string
+          erro_mensagem: string | null
           id: string
-          mime_type: string
-          remetente_jid: string | null
+          largura: number | null
+          message_id: string
+          mime_type: string | null
           remetente_nome: string | null
+          remetente_telefone: string | null
+          status: string
           storage_path: string
-          tamanho_bytes: number
-          whatsapp_msg_id: string
+          storage_url: string | null
+          tamanho_bytes: number | null
         }
         Insert: {
-          ano_mes: string
+          altura?: number | null
           caption?: string | null
           created_at?: string
           data_envio: string
-          dia: string
-          encarregado: string
-          grupo_id: string
+          data_pasta: string
+          encarregado_id: string
+          erro_mensagem?: string | null
           id?: string
-          mime_type: string
-          remetente_jid?: string | null
+          largura?: number | null
+          message_id: string
+          mime_type?: string | null
           remetente_nome?: string | null
+          remetente_telefone?: string | null
+          status?: string
           storage_path: string
-          tamanho_bytes: number
-          whatsapp_msg_id: string
+          storage_url?: string | null
+          tamanho_bytes?: number | null
         }
         Update: {
-          ano_mes?: string
+          altura?: number | null
           caption?: string | null
           created_at?: string
           data_envio?: string
-          dia?: string
-          encarregado?: string
-          grupo_id?: string
+          data_pasta?: string
+          encarregado_id?: string
+          erro_mensagem?: string | null
           id?: string
-          mime_type?: string
-          remetente_jid?: string | null
+          largura?: number | null
+          message_id?: string
+          mime_type?: string | null
           remetente_nome?: string | null
+          remetente_telefone?: string | null
+          status?: string
           storage_path?: string
-          tamanho_bytes?: number
-          whatsapp_msg_id?: string
+          storage_url?: string | null
+          tamanho_bytes?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "fotos_grupo_id_fkey"
-            columns: ["grupo_id"]
+            foreignKeyName: "fotos_encarregado_id_fkey"
+            columns: ["encarregado_id"]
             isOneToOne: false
-            referencedRelation: "grupos"
+            referencedRelation: "encarregados"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fotos_encarregado_id_fkey"
+            columns: ["encarregado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_fotos_completas"
+            referencedColumns: ["encarregado_id"]
+          },
+          {
+            foreignKeyName: "fotos_encarregado_id_fkey"
+            columns: ["encarregado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_resumo_diario"
+            referencedColumns: ["encarregado_id"]
           },
         ]
       }
@@ -105,6 +197,76 @@ export type Database = {
           whatsapp_jid?: string
         }
         Relationships: []
+      }
+      localizacoes: {
+        Row: {
+          consulta_enviada: boolean
+          consulta_enviada_em: string | null
+          created_at: string
+          data_envio: string
+          encarregado_id: string
+          endereco: string | null
+          id: string
+          latitude: number
+          longitude: number
+          message_id: string
+          nome_local: string | null
+          remetente_nome: string | null
+          remetente_telefone: string | null
+        }
+        Insert: {
+          consulta_enviada?: boolean
+          consulta_enviada_em?: string | null
+          created_at?: string
+          data_envio: string
+          encarregado_id: string
+          endereco?: string | null
+          id?: string
+          latitude: number
+          longitude: number
+          message_id: string
+          nome_local?: string | null
+          remetente_nome?: string | null
+          remetente_telefone?: string | null
+        }
+        Update: {
+          consulta_enviada?: boolean
+          consulta_enviada_em?: string | null
+          created_at?: string
+          data_envio?: string
+          encarregado_id?: string
+          endereco?: string | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          message_id?: string
+          nome_local?: string | null
+          remetente_nome?: string | null
+          remetente_telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "localizacoes_encarregado_id_fkey"
+            columns: ["encarregado_id"]
+            isOneToOne: false
+            referencedRelation: "encarregados"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "localizacoes_encarregado_id_fkey"
+            columns: ["encarregado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_fotos_completas"
+            referencedColumns: ["encarregado_id"]
+          },
+          {
+            foreignKeyName: "localizacoes_encarregado_id_fkey"
+            columns: ["encarregado_id"]
+            isOneToOne: false
+            referencedRelation: "vw_resumo_diario"
+            referencedColumns: ["encarregado_id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -186,7 +348,40 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_fotos_completas: {
+        Row: {
+          altura: number | null
+          caption: string | null
+          created_at: string | null
+          data_envio: string | null
+          data_pasta: string | null
+          encarregado_id: string | null
+          encarregado_nome: string | null
+          grupo_whatsapp_nome: string | null
+          id: string | null
+          largura: number | null
+          message_id: string | null
+          mime_type: string | null
+          remetente_nome: string | null
+          remetente_telefone: string | null
+          status: string | null
+          storage_path: string | null
+          storage_url: string | null
+          tamanho_bytes: number | null
+        }
+        Relationships: []
+      }
+      vw_resumo_diario: {
+        Row: {
+          data_pasta: string | null
+          encarregado_id: string | null
+          encarregado_nome: string | null
+          primeira_foto: string | null
+          total_fotos: number | null
+          ultima_foto: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
@@ -196,6 +391,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      limpar_eventos_antigos: { Args: { dias?: number }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user"
