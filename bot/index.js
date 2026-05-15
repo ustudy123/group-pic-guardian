@@ -23,6 +23,7 @@ if (!LOVABLE_API_URL || !WHATSAPP_BOT_SECRET) {
 }
 
 const INGEST_URL = `${LOVABLE_API_URL.replace(/\/$/, "")}/api/public/whatsapp/ingest`;
+const STATUS_URL = `${LOVABLE_API_URL.replace(/\/$/, "")}/api/public/whatsapp/status`;
 const logger = pino({ level: "info" });
 
 function logQrLink(qr) {
@@ -107,6 +108,29 @@ async function postFoto({ buffer, mime, meta }) {
   }
   logger.error({ msg_id: meta.msg_id }, "desisti após 5 tentativas");
   return { ok: false, status: 0, text: "timeout após 5 tentativas" };
+}
+
+async function postStatus(payload) {
+  try {
+    const res = await fetch(STATUS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Bot-Secret": WHATSAPP_BOT_SECRET,
+      },
+      body: JSON.stringify({
+        ...payload,
+        last_event_at: new Date().toISOString(),
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      logger.warn({ status: res.status, text }, "falha ao publicar status do bot");
+    }
+  } catch (err) {
+    logger.warn({ err: String(err) }, "erro ao publicar status do bot");
+  }
 }
 
 async function safeReply(sock, jid, quoted, text) {
