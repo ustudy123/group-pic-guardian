@@ -55,7 +55,7 @@ export const Route = createFileRoute("/api/public/whatsapp/zapi")({
             tipo_evento: "zapi_webhook",
             message_id: body.messageId ?? null,
             chat_id: body.phone ?? null,
-            payload: body as unknown as Record<string, unknown>,
+            payload: JSON.parse(JSON.stringify(body)),
           });
 
           // Só processamos imagens recebidas em grupos (não enviadas por nós)
