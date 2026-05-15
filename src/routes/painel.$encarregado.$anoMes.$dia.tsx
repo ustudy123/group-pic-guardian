@@ -13,7 +13,7 @@ type Foto = {
   storage_path: string;
   data_envio: string;
   remetente_nome: string | null;
-  mime_type: string;
+  mime_type: string | null;
   signedUrl?: string;
 };
 
@@ -25,12 +25,20 @@ function DiaPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["fotos-dia", encarregado, anoMes, dia],
     queryFn: async (): Promise<Foto[]> => {
+      const { data: encs, error: errE } = await supabase
+        .from("encarregados")
+        .select("id")
+        .eq("nome", encarregado);
+      if (errE) throw errE;
+      const ids = (encs ?? []).map((e) => e.id);
+      if (ids.length === 0) return [];
+
+      const dataPasta = `${anoMes}-${dia}`;
       const { data, error } = await supabase
         .from("fotos")
         .select("id, caption, storage_path, data_envio, remetente_nome, mime_type")
-        .eq("encarregado", encarregado)
-        .eq("ano_mes", anoMes)
-        .eq("dia", dia)
+        .in("encarregado_id", ids)
+        .eq("data_pasta", dataPasta)
         .order("data_envio", { ascending: true });
       if (error) throw error;
 

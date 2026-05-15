@@ -12,16 +12,26 @@ function EncarregadoPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["encarregado-meses", encarregado],
     queryFn: async () => {
+      const { data: encs, error: errE } = await supabase
+        .from("encarregados")
+        .select("id")
+        .eq("nome", encarregado);
+      if (errE) throw errE;
+      const ids = (encs ?? []).map((e) => e.id);
+      if (ids.length === 0) return [];
+
       const { data, error } = await supabase
         .from("fotos")
-        .select("ano_mes, dia")
-        .eq("encarregado", encarregado);
+        .select("data_pasta")
+        .in("encarregado_id", ids);
       if (error) throw error;
       const map = new Map<string, Map<string, number>>();
       for (const f of data ?? []) {
-        if (!map.has(f.ano_mes)) map.set(f.ano_mes, new Map());
-        const dias = map.get(f.ano_mes)!;
-        dias.set(f.dia, (dias.get(f.dia) ?? 0) + 1);
+        const [y, m, d] = f.data_pasta.split("-");
+        const anoMes = `${y}-${m}`;
+        if (!map.has(anoMes)) map.set(anoMes, new Map());
+        const dias = map.get(anoMes)!;
+        dias.set(d, (dias.get(d) ?? 0) + 1);
       }
       return Array.from(map.entries())
         .sort((a, b) => b[0].localeCompare(a[0]))

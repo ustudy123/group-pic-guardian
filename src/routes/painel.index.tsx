@@ -19,29 +19,39 @@ function PainelHome() {
   const { data, isLoading } = useQuery({
     queryKey: ["painel-encarregados"],
     queryFn: async () => {
-      const { data: grupos, error } = await supabase
-        .from("grupos")
-        .select("id, encarregado, nome_exibicao, ultima_foto_em, ativo")
-        .order("encarregado");
+      const { data: encarregados, error } = await supabase
+        .from("encarregados")
+        .select("id, nome, grupo_whatsapp_nome")
+        .order("nome");
       if (error) throw error;
+
+      const { data: grupos } = await supabase
+        .from("grupos")
+        .select("encarregado, ultima_foto_em");
 
       const { data: fotos } = await supabase
         .from("fotos")
-        .select("encarregado, ano_mes, dia");
+        .select("encarregado_id, data_pasta");
 
       const { anoMes, dia } = todayStr();
+      const hojeStr = `${anoMes}-${dia}`;
       const map = new Map<string, { total: number; hoje: number; ultima: string | null; grupos: number }>();
+      for (const e of encarregados ?? []) {
+        map.set(e.nome, { total: 0, hoje: 0, ultima: null, grupos: 1 });
+      }
       for (const g of grupos ?? []) {
         const cur = map.get(g.encarregado) ?? { total: 0, hoje: 0, ultima: null, grupos: 0 };
-        cur.grupos += 1;
         if (g.ultima_foto_em && (!cur.ultima || g.ultima_foto_em > cur.ultima)) cur.ultima = g.ultima_foto_em;
         map.set(g.encarregado, cur);
       }
+      const idToNome = new Map((encarregados ?? []).map((e) => [e.id, e.nome]));
       for (const f of fotos ?? []) {
-        const cur = map.get(f.encarregado) ?? { total: 0, hoje: 0, ultima: null, grupos: 0 };
+        const nome = idToNome.get(f.encarregado_id);
+        if (!nome) continue;
+        const cur = map.get(nome) ?? { total: 0, hoje: 0, ultima: null, grupos: 0 };
         cur.total += 1;
-        if (f.ano_mes === anoMes && f.dia === dia) cur.hoje += 1;
-        map.set(f.encarregado, cur);
+        if (f.data_pasta === hojeStr) cur.hoje += 1;
+        map.set(nome, cur);
       }
       return Array.from(map.entries()).map(([nome, v]) => ({ nome, ...v }));
     },

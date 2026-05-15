@@ -79,41 +79,41 @@ export const Route = createFileRoute("/api/public/whatsapp/ingest")({
         const { data: existing } = await supabaseAdmin
           .from("fotos")
           .select("id")
-          .eq("whatsapp_msg_id", meta.msg_id)
+          .eq("message_id", meta.msg_id)
           .maybeSingle();
         if (existing) {
           return Response.json({ ok: true, duplicated: true, id: existing.id });
         }
 
-        // Upsert grupo
+        // Upsert encarregado (por grupo_whatsapp_id)
         const encarregado = extractEncarregado(meta.group_name);
-        const { data: grupoExistente } = await supabaseAdmin
-          .from("grupos")
-          .select("id, encarregado")
-          .eq("whatsapp_jid", meta.group_jid)
+        const { data: encExistente } = await supabaseAdmin
+          .from("encarregados")
+          .select("id, nome")
+          .eq("grupo_whatsapp_id", meta.group_jid)
           .maybeSingle();
 
-        let grupoId: string;
+        let encarregadoId: string;
         let encarregadoFinal: string;
-        if (grupoExistente) {
-          grupoId = grupoExistente.id;
-          encarregadoFinal = grupoExistente.encarregado;
+        if (encExistente) {
+          encarregadoId = encExistente.id;
+          encarregadoFinal = encExistente.nome;
         } else {
-          const { data: novo, error: errGrupo } = await supabaseAdmin
-            .from("grupos")
+          const { data: novo, error: errEnc } = await supabaseAdmin
+            .from("encarregados")
             .insert({
-              whatsapp_jid: meta.group_jid,
-              nome_exibicao: meta.group_name,
-              encarregado,
+              grupo_whatsapp_id: meta.group_jid,
+              grupo_whatsapp_nome: meta.group_name,
+              nome: encarregado,
             })
-            .select("id, encarregado")
+            .select("id, nome")
             .single();
-          if (errGrupo || !novo) {
-            console.error("Erro inserindo grupo:", errGrupo);
-            return new Response("Erro registrando grupo", { status: 500 });
+          if (errEnc || !novo) {
+            console.error("Erro inserindo encarregado:", errEnc);
+            return new Response("Erro registrando encarregado", { status: 500 });
           }
-          grupoId = novo.id;
-          encarregadoFinal = novo.encarregado;
+          encarregadoId = novo.id;
+          encarregadoFinal = novo.nome;
         }
 
         // Caminho no storage
@@ -140,18 +140,16 @@ export const Route = createFileRoute("/api/public/whatsapp/ingest")({
         const { data: foto, error: errFoto } = await supabaseAdmin
           .from("fotos")
           .insert({
-            grupo_id: grupoId,
-            encarregado: encarregadoFinal,
-            whatsapp_msg_id: meta.msg_id,
-            remetente_jid: meta.sender_jid ?? null,
+            encarregado_id: encarregadoId,
+            message_id: meta.msg_id,
+            remetente_telefone: meta.sender_jid ?? null,
             remetente_nome: meta.sender_name ?? null,
             caption: meta.caption ?? null,
             mime_type: mime,
             tamanho_bytes: buffer.length,
             storage_path: storagePath,
             data_envio: date.toISOString(),
-            ano_mes: anoMes,
-            dia: dd,
+            data_pasta: `${yyyy}-${mm}-${dd}`,
           })
           .select("id")
           .single();
@@ -162,10 +160,19 @@ export const Route = createFileRoute("/api/public/whatsapp/ingest")({
           return new Response("Erro registrando foto", { status: 500 });
         }
 
-        await supabaseAdmin
+        // touch grupo if exists
+        const { data: grupoRow } = await supabaseAdmin
           .from("grupos")
-          .update({ ultima_foto_em: date.toISOString() })
-          .eq("id", grupoId);
+          .select("id")
+          .eq("whatsapp_jid", meta.group_jid)
+          .maybeSingle();
+        if (grupoRow) {
+          await supabaseAdmin
+            .from("grupos")
+            .update({ ultima_foto_em: date.toISOString() })
+            .eq("id", grupoRow.id);
+        }
+        void encarregadoFinal;
 
           return Response.json({ ok: true, id: foto.id, storage_path: storagePath });
         } catch (error) {
