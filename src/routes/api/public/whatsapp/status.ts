@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "crypto";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 
 const PayloadSchema = z.object({
   connection_status: z.enum(["idle", "starting", "qr_ready", "connected", "disconnected", "error"]),
@@ -52,7 +53,7 @@ export const Route = createFileRoute("/api/public/whatsapp/status")({
             qr_text: payload.qr_text ?? null,
             last_error: payload.last_error ?? null,
             phone_jid: payload.phone_jid ?? null,
-            meta: payload.meta ?? {},
+            meta: (payload.meta ? JSON.parse(JSON.stringify(payload.meta)) : {}) as Json,
             last_event_at: payload.last_event_at ?? new Date().toISOString(),
           },
           { onConflict: "id" }
