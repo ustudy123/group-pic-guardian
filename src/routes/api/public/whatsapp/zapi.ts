@@ -30,24 +30,29 @@ export const Route = createFileRoute("/api/public/whatsapp/zapi")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          // Segurança: Z-API envia o "Client-Token" configurado na conta
-          const expected = process.env.ZAPI_CLIENT_TOKEN;
-          if (expected) {
-            const provided = request.headers.get("client-token") ?? "";
-            if (provided !== expected) {
-              return new Response("Unauthorized", { status: 401 });
-            }
-          }
-
-          if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            return new Response("Server not configured", { status: 500 });
-          }
-
           let body: ZapiPayload;
           try {
             body = (await request.json()) as ZapiPayload;
           } catch {
             return new Response("Invalid JSON", { status: 400 });
+          }
+
+          const expectedClientToken = process.env.ZAPI_CLIENT_TOKEN;
+          const expectedInstanceId = process.env.ZAPI_INSTANCE_ID;
+          const providedClientToken = request.headers.get("client-token")?.trim() ?? "";
+          const clientTokenMatches = !!expectedClientToken && providedClientToken === expectedClientToken;
+          const instanceIdMatches = !!expectedInstanceId && body.instanceId === expectedInstanceId;
+
+          if ((expectedClientToken || expectedInstanceId) && !clientTokenMatches && !instanceIdMatches) {
+            console.warn("Z-API webhook unauthorized", {
+              hasClientTokenHeader: Boolean(providedClientToken),
+              hasBodyInstanceId: Boolean(body.instanceId),
+            });
+            return new Response("Unauthorized", { status: 401 });
+          }
+
+          if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            return new Response("Server not configured", { status: 500 });
           }
 
           // Log para auditoria/debug
