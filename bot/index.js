@@ -23,6 +23,7 @@ if (!LOVABLE_API_URL || !WHATSAPP_BOT_SECRET) {
 }
 
 const INGEST_URL = `${LOVABLE_API_URL.replace(/\/$/, "")}/api/public/whatsapp/ingest`;
+const STATUS_URL = `${LOVABLE_API_URL.replace(/\/$/, "")}/api/public/whatsapp/status`;
 const logger = pino({ level: "info" });
 
 function logQrLink(qr) {
@@ -109,6 +110,29 @@ async function postFoto({ buffer, mime, meta }) {
   return { ok: false, status: 0, text: "timeout após 5 tentativas" };
 }
 
+async function postStatus(payload) {
+  try {
+    const res = await fetch(STATUS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Bot-Secret": WHATSAPP_BOT_SECRET,
+      },
+      body: JSON.stringify({
+        ...payload,
+        last_event_at: new Date().toISOString(),
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      logger.warn({ status: res.status, text }, "falha ao publicar status do bot");
+    }
+  } catch (err) {
+    logger.warn({ err: String(err) }, "erro ao publicar status do bot");
+  }
+}
+
 async function safeReply(sock, jid, quoted, text) {
   try {
     await sock.sendMessage(jid, { text }, { quoted });
@@ -119,6 +143,11 @@ async function safeReply(sock, jid, quoted, text) {
 
 async function start() {
   logger.info({ authDir: AUTH_DIR }, "Iniciando bot do WhatsApp");
+  await postStatus({
+    connection_status: "starting",
+    qr_text: null,
+    last_error: null,
+  });
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const version = await resolveWaVersion();
   const versionKey = version.join(".");
@@ -139,10 +168,21 @@ async function start() {
   sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       logQrLink(qr);
+      await postStatus({
+        connection_status: "qr_ready",
+        qr_text: qr,
+        last_error: null,
+      });
     }
     if (connection === "open") {
       authResetTried = false;
       logger.info("Conectado ao WhatsApp.");
+      await postStatus({
+        connection_status: "connected",
+        qr_text: null,
+        last_error: null,
+        phone_jid: sock.user?.id ?? null,
+      });
     }
     if (connection === "close") {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
@@ -158,7 +198,20 @@ async function start() {
         "conexão fechada"
       );
 
-      if (statusCode === 405 && !state.creds?.registered && !authResetTried) {
+      await postStatus({
+        connection_status: statusCode === 401 || statusCode === 403 || statusCode === 405 ? "error" : "disconnected",
+        qr_text: null,
+        last_error: `status ${statusCode ?? "?"}: ${lastDisconnect?.error?.message || "Connection Failure"}`,
+        phone_jid: sock.user?.id ?? null,
+        meta: {
+          statusCode: statusCode ?? null,
+          shouldReconnect,
+          hasRegisteredSession: Boolean(state.creds?.registered),
+          version,
+        },
+      });
+
+      if ((statusCode === 401 || statusCode === 405) && !state.creds?.registered && !authResetTried) {
         authResetTried = true;
         logger.warn(
           "WhatsApp recusou a sessão antes do QR; limpando auth para forçar um pareamento novo"
@@ -254,6 +307,11 @@ async function start() {
 }
 
 start().catch((err) => {
+  void postStatus({
+    connection_status: "error",
+    qr_text: null,
+    last_error: String(err),
+  });
   logger.error({ err: String(err) }, "falha ao iniciar");
   process.exit(1);
 });

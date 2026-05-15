@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
+import { Route as ApiPublicWhatsappStatusRouteImport } from './routes/api/public/whatsapp/status'
 import { Route as ApiPublicWhatsappIngestRouteImport } from './routes/api/public/whatsapp/ingest'
 
 const PainelRoute = PainelRouteImport.update({
@@ -48,6 +49,11 @@ const PainelEncarregadoAnoMesDiaRoute =
     path: '/$anoMes/$dia',
     getParentRoute: () => PainelEncarregadoRoute,
   } as any)
+const ApiPublicWhatsappStatusRoute = ApiPublicWhatsappStatusRouteImport.update({
+  id: '/api/public/whatsapp/status',
+  path: '/api/public/whatsapp/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicWhatsappIngestRoute = ApiPublicWhatsappIngestRouteImport.update({
   id: '/api/public/whatsapp/ingest',
   path: '/api/public/whatsapp/ingest',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/': typeof PainelIndexRoute
   '/api/public/whatsapp/ingest': typeof ApiPublicWhatsappIngestRoute
+  '/api/public/whatsapp/status': typeof ApiPublicWhatsappStatusRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel': typeof PainelIndexRoute
   '/api/public/whatsapp/ingest': typeof ApiPublicWhatsappIngestRoute
+  '/api/public/whatsapp/status': typeof ApiPublicWhatsappStatusRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/': typeof PainelIndexRoute
   '/api/public/whatsapp/ingest': typeof ApiPublicWhatsappIngestRoute
+  '/api/public/whatsapp/status': typeof ApiPublicWhatsappStatusRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/'
     | '/api/public/whatsapp/ingest'
+    | '/api/public/whatsapp/status'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel'
     | '/api/public/whatsapp/ingest'
+    | '/api/public/whatsapp/status'
     | '/painel/$encarregado/$anoMes/$dia'
   id:
     | '__root__'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/'
     | '/api/public/whatsapp/ingest'
+    | '/api/public/whatsapp/status'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
 }
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
   ApiPublicWhatsappIngestRoute: typeof ApiPublicWhatsappIngestRoute
+  ApiPublicWhatsappStatusRoute: typeof ApiPublicWhatsappStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -161,6 +174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelEncarregadoAnoMesDiaRouteImport
       parentRoute: typeof PainelEncarregadoRoute
     }
+    '/api/public/whatsapp/status': {
+      id: '/api/public/whatsapp/status'
+      path: '/api/public/whatsapp/status'
+      fullPath: '/api/public/whatsapp/status'
+      preLoaderRoute: typeof ApiPublicWhatsappStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/whatsapp/ingest': {
       id: '/api/public/whatsapp/ingest'
       path: '/api/public/whatsapp/ingest'
@@ -200,17 +220,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
   ApiPublicWhatsappIngestRoute: ApiPublicWhatsappIngestRoute,
+  ApiPublicWhatsappStatusRoute: ApiPublicWhatsappStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

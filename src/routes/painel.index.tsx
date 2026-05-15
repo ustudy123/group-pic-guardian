@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { WhatsAppBotStatusCard } from "@/components/whatsapp-bot-status-card";
 
 export const Route = createFileRoute("/painel/")({
   component: PainelHome,
@@ -50,19 +51,24 @@ function PainelHome() {
 
   if (!data || data.length === 0) {
     return (
-      <div className="text-center py-20 space-y-3">
-        <h2 className="text-xl font-semibold">Nenhum grupo registrado ainda</h2>
-        <p className="text-muted-foreground max-w-md mx-auto">
-          Quando o bot do WhatsApp for conectado e a primeira foto for enviada num grupo,
-          ele aparece aqui automaticamente.
-        </p>
+      <div className="space-y-6">
+        <WhatsAppBotStatusCard />
+        <div className="text-center py-14 space-y-3">
+          <h2 className="text-xl font-semibold">Nenhum grupo registrado ainda</h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Quando o bot do WhatsApp for conectado e a primeira foto for enviada num grupo,
+            ele aparece aqui automaticamente.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Encarregados</h1>
+    <div className="space-y-6">
+      <WhatsAppBotStatusCard />
+      <div>
+        <h1 className="text-2xl font-bold mb-6">Encarregados</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {data.map((e) => (
           <Link
@@ -92,6 +98,7 @@ function PainelHome() {
             )}
           </Link>
         ))}
+      </div>
       </div>
     </div>
   );
