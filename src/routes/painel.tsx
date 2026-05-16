@@ -28,11 +28,19 @@ function PainelLayout() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div className="h-1 bg-construction-stripes" />
+      <header className="border-b bg-card/80 backdrop-blur sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/painel" className="font-semibold">
-              Fotos de Obras
+            <Link to="/painel" className="flex items-center gap-2.5 font-bold">
+              <span
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm"
+                style={{ background: "var(--gradient-safety)", boxShadow: "var(--shadow-glow)" }}
+                aria-hidden
+              >
+                ⛑
+              </span>
+              <span className="tracking-tight">Fotos de Obras</span>
             </Link>
             <BotStatusIndicator />
           </div>
@@ -43,7 +51,7 @@ function PainelLayout() {
                 await signOut();
                 navigate({ to: "/login" });
               }}
-              className="rounded-md border border-input px-3 py-1.5 hover:bg-accent"
+              className="rounded-md border border-input px-3 py-1.5 hover:bg-accent transition"
             >
               Sair
             </button>
