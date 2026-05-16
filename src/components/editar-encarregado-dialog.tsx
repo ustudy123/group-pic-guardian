@@ -90,7 +90,7 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome }: Props) {
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
             <DialogTitle>Editar encarregado</DialogTitle>
             <DialogDescription>
