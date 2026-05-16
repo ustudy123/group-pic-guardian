@@ -263,6 +263,30 @@ function GruposDescobertos() {
           </div>
         </section>
       )}
+
+      <AlertDialog open={!!recusarAlvo} onOpenChange={(o) => !o && setRecusarAlvo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Recusar este grupo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O grupo <span className="font-semibold text-foreground">{recusarAlvo?.nome_exibicao}</span> não
+              aparecerá mais como pendente no painel. Você pode reativá-lo depois na seção "Recusados".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (recusarAlvo) setAtivo.mutate({ id: recusarAlvo.id, ativo: false });
+                setRecusarAlvo(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Recusar grupo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
