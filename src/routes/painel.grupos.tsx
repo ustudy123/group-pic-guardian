@@ -13,10 +13,6 @@ type GrupoDescoberto = {
   id: string;
   whatsapp_jid: string;
   nome_exibicao: string;
-type GrupoDescoberto = {
-  id: string;
-  whatsapp_jid: string;
-  nome_exibicao: string;
   ultima_foto_em: string | null;
   ativo: boolean;
   ja_ativado: boolean;
