@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Users, Camera, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { NovoEncarregadoDialog } from "@/components/novo-encarregado-dialog";
+import { EditarEncarregadoDialog } from "@/components/editar-encarregado-dialog";
 import waGroupLogo from "@/assets/wa-group.png";
 
 export const Route = createFileRoute("/painel/")({
@@ -115,6 +116,7 @@ function PainelHome() {
                   boxShadow: `0 12px 30px -14px ${p.deep}55, 0 2px 6px -2px ${p.dark}30`,
                 }}
               >
+                <EditarEncarregadoDialog id={e.id} nome={e.nome} grupoNome={e.grupo_whatsapp_nome} />
                 {/* WhatsApp green header banner */}
                 <div
                   className="relative h-24 overflow-hidden"
