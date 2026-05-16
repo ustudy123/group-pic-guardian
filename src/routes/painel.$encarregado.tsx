@@ -24,12 +24,20 @@ function EncarregadoPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["encarregado-fotos", encarregado],
     queryFn: async (): Promise<Mes[]> => {
+      const { data: enc, error: encErr } = await supabase
+        .from("encarregados")
+        .select("id")
+        .eq("nome", encarregado)
+        .maybeSingle();
+      if (encErr) throw encErr;
+      if (!enc) return [];
+
       const { data: fotos, error } = await supabase
-        .from("vw_fotos_completas")
-        .select("id, data_pasta, storage_url, data_envio")
-        .eq("encarregado_nome", encarregado)
+        .from("fotos")
+        .select("data_pasta, storage_url, data_envio")
+        .eq("encarregado_id", enc.id)
         .order("data_envio", { ascending: false })
-        .limit(1000);
+        .limit(2000);
       if (error) throw error;
 
       const byDay = new Map<string, { storage_url: string | null }[]>();
@@ -69,6 +77,7 @@ function EncarregadoPage() {
           };
         });
     },
+    staleTime: 60_000,
   });
 
   const handleRFO = async (dataPasta: string) => {

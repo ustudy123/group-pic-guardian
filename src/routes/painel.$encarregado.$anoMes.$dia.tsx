@@ -28,10 +28,18 @@ function DiaPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["fotos-dia", encarregado, dataPasta],
     queryFn: async (): Promise<Foto[]> => {
+      const { data: enc, error: encErr } = await supabase
+        .from("encarregados")
+        .select("id")
+        .eq("nome", encarregado)
+        .maybeSingle();
+      if (encErr) throw encErr;
+      if (!enc) return [];
+
       const { data, error } = await supabase
-        .from("vw_fotos_completas")
+        .from("fotos")
         .select("id, caption, storage_url, data_envio, remetente_nome, mime_type")
-        .eq("encarregado_nome", encarregado)
+        .eq("encarregado_id", enc.id)
         .eq("data_pasta", dataPasta)
         .order("data_envio", { ascending: true });
       if (error) throw error;
@@ -44,6 +52,7 @@ function DiaPage() {
         mime_type: f.mime_type,
       }));
     },
+    staleTime: 60_000,
   });
 
   const filtradas = useMemo(() => {
