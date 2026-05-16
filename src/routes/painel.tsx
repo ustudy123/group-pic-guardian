@@ -1,8 +1,42 @@
 import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { BotStatusIndicator } from "@/components/bot-status-indicator";
 import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Inbox } from "lucide-react";
+
+function GruposPendentesLink() {
+  const { data: count = 0 } = useQuery({
+    queryKey: ["grupos-pendentes-count"],
+    queryFn: async () => {
+      const [{ data: grupos }, { data: encs }] = await Promise.all([
+        supabase.from("grupos").select("whatsapp_jid").eq("ativo", true),
+        supabase.from("encarregados").select("grupo_whatsapp_id"),
+      ]);
+      const ativados = new Set((encs ?? []).map((e) => e.grupo_whatsapp_id));
+      return (grupos ?? []).filter((g) => !ativados.has(g.whatsapp_jid)).length;
+    },
+    refetchInterval: 30_000,
+  });
+
+  return (
+    <Link
+      to="/painel/grupos"
+      className="relative inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+      title="Grupos descobertos pelo bot"
+    >
+      <Inbox size={15} />
+      <span className="hidden sm:inline">Grupos novos</span>
+      {count > 0 && (
+        <span className="ml-0.5 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold">
+          {count}
+        </span>
+      )}
+    </Link>
+  );
+}
 
 export const Route = createFileRoute("/painel")({
   component: PainelLayout,
