@@ -1,9 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { gerarRFO } from "@/lib/gerar-rfo";
 
 export const Route = createFileRoute("/painel/$encarregado/$anoMes/$dia")({
   component: DiaPage,
@@ -22,7 +20,6 @@ function DiaPage() {
   const { encarregado, anoMes, dia } = Route.useParams();
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<Foto | null>(null);
-  const [gerando, setGerando] = useState(false);
   const dataPasta = `${anoMes}-${dia}`;
 
   const { data, isLoading } = useQuery({
@@ -73,22 +70,6 @@ function DiaPage() {
     });
   }, [dataPasta]);
 
-  const handleRFO = async () => {
-    if (!data || data.length === 0) {
-      toast.error("Nenhuma foto para gerar");
-      return;
-    }
-    setGerando(true);
-    try {
-      await gerarRFO({ encarregado, dataPasta, fotos: data });
-      toast.success("RFO gerado");
-    } catch (e) {
-      toast.error("Erro: " + (e as Error).message);
-    } finally {
-      setGerando(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
       <div>
@@ -99,18 +80,9 @@ function DiaPage() {
         >
           ← {encarregado}
         </Link>
-        <div className="mt-2 flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold capitalize">{tituloData}</h1>
-            <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
-          </div>
-          <button
-            onClick={handleRFO}
-            disabled={gerando || !data || data.length === 0}
-            className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {gerando ? "Gerando..." : "📄 Gerar RFO"}
-          </button>
+        <div className="mt-2">
+          <h1 className="text-2xl font-bold capitalize">{tituloData}</h1>
+          <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
         </div>
       </div>
 

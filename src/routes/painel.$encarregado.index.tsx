@@ -1,9 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { gerarRFO } from "@/lib/gerar-rfo";
 
 export const Route = createFileRoute("/painel/$encarregado/")({
   component: EncarregadoPage,
@@ -18,7 +15,6 @@ type Mes = { anoMes: string; label: string; dias: Dia[] };
 
 function EncarregadoPage() {
   const { encarregado } = Route.useParams();
-  const [gerando, setGerando] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["encarregado-fotos", encarregado],
@@ -71,29 +67,6 @@ function EncarregadoPage() {
     },
     staleTime: 60_000,
   });
-
-  const handleRFO = async (dataPasta: string) => {
-    setGerando(dataPasta);
-    try {
-      const { data: fotos, error } = await supabase
-        .from("vw_fotos_completas")
-        .select("storage_url, caption, data_envio")
-        .eq("encarregado_nome", encarregado)
-        .eq("data_pasta", dataPasta)
-        .order("data_envio", { ascending: true });
-      if (error) throw error;
-      if (!fotos || fotos.length === 0) {
-        toast.error("Nenhuma foto nesse dia");
-        return;
-      }
-      await gerarRFO({ encarregado, dataPasta, fotos });
-      toast.success("RFO gerado");
-    } catch (e) {
-      toast.error("Erro ao gerar RFO: " + (e as Error).message);
-    } finally {
-      setGerando(null);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -170,13 +143,6 @@ function EncarregadoPage() {
                       </div>
                     </div>
                   </Link>
-                  <button
-                    onClick={() => handleRFO(d.dataPasta)}
-                    disabled={gerando === d.dataPasta}
-                    className="text-[11px] rounded-md border border-input px-2 py-1 hover:bg-accent disabled:opacity-50 w-full"
-                  >
-                    {gerando === d.dataPasta ? "Gerando..." : "📄 Gerar RFO"}
-                  </button>
                 </div>
               );
             })}
