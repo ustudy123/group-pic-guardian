@@ -15,7 +15,6 @@ type Mes = { anoMes: string; label: string; dias: Dia[] };
 
 function EncarregadoPage() {
   const { encarregado } = Route.useParams();
-  const [gerando, setGerando] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["encarregado-fotos", encarregado],
