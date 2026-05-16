@@ -37,8 +37,7 @@ function GruposDescobertos() {
       const [{ data: grupos, error: ge }, { data: encs, error: ee }] = await Promise.all([
         supabase
           .from("grupos")
-          .select("id, whatsapp_jid, nome_exibicao, ultima_foto_em")
-          .eq("ativo", true)
+          .select("id, whatsapp_jid, nome_exibicao, ultima_foto_em, ativo")
           .order("ultima_foto_em", { ascending: false, nullsFirst: false }),
         supabase.from("encarregados").select("grupo_whatsapp_id"),
       ]);
@@ -67,12 +66,30 @@ function GruposDescobertos() {
       setNomeEnc("");
       qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
       qc.invalidateQueries({ queryKey: ["painel-encarregados"] });
+      qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
     },
     onError: (e: Error) => toast.error("Erro: " + e.message),
   });
 
-  const pendentes = (data ?? []).filter((g) => !g.ja_ativado);
-  const ativados = (data ?? []).filter((g) => g.ja_ativado);
+  const setAtivo = useMutation({
+    mutationFn: async (args: { id: string; ativo: boolean }) => {
+      const { error } = await supabase
+        .from("grupos")
+        .update({ ativo: args.ativo })
+        .eq("id", args.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      toast.success(v.ativo ? "Grupo reativado" : "Grupo recusado");
+      qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
+      qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
+    },
+    onError: (e: Error) => toast.error("Erro: " + e.message),
+  });
+
+  const pendentes = (data ?? []).filter((g) => g.ativo && !g.ja_ativado);
+  const ativados = (data ?? []).filter((g) => g.ativo && g.ja_ativado);
+  const recusados = (data ?? []).filter((g) => !g.ativo);
 
   return (
     <div className="space-y-6">
