@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, ArrowLeft, Check } from "lucide-react";
+import { Users, ArrowLeft, Check, X, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/painel/grupos")({
   component: GruposDescobertos,
