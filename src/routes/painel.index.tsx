@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Users, Camera, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { NovoEncarregadoDialog } from "@/components/novo-encarregado-dialog";
+import { EditarEncarregadoDialog } from "@/components/editar-encarregado-dialog";
 import waGroupLogo from "@/assets/wa-group.png";
 
 export const Route = createFileRoute("/painel/")({
