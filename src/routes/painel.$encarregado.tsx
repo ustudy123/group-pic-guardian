@@ -33,31 +33,24 @@ function EncarregadoPage() {
 
       const { data: fotos, error } = await supabase
         .from("fotos")
-        .select("data_pasta, storage_url, data_envio")
+        .select("data_pasta")
         .eq("encarregado_id", enc.id)
         .order("data_envio", { ascending: false })
-        .limit(2000);
+        .limit(5000);
       if (error) throw error;
 
-      const byDay = new Map<string, { storage_url: string | null }[]>();
+      const byDay = new Map<string, number>();
       for (const f of fotos ?? []) {
         if (!f.data_pasta) continue;
-        const arr = byDay.get(f.data_pasta) ?? [];
-        arr.push({ storage_url: f.storage_url });
-        byDay.set(f.data_pasta, arr);
+        byDay.set(f.data_pasta, (byDay.get(f.data_pasta) ?? 0) + 1);
       }
 
       const byMonth = new Map<string, Dia[]>();
-      for (const [dataPasta, fs] of byDay.entries()) {
+      for (const [dataPasta, count] of byDay.entries()) {
         const [y, m, d] = dataPasta.split("-");
         const anoMes = `${y}-${m}`;
         const arr = byMonth.get(anoMes) ?? [];
-        arr.push({
-          dia: d,
-          dataPasta,
-          count: fs.length,
-          thumbs: fs.slice(0, 4).map((f) => f.storage_url),
-        });
+        arr.push({ dia: d, dataPasta, count });
         byMonth.set(anoMes, arr);
       }
 
