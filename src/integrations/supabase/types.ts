@@ -169,7 +169,7 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string
-          encarregado: string
+          encarregado: string | null
           id: string
           nome_exibicao: string
           ultima_foto_em: string | null
@@ -179,7 +179,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
-          encarregado: string
+          encarregado?: string | null
           id?: string
           nome_exibicao: string
           ultima_foto_em?: string | null
@@ -189,7 +189,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
-          encarregado?: string
+          encarregado?: string | null
           id?: string
           nome_exibicao?: string
           ultima_foto_em?: string | null
