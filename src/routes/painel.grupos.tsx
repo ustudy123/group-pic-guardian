@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, ArrowLeft, Check } from "lucide-react";
+import { Users, ArrowLeft, Check, X, RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/painel/grupos")({
   component: GruposDescobertos,
@@ -14,6 +14,7 @@ type GrupoDescoberto = {
   whatsapp_jid: string;
   nome_exibicao: string;
   ultima_foto_em: string | null;
+  ativo: boolean;
   ja_ativado: boolean;
 };
 
@@ -36,8 +37,7 @@ function GruposDescobertos() {
       const [{ data: grupos, error: ge }, { data: encs, error: ee }] = await Promise.all([
         supabase
           .from("grupos")
-          .select("id, whatsapp_jid, nome_exibicao, ultima_foto_em")
-          .eq("ativo", true)
+          .select("id, whatsapp_jid, nome_exibicao, ultima_foto_em, ativo")
           .order("ultima_foto_em", { ascending: false, nullsFirst: false }),
         supabase.from("encarregados").select("grupo_whatsapp_id"),
       ]);
@@ -66,12 +66,30 @@ function GruposDescobertos() {
       setNomeEnc("");
       qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
       qc.invalidateQueries({ queryKey: ["painel-encarregados"] });
+      qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
     },
     onError: (e: Error) => toast.error("Erro: " + e.message),
   });
 
-  const pendentes = (data ?? []).filter((g) => !g.ja_ativado);
-  const ativados = (data ?? []).filter((g) => g.ja_ativado);
+  const setAtivo = useMutation({
+    mutationFn: async (args: { id: string; ativo: boolean }) => {
+      const { error } = await supabase
+        .from("grupos")
+        .update({ ativo: args.ativo })
+        .eq("id", args.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => {
+      toast.success(v.ativo ? "Grupo reativado" : "Grupo recusado");
+      qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
+      qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
+    },
+    onError: (e: Error) => toast.error("Erro: " + e.message),
+  });
+
+  const pendentes = (data ?? []).filter((g) => g.ativo && !g.ja_ativado);
+  const ativados = (data ?? []).filter((g) => g.ativo && g.ja_ativado);
+  const recusados = (data ?? []).filter((g) => !g.ativo);
 
   return (
     <div className="space-y-6">
@@ -162,15 +180,28 @@ function GruposDescobertos() {
                     </button>
                   </form>
                 ) : (
-                  <button
-                    onClick={() => {
-                      setEditingId(g.id);
-                      setNomeEnc(sugerirNome(g.nome_exibicao));
-                    }}
-                    className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
-                  >
-                    Ativar
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (confirm(`Recusar o grupo "${g.nome_exibicao}"? Ele não aparecerá mais no painel.`)) {
+                          setAtivo.mutate({ id: g.id, ativo: false });
+                        }
+                      }}
+                      disabled={setAtivo.isPending}
+                      className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
+                    >
+                      <X size={14} /> Recusar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingId(g.id);
+                        setNomeEnc(sugerirNome(g.nome_exibicao));
+                      }}
+                      className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+                    >
+                      Ativar
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -194,6 +225,32 @@ function GruposDescobertos() {
                 <span className="text-xs text-muted-foreground font-mono truncate hidden sm:inline">
                   {g.whatsapp_jid}
                 </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {recusados.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Recusados ({recusados.length})
+          </h2>
+          <div className="grid gap-2">
+            {recusados.map((g) => (
+              <div
+                key={g.id}
+                className="border rounded-lg bg-muted/20 p-3 flex items-center gap-3 text-sm opacity-70"
+              >
+                <X size={16} className="text-muted-foreground shrink-0" />
+                <span className="flex-1 truncate">{g.nome_exibicao}</span>
+                <button
+                  onClick={() => setAtivo.mutate({ id: g.id, ativo: true })}
+                  disabled={setAtivo.isPending}
+                  className="inline-flex items-center gap-1 text-xs rounded-md border border-input px-2.5 py-1 hover:bg-accent transition disabled:opacity-50"
+                >
+                  <RotateCcw size={12} /> Reativar
+                </button>
               </div>
             ))}
           </div>
