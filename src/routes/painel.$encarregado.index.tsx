@@ -166,13 +166,15 @@ function EncarregadoPage() {
                       </div>
                     </div>
                   </Link>
-                  <button
-                    onClick={() => handleRFO(d.dataPasta)}
-                    disabled={gerando === d.dataPasta}
-                    className="text-[11px] rounded-md border border-input px-2 py-1 hover:bg-accent disabled:opacity-50 w-full"
-                  >
-                    {gerando === d.dataPasta ? "Gerando..." : "📄 Gerar RFO"}
-                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
                 </div>
               );
             })}
