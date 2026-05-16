@@ -61,13 +61,14 @@ function PainelHome() {
     },
   });
 
+  // WhatsApp-inspired green palette variations per card
   const palettes = [
-    { grad: "linear-gradient(135deg, oklch(0.72 0.2 55), oklch(0.62 0.22 35))", ring: "oklch(0.72 0.2 55)", label: "Safety" },
-    { grad: "linear-gradient(135deg, oklch(0.42 0.09 245), oklch(0.55 0.13 245))", ring: "oklch(0.5 0.13 245)", label: "Steel" },
-    { grad: "linear-gradient(135deg, oklch(0.55 0.13 145), oklch(0.7 0.16 140))", ring: "oklch(0.55 0.13 145)", label: "Verde" },
-    { grad: "linear-gradient(135deg, oklch(0.88 0.18 95), oklch(0.78 0.2 65))", ring: "oklch(0.78 0.2 65)", label: "Hi-Vis" },
-    { grad: "linear-gradient(135deg, oklch(0.45 0.08 30), oklch(0.6 0.13 40))", ring: "oklch(0.5 0.1 35)", label: "Terra" },
-    { grad: "linear-gradient(135deg, oklch(0.35 0.05 260), oklch(0.5 0.1 280))", ring: "oklch(0.45 0.1 270)", label: "Noite" },
+    { primary: "#25D366", deep: "#128C7E", dark: "#075E54", tint: "#DCF8C6", label: "Equipe" },
+    { primary: "#1FAD56", deep: "#0F7A65", dark: "#064E45", tint: "#D4F3C2", label: "Obra" },
+    { primary: "#34D399", deep: "#0E8C6E", dark: "#0a5d4a", tint: "#D1FAE5", label: "Campo" },
+    { primary: "#22C55E", deep: "#15803D", dark: "#14532D", tint: "#DCFCE7", label: "Grupo" },
+    { primary: "#2DD4BF", deep: "#0F766E", dark: "#134E4A", tint: "#CCFBF1", label: "Time" },
+    { primary: "#10B981", deep: "#047857", dark: "#064E3B", tint: "#D1FAE5", label: "Frente" },
   ];
 
   return (
