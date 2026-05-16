@@ -230,6 +230,32 @@ function GruposDescobertos() {
           </div>
         </section>
       )}
+
+      {recusados.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Recusados ({recusados.length})
+          </h2>
+          <div className="grid gap-2">
+            {recusados.map((g) => (
+              <div
+                key={g.id}
+                className="border rounded-lg bg-muted/20 p-3 flex items-center gap-3 text-sm opacity-70"
+              >
+                <X size={16} className="text-muted-foreground shrink-0" />
+                <span className="flex-1 truncate">{g.nome_exibicao}</span>
+                <button
+                  onClick={() => setAtivo.mutate({ id: g.id, ativo: true })}
+                  disabled={setAtivo.isPending}
+                  className="inline-flex items-center gap-1 text-xs rounded-md border border-input px-2.5 py-1 hover:bg-accent transition disabled:opacity-50"
+                >
+                  <RotateCcw size={12} /> Reativar
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
