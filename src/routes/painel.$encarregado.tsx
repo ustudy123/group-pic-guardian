@@ -13,7 +13,6 @@ type Dia = {
   dia: string;
   dataPasta: string;
   count: number;
-  thumbs: (string | null)[];
 };
 type Mes = { anoMes: string; label: string; dias: Dia[] };
 
