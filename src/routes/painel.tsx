@@ -79,6 +79,7 @@ function PainelLayout() {
             <BotStatusIndicator />
           </div>
           <div className="flex items-center gap-3 text-sm">
+            <GruposPendentesLink />
             <span className="text-muted-foreground hidden sm:inline">{user.email}</span>
             <button
               onClick={async () => {
