@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
+import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 
 const PainelRoute = PainelRouteImport.update({
@@ -41,6 +42,11 @@ const PainelEncarregadoRoute = PainelEncarregadoRouteImport.update({
   path: '/$encarregado',
   getParentRoute: () => PainelRoute,
 } as any)
+const PainelEncarregadoIndexRoute = PainelEncarregadoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PainelEncarregadoRoute,
+} as any)
 const PainelEncarregadoAnoMesDiaRoute =
   PainelEncarregadoAnoMesDiaRouteImport.update({
     id: '/$anoMes/$dia',
@@ -54,13 +60,14 @@ export interface FileRoutesByFullPath {
   '/painel': typeof PainelRouteWithChildren
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel': typeof PainelIndexRoute
+  '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesById {
@@ -70,6 +77,7 @@ export interface FileRoutesById {
   '/painel': typeof PainelRouteWithChildren
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRouteTypes {
@@ -80,13 +88,14 @@ export interface FileRouteTypes {
     | '/painel'
     | '/painel/$encarregado'
     | '/painel/'
+    | '/painel/$encarregado/'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/painel/$encarregado'
     | '/painel'
+    | '/painel/$encarregado'
     | '/painel/$encarregado/$anoMes/$dia'
   id:
     | '__root__'
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/painel'
     | '/painel/$encarregado'
     | '/painel/'
+    | '/painel/$encarregado/'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
 }
@@ -141,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelEncarregadoRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/painel/$encarregado/': {
+      id: '/painel/$encarregado/'
+      path: '/'
+      fullPath: '/painel/$encarregado/'
+      preLoaderRoute: typeof PainelEncarregadoIndexRouteImport
+      parentRoute: typeof PainelEncarregadoRoute
+    }
     '/painel/$encarregado/$anoMes/$dia': {
       id: '/painel/$encarregado/$anoMes/$dia'
       path: '/$anoMes/$dia'
@@ -152,10 +169,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface PainelEncarregadoRouteChildren {
+  PainelEncarregadoIndexRoute: typeof PainelEncarregadoIndexRoute
   PainelEncarregadoAnoMesDiaRoute: typeof PainelEncarregadoAnoMesDiaRoute
 }
 
 const PainelEncarregadoRouteChildren: PainelEncarregadoRouteChildren = {
+  PainelEncarregadoIndexRoute: PainelEncarregadoIndexRoute,
   PainelEncarregadoAnoMesDiaRoute: PainelEncarregadoAnoMesDiaRoute,
 }
 
@@ -183,3 +202,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
