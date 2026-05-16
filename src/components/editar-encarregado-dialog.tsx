@@ -82,7 +82,7 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome }: Props) {
           e.stopPropagation();
           setOpen(true);
         }}
-        className="absolute top-3 right-16 z-10 inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/25 hover:bg-white/40 text-white backdrop-blur-sm border border-white/30 transition"
+        className="absolute top-3 right-3 z-10 inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/25 hover:bg-white/40 text-white backdrop-blur-sm border border-white/30 transition"
         title="Editar"
         aria-label="Editar encarregado"
       >
