@@ -180,15 +180,28 @@ function GruposDescobertos() {
                     </button>
                   </form>
                 ) : (
-                  <button
-                    onClick={() => {
-                      setEditingId(g.id);
-                      setNomeEnc(sugerirNome(g.nome_exibicao));
-                    }}
-                    className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
-                  >
-                    Ativar
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (confirm(`Recusar o grupo "${g.nome_exibicao}"? Ele não aparecerá mais no painel.`)) {
+                          setAtivo.mutate({ id: g.id, ativo: false });
+                        }
+                      }}
+                      disabled={setAtivo.isPending}
+                      className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
+                    >
+                      <X size={14} /> Recusar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingId(g.id);
+                        setNomeEnc(sugerirNome(g.nome_exibicao));
+                      }}
+                      className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+                    >
+                      Ativar
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
