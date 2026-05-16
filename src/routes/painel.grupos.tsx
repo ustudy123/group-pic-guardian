@@ -1,0 +1,204 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Users, ArrowLeft, Check } from "lucide-react";
+
+export const Route = createFileRoute("/painel/grupos")({
+  component: GruposDescobertos,
+});
+
+type GrupoDescoberto = {
+  id: string;
+  whatsapp_jid: string;
+  nome_exibicao: string;
+  ultima_foto_em: string | null;
+  ja_ativado: boolean;
+};
+
+function sugerirNome(nomeGrupo: string): string {
+  // Extrai possível nome do encarregado de "Fotos Wilson", "Equipe Carlos", etc.
+  const limpo = nomeGrupo
+    .replace(/^(fotos|equipe|grupo|obra|frente|time)\s+(de\s+|do\s+|da\s+)?/i, "")
+    .trim();
+  return limpo || nomeGrupo;
+}
+
+function GruposDescobertos() {
+  const qc = useQueryClient();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [nomeEnc, setNomeEnc] = useState("");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["grupos-descobertos"],
+    queryFn: async (): Promise<GrupoDescoberto[]> => {
+      const [{ data: grupos, error: ge }, { data: encs, error: ee }] = await Promise.all([
+        supabase
+          .from("grupos")
+          .select("id, whatsapp_jid, nome_exibicao, ultima_foto_em")
+          .eq("ativo", true)
+          .order("ultima_foto_em", { ascending: false, nullsFirst: false }),
+        supabase.from("encarregados").select("grupo_whatsapp_id"),
+      ]);
+      if (ge) throw ge;
+      if (ee) throw ee;
+      const ativadosSet = new Set((encs ?? []).map((e) => e.grupo_whatsapp_id));
+      return (grupos ?? []).map((g) => ({
+        ...g,
+        ja_ativado: ativadosSet.has(g.whatsapp_jid),
+      }));
+    },
+  });
+
+  const ativar = useMutation({
+    mutationFn: async (args: { jid: string; nomeGrupo: string; nome: string }) => {
+      const { error } = await supabase.from("encarregados").insert({
+        nome: args.nome.trim(),
+        grupo_whatsapp_id: args.jid,
+        grupo_whatsapp_nome: args.nomeGrupo,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Encarregado ativado");
+      setEditingId(null);
+      setNomeEnc("");
+      qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
+      qc.invalidateQueries({ queryKey: ["painel-encarregados"] });
+    },
+    onError: (e: Error) => toast.error("Erro: " + e.message),
+  });
+
+  const pendentes = (data ?? []).filter((g) => !g.ja_ativado);
+  const ativados = (data ?? []).filter((g) => g.ja_ativado);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Link
+          to="/painel"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft size={16} /> Voltar
+        </Link>
+      </div>
+
+      <div className="space-y-1">
+        <h1 className="text-3xl font-black tracking-tight">Grupos descobertos</h1>
+        <p className="text-muted-foreground text-sm">
+          Grupos do WhatsApp em que o bot foi adicionado. Ative cada um informando o nome do encarregado.
+        </p>
+      </div>
+
+      {isLoading && <div className="text-muted-foreground">Carregando...</div>}
+
+      {!isLoading && pendentes.length === 0 && ativados.length === 0 && (
+        <div className="border rounded-2xl p-10 text-center bg-card">
+          <p className="text-muted-foreground">
+            Nenhum grupo detectado ainda. Adicione o número do bot em um grupo do WhatsApp e envie qualquer
+            mensagem — ele aparecerá aqui automaticamente.
+          </p>
+        </div>
+      )}
+
+      {pendentes.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Aguardando ativação ({pendentes.length})
+          </h2>
+          <div className="grid gap-3">
+            {pendentes.map((g) => (
+              <div
+                key={g.id}
+                className="border rounded-xl bg-card p-4 flex items-center gap-4 flex-wrap"
+              >
+                <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                  <Users size={22} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold truncate">{g.nome_exibicao}</div>
+                  <div className="text-xs text-muted-foreground font-mono truncate">{g.whatsapp_jid}</div>
+                  {g.ultima_foto_em && (
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      Última foto:{" "}
+                      {new Date(g.ultima_foto_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                    </div>
+                  )}
+                </div>
+
+                {editingId === g.id ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!nomeEnc.trim()) return;
+                      ativar.mutate({ jid: g.whatsapp_jid, nomeGrupo: g.nome_exibicao, nome: nomeEnc });
+                    }}
+                    className="flex gap-2 items-center"
+                  >
+                    <input
+                      autoFocus
+                      value={nomeEnc}
+                      onChange={(e) => setNomeEnc(e.target.value)}
+                      placeholder="Nome do encarregado"
+                      className="rounded-md border border-input bg-background px-3 py-1.5 text-sm w-52"
+                    />
+                    <button
+                      type="submit"
+                      disabled={ativar.isPending}
+                      className="rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                    >
+                      {ativar.isPending ? "..." : "Salvar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(null);
+                        setNomeEnc("");
+                      }}
+                      className="text-sm text-muted-foreground hover:text-foreground px-2"
+                    >
+                      Cancelar
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingId(g.id);
+                      setNomeEnc(sugerirNome(g.nome_exibicao));
+                    }}
+                    className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+                  >
+                    Ativar
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {ativados.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Já ativados ({ativados.length})
+          </h2>
+          <div className="grid gap-2">
+            {ativados.map((g) => (
+              <div
+                key={g.id}
+                className="border rounded-lg bg-muted/40 p-3 flex items-center gap-3 text-sm"
+              >
+                <Check size={16} className="text-emerald-600 shrink-0" />
+                <span className="flex-1 truncate">{g.nome_exibicao}</span>
+                <span className="text-xs text-muted-foreground font-mono truncate hidden sm:inline">
+                  {g.whatsapp_jid}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}

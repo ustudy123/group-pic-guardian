@@ -13,6 +13,7 @@ import { Route as PainelRouteImport } from './routes/painel'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
+import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
 import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
@@ -37,6 +38,11 @@ const PainelIndexRoute = PainelIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PainelRoute,
 } as any)
+const PainelGruposRoute = PainelGruposRouteImport.update({
+  id: '/grupos',
+  path: '/grupos',
+  getParentRoute: () => PainelRoute,
+} as any)
 const PainelEncarregadoRoute = PainelEncarregadoRouteImport.update({
   id: '/$encarregado',
   path: '/$encarregado',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
+  '/painel/grupos': typeof PainelGruposRoute
   '/painel/': typeof PainelIndexRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/painel/grupos': typeof PainelGruposRoute
   '/painel': typeof PainelIndexRoute
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
+  '/painel/grupos': typeof PainelGruposRoute
   '/painel/': typeof PainelIndexRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/painel'
     | '/painel/$encarregado'
+    | '/painel/grupos'
     | '/painel/'
     | '/painel/$encarregado/'
     | '/painel/$encarregado/$anoMes/$dia'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/painel/grupos'
     | '/painel'
     | '/painel/$encarregado'
     | '/painel/$encarregado/$anoMes/$dia'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/painel'
     | '/painel/$encarregado'
+    | '/painel/grupos'
     | '/painel/'
     | '/painel/$encarregado/'
     | '/painel/$encarregado/$anoMes/$dia'
@@ -144,6 +156,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelIndexRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/painel/grupos': {
+      id: '/painel/grupos'
+      path: '/grupos'
+      fullPath: '/painel/grupos'
+      preLoaderRoute: typeof PainelGruposRouteImport
+      parentRoute: typeof PainelRoute
+    }
     '/painel/$encarregado': {
       id: '/painel/$encarregado'
       path: '/$encarregado'
@@ -183,11 +202,13 @@ const PainelEncarregadoRouteWithChildren =
 
 interface PainelRouteChildren {
   PainelEncarregadoRoute: typeof PainelEncarregadoRouteWithChildren
+  PainelGruposRoute: typeof PainelGruposRoute
   PainelIndexRoute: typeof PainelIndexRoute
 }
 
 const PainelRouteChildren: PainelRouteChildren = {
   PainelEncarregadoRoute: PainelEncarregadoRouteWithChildren,
+  PainelGruposRoute: PainelGruposRoute,
   PainelIndexRoute: PainelIndexRoute,
 }
 
@@ -202,3 +223,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
