@@ -20,7 +20,6 @@ function DiaPage() {
   const { encarregado, anoMes, dia } = Route.useParams();
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<Foto | null>(null);
-  const [gerando, setGerando] = useState(false);
   const dataPasta = `${anoMes}-${dia}`;
 
   const { data, isLoading } = useQuery({
