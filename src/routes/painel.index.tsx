@@ -148,17 +148,10 @@ function PainelHome() {
                   </div>
                 </div>
 
-                {/* Avatar with WhatsApp groups icon style - overlapping banner */}
+                {/* Avatar - WhatsApp group logo for all */}
                 <div className="relative px-5 pb-5 -mt-9">
-                  <div
-                    className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg ring-4 ring-card relative overflow-hidden"
-                    style={{
-                      background: `linear-gradient(135deg, ${p.primary}, ${p.deep})`,
-                    }}
-                  >
-                    {/* Group people icon as background watermark */}
-                    <Users className="absolute inset-0 m-auto text-white/20" size={56} strokeWidth={2.2} />
-                    <span className="relative drop-shadow">{initials || "?"}</span>
+                  <div className="w-[68px] h-[68px] rounded-2xl shadow-lg ring-4 ring-card overflow-hidden bg-white">
+                    <img src={waGroupLogo} alt="Grupo WhatsApp" className="w-full h-full object-cover" />
                   </div>
 
                   <div className="mt-3">
