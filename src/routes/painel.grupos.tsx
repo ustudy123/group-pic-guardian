@@ -193,11 +193,7 @@ function GruposDescobertos() {
                 ) : (
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        if (confirm(`Recusar o grupo "${g.nome_exibicao}"? Ele não aparecerá mais no painel.`)) {
-                          setAtivo.mutate({ id: g.id, ativo: false });
-                        }
-                      }}
+                      onClick={() => setRecusarAlvo(g)}
                       disabled={setAtivo.isPending}
                       className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
                     >
