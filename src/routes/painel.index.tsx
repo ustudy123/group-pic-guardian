@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Users, Camera, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { NovoEncarregadoDialog } from "@/components/novo-encarregado-dialog";
+import waGroupLogo from "@/assets/wa-group.png";
 
 export const Route = createFileRoute("/painel/")({
   component: PainelHome,
@@ -59,13 +61,14 @@ function PainelHome() {
     },
   });
 
+  // WhatsApp-inspired green palette variations per card
   const palettes = [
-    { grad: "linear-gradient(135deg, oklch(0.72 0.2 55), oklch(0.62 0.22 35))", ring: "oklch(0.72 0.2 55)", label: "Safety" },
-    { grad: "linear-gradient(135deg, oklch(0.42 0.09 245), oklch(0.55 0.13 245))", ring: "oklch(0.5 0.13 245)", label: "Steel" },
-    { grad: "linear-gradient(135deg, oklch(0.55 0.13 145), oklch(0.7 0.16 140))", ring: "oklch(0.55 0.13 145)", label: "Verde" },
-    { grad: "linear-gradient(135deg, oklch(0.88 0.18 95), oklch(0.78 0.2 65))", ring: "oklch(0.78 0.2 65)", label: "Hi-Vis" },
-    { grad: "linear-gradient(135deg, oklch(0.45 0.08 30), oklch(0.6 0.13 40))", ring: "oklch(0.5 0.1 35)", label: "Terra" },
-    { grad: "linear-gradient(135deg, oklch(0.35 0.05 260), oklch(0.5 0.1 280))", ring: "oklch(0.45 0.1 270)", label: "Noite" },
+    { primary: "#25D366", deep: "#128C7E", dark: "#075E54", tint: "#DCF8C6", label: "Equipe" },
+    { primary: "#1FAD56", deep: "#0F7A65", dark: "#064E45", tint: "#D4F3C2", label: "Obra" },
+    { primary: "#34D399", deep: "#0E8C6E", dark: "#0a5d4a", tint: "#D1FAE5", label: "Campo" },
+    { primary: "#22C55E", deep: "#15803D", dark: "#14532D", tint: "#DCFCE7", label: "Grupo" },
+    { primary: "#2DD4BF", deep: "#0F766E", dark: "#134E4A", tint: "#CCFBF1", label: "Time" },
+    { primary: "#10B981", deep: "#047857", dark: "#064E3B", tint: "#D1FAE5", label: "Frente" },
   ];
 
   return (
@@ -107,55 +110,96 @@ function PainelHome() {
                 key={e.id}
                 to="/painel/$encarregado"
                 params={{ encarregado: e.nome }}
-                className="card-3d group relative rounded-2xl p-6 bg-card border overflow-hidden block"
+                className="card-3d group relative rounded-2xl bg-card border overflow-hidden block"
+                style={{
+                  boxShadow: `0 12px 30px -14px ${p.deep}55, 0 2px 6px -2px ${p.dark}30`,
+                }}
               >
-                {/* Top color bar */}
-                <div className="absolute inset-x-0 top-0 h-1.5" style={{ background: p.grad }} />
-                {/* Glow blob */}
+                {/* WhatsApp green header banner */}
                 <div
-                  className="absolute -right-16 -top-16 w-48 h-48 rounded-full blur-3xl opacity-30 group-hover:opacity-50 transition-opacity"
-                  style={{ background: p.grad }}
-                />
-
-                <div className="relative flex items-start justify-between gap-3">
+                  className="relative h-24 overflow-hidden"
+                  style={{
+                    background: `linear-gradient(135deg, ${p.primary} 0%, ${p.deep} 60%, ${p.dark} 100%)`,
+                  }}
+                >
+                  {/* Subtle "chat bubbles" pattern */}
                   <div
-                    className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0"
-                    style={{ background: p.grad, boxShadow: `0 10px 25px -10px ${p.ring}` }}
-                  >
-                    {initials || "?"}
-                  </div>
-                  <span
-                    className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md"
-                    style={{ background: `color-mix(in oklab, ${p.ring} 14%, transparent)`, color: p.ring }}
-                  >
+                    className="absolute inset-0 opacity-20"
+                    style={{
+                      backgroundImage: `radial-gradient(circle at 20% 30%, #fff 2px, transparent 2.5px), radial-gradient(circle at 70% 70%, #fff 3px, transparent 3.5px), radial-gradient(circle at 90% 20%, #fff 1.5px, transparent 2px)`,
+                      backgroundSize: "60px 60px",
+                    }}
+                  />
+                  {/* Speech-bubble tail decoration */}
+                  <svg className="absolute -bottom-1 right-6 opacity-20" width="80" height="40" viewBox="0 0 80 40" fill="none">
+                    <path d="M10 30 Q 10 10 30 10 L 60 10 Q 80 10 80 30 L 80 35 L 70 30 L 30 30 Q 10 30 10 30 Z" fill="white"/>
+                  </svg>
+
+                  {/* Group label pill */}
+                  <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/25 text-white backdrop-blur-sm border border-white/30">
                     {p.label}
                   </span>
+
+                  {/* Online dot */}
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5 text-[10px] font-semibold text-white/90 uppercase tracking-wider">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inset-0 rounded-full bg-white animate-ping opacity-70" />
+                      <span className="relative rounded-full h-2 w-2 bg-white" />
+                    </span>
+                    Ativo
+                  </div>
                 </div>
 
-                <div className="relative mt-4">
-                  <h2 className="font-bold text-lg leading-tight">{e.nome}</h2>
-                  {e.grupo_whatsapp_nome && (
-                    <p className="text-xs text-muted-foreground mt-1 truncate">{e.grupo_whatsapp_nome}</p>
+                {/* Avatar with WhatsApp groups icon style - overlapping banner */}
+                <div className="relative px-5 pb-5 -mt-9">
+                  <div
+                    className="w-[68px] h-[68px] rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg ring-4 ring-card relative overflow-hidden"
+                    style={{
+                      background: `linear-gradient(135deg, ${p.primary}, ${p.deep})`,
+                    }}
+                  >
+                    {/* Group people icon as background watermark */}
+                    <Users className="absolute inset-0 m-auto text-white/20" size={56} strokeWidth={2.2} />
+                    <span className="relative drop-shadow">{initials || "?"}</span>
+                  </div>
+
+                  <div className="mt-3">
+                    <h2 className="font-bold text-lg leading-tight">{e.nome}</h2>
+                    {e.grupo_whatsapp_nome && (
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1">
+                        <img src={waGroupLogo} alt="" className="w-3.5 h-3.5 inline-block" />
+                        {e.grupo_whatsapp_nome}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Stats as chat bubbles */}
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div
+                      className="rounded-2xl rounded-bl-sm p-3 relative"
+                      style={{ background: p.tint, color: p.dark }}
+                    >
+                      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-wider font-bold opacity-70">
+                        <Camera size={11} /> Hoje
+                      </div>
+                      <div className="text-2xl font-black leading-tight mt-0.5">{e.hoje}</div>
+                    </div>
+                    <div className="rounded-2xl rounded-br-sm p-3 bg-muted/60 border">
+                      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-wider font-bold text-muted-foreground">
+                        <Camera size={11} /> Total
+                      </div>
+                      <div className="text-2xl font-black leading-tight mt-0.5">{e.total}</div>
+                    </div>
+                  </div>
+
+                  {e.ultima && (
+                    <p className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1">
+                      <Clock size={11} />
+                      Última:{" "}
+                      {new Date(e.ultima).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                    </p>
                   )}
                 </div>
-
-                <div className="relative mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-lg p-3 border" style={{ background: `color-mix(in oklab, ${p.ring} 8%, transparent)` }}>
-                    <div className="text-2xl font-black" style={{ color: p.ring }}>{e.hoje}</div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Fotos hoje</div>
-                  </div>
-                  <div className="rounded-lg p-3 border bg-muted/40">
-                    <div className="text-2xl font-black">{e.total}</div>
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Total</div>
-                  </div>
-                </div>
-
-                {e.ultima && (
-                  <p className="relative mt-4 text-[11px] text-muted-foreground">
-                    Última foto:{" "}
-                    {new Date(e.ultima).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
-                  </p>
-                )}
               </Link>
             );
           })}
