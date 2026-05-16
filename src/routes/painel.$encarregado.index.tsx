@@ -175,12 +175,3 @@ function EncarregadoPage() {
     </div>
   );
 }
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
