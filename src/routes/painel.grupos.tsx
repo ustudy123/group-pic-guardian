@@ -4,6 +4,16 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Users, ArrowLeft, Check, X, RotateCcw } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/painel/grupos")({
   component: GruposDescobertos,
@@ -30,6 +40,7 @@ function GruposDescobertos() {
   const qc = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nomeEnc, setNomeEnc] = useState("");
+  const [recusarAlvo, setRecusarAlvo] = useState<GrupoDescoberto | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["grupos-descobertos"],
@@ -182,11 +193,7 @@ function GruposDescobertos() {
                 ) : (
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        if (confirm(`Recusar o grupo "${g.nome_exibicao}"? Ele não aparecerá mais no painel.`)) {
-                          setAtivo.mutate({ id: g.id, ativo: false });
-                        }
-                      }}
+                      onClick={() => setRecusarAlvo(g)}
                       disabled={setAtivo.isPending}
                       className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
                     >
@@ -256,6 +263,30 @@ function GruposDescobertos() {
           </div>
         </section>
       )}
+
+      <AlertDialog open={!!recusarAlvo} onOpenChange={(o) => !o && setRecusarAlvo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Recusar este grupo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O grupo <span className="font-semibold text-foreground">{recusarAlvo?.nome_exibicao}</span> não
+              aparecerá mais como pendente no painel. Você pode reativá-lo depois na seção "Recusados".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (recusarAlvo) setAtivo.mutate({ id: recusarAlvo.id, ativo: false });
+                setRecusarAlvo(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Recusar grupo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
