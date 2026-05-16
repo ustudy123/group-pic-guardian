@@ -1,9 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { gerarRFO } from "@/lib/gerar-rfo";
 
 export const Route = createFileRoute("/painel/$encarregado/$anoMes/$dia")({
   component: DiaPage,
