@@ -137,10 +137,6 @@ function PainelHome() {
                     <path d="M10 30 Q 10 10 30 10 L 60 10 Q 80 10 80 30 L 80 35 L 70 30 L 30 30 Q 10 30 10 30 Z" fill="white"/>
                   </svg>
 
-                  {/* Group label pill */}
-                  <span className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-white/25 text-white backdrop-blur-sm border border-white/30">
-                    {p.label}
-                  </span>
 
                   {/* Online dot */}
                   <div className="absolute top-3 left-3 flex items-center gap-1.5 text-[10px] font-semibold text-white/90 uppercase tracking-wider">
