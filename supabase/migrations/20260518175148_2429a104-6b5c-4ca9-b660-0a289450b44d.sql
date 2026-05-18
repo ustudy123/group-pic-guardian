@@ -1,0 +1,1 @@
+CREATE POLICY "grupos_delete_admin" ON public.grupos FOR DELETE TO authenticated USING (has_role(auth.uid(), 'admin'::app_role));
