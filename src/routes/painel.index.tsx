@@ -14,6 +14,7 @@ type Row = {
   id: string;
   nome: string;
   grupo_whatsapp_nome: string | null;
+  foto_url: string | null;
   total: number;
   hoje: number;
   ultima: string | null;
@@ -30,7 +31,7 @@ function PainelHome() {
     queryFn: async (): Promise<Row[]> => {
       const { data: encs, error } = await supabase
         .from("encarregados")
-        .select("id, nome, grupo_whatsapp_nome, ativo")
+        .select("id, nome, grupo_whatsapp_nome, foto_url, ativo")
         .eq("ativo", true)
         .order("nome");
       if (error) throw error;
@@ -56,6 +57,7 @@ function PainelHome() {
           id: e.id,
           nome: e.nome,
           grupo_whatsapp_nome: e.grupo_whatsapp_nome,
+          foto_url: (e as { foto_url: string | null }).foto_url ?? null,
           ...v,
         };
       });
@@ -189,7 +191,7 @@ function PainelHome() {
                   boxShadow: `0 12px 30px -14px ${p.deep}55, 0 2px 6px -2px ${p.dark}30`,
                 }}
               >
-                <EditarEncarregadoDialog id={e.id} nome={e.nome} grupoNome={e.grupo_whatsapp_nome} />
+                <EditarEncarregadoDialog id={e.id} nome={e.nome} grupoNome={e.grupo_whatsapp_nome} fotoUrl={e.foto_url} />
                 {/* WhatsApp green header banner */}
                 <div
                   className="relative h-16 overflow-hidden"
@@ -224,7 +226,7 @@ function PainelHome() {
                 {/* Avatar - WhatsApp group logo for all */}
                 <div className="relative px-3 pb-3 -mt-6">
                   <div className="w-11 h-11 rounded-xl shadow-lg ring-[3px] ring-card overflow-hidden bg-white">
-                    <img src={waGroupLogo} alt="Grupo WhatsApp" className="w-full h-full object-cover" />
+                    <img src={e.foto_url || waGroupLogo} alt={e.nome} className="w-full h-full object-cover" />
                   </div>
 
                   <div className="mt-2">

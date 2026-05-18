@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           ativo: boolean
           created_at: string
+          foto_url: string | null
           grupo_whatsapp_id: string
           grupo_whatsapp_nome: string | null
           id: string
@@ -29,6 +30,7 @@ export type Database = {
         Insert: {
           ativo?: boolean
           created_at?: string
+          foto_url?: string | null
           grupo_whatsapp_id: string
           grupo_whatsapp_nome?: string | null
           id?: string
@@ -40,6 +42,7 @@ export type Database = {
         Update: {
           ativo?: boolean
           created_at?: string
+          foto_url?: string | null
           grupo_whatsapp_id?: string
           grupo_whatsapp_nome?: string | null
           id?: string
