@@ -306,30 +306,6 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmExcluir} onOpenChange={setConfirmExcluir}>
-        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
-            <AlertDialogDescription>
-              <span className="font-semibold text-foreground">{nome}</span> será removido do banco. As fotos
-              já armazenadas continuam existentes, mas ficarão sem vínculo. Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={excluir.isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                excluir.mutate();
-              }}
-              disabled={excluir.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {excluir.isPending ? "Excluindo..." : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
