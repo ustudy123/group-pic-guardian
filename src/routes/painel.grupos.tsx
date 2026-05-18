@@ -317,13 +317,15 @@ function GruposDescobertos() {
                 >
                   <RotateCcw size={12} /> Reativar
                 </button>
-                <button
-                  onClick={() => setExcluirAlvo(g)}
-                  disabled={excluir.isPending}
-                  className="inline-flex items-center gap-1 text-xs rounded-md border border-input px-2.5 py-1 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
-                >
-                  <Trash2 size={12} /> Excluir
-                </button>
+                {podeExcluir && (
+                  <button
+                    onClick={() => setExcluirAlvo(g)}
+                    disabled={excluir.isPending}
+                    className="inline-flex items-center gap-1 text-xs rounded-md border border-input px-2.5 py-1 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
+                  >
+                    <Trash2 size={12} /> Excluir
+                  </button>
+                )}
               </div>
             ))}
           </div>
