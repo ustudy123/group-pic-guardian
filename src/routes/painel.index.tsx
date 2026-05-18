@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Users, Camera, Clock, UserPlus } from "lucide-react";
+import { Users, Camera, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { EditarEncarregadoDialog } from "@/components/editar-encarregado-dialog";
 import waGroupLogo from "@/assets/wa-group.png";
