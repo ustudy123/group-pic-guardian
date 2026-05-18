@@ -263,16 +263,6 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
               >
                 <Archive size={14} className="mr-1.5" /> Arquivar
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setConfirmExcluir(true)}
-                disabled={arquivar.isPending || excluir.isPending}
-                className="text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
-              >
-                <Trash2 size={14} className="mr-1.5" /> Excluir
-              </Button>
             </div>
 
             <DialogFooter>
