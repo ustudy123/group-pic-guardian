@@ -94,11 +94,24 @@ function GruposDescobertos() {
       if (error) throw error;
     },
     onSuccess: (_d, v) => {
-      toast.success(v.ativo ? "Grupo reativado" : "Grupo recusado");
+      toast.success(v.ativo ? "Grupo reativado" : "Grupo arquivado");
       qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
       qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
     },
     onError: (e: Error) => toast.error("Erro: " + e.message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("grupos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Grupo excluído permanentemente");
+      qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
+      qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
+    },
+    onError: (e: Error) => toast.error("Erro ao excluir: " + e.message),
   });
 
   const sincronizarFn = useServerFn(sincronizarGruposZapi);
