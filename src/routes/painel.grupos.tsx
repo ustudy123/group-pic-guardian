@@ -53,7 +53,7 @@ function GruposDescobertos() {
           .from("grupos")
           .select("id, whatsapp_jid, nome_exibicao, ultima_foto_em, ativo")
           .order("ultima_foto_em", { ascending: false, nullsFirst: false }),
-        supabase.from("encarregados").select("grupo_whatsapp_id"),
+        supabase.from("encarregados").select("grupo_whatsapp_id").eq("ativo", true),
       ]);
       if (ge) throw ge;
       if (ee) throw ee;
