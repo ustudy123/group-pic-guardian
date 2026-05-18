@@ -80,12 +80,6 @@ function PainelHome() {
           </div>
           <h1 className="text-3xl font-black tracking-tight">Encarregados</h1>
         </div>
-        <Link
-          to="/painel/grupos"
-          className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
-        >
-          <UserPlus size={16} /> Grupos novos
-        </Link>
       </div>
 
       {isLoading && (
