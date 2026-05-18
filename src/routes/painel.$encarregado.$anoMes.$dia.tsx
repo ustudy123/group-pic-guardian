@@ -395,7 +395,7 @@ function DiaPage() {
               </div>
             )}
             <button
-              onClick={(e) => { e.stopPropagation(); deletarFoto(f); }}
+              onClick={(e) => { e.stopPropagation(); setConfirmarExcluir(f); }}
               disabled={removendoId === f.id}
               title="Excluir foto"
               className="absolute top-2 right-2 z-10 rounded-md bg-black/60 hover:bg-red-600 text-white p-1.5 opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
