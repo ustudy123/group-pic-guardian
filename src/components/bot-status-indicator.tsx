@@ -1,28 +1,16 @@
-import { useEffect, useState } from "react";
-
-const BOT_URL = "https://bot-macro-ambiental-production.up.railway.app/";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { verificarStatusZapi } from "@/lib/grupos.functions";
 
 export function BotStatusIndicator() {
-  const [online, setOnline] = useState<boolean | null>(null);
+  const check = useServerFn(verificarStatusZapi);
+  const { data, isLoading } = useQuery({
+    queryKey: ["zapi-status"],
+    queryFn: () => check(),
+    refetchInterval: 30_000,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const res = await fetch(BOT_URL, { cache: "no-store" });
-        const json = await res.json();
-        if (!cancelled) setOnline(json?.ok === true);
-      } catch {
-        if (!cancelled) setOnline(false);
-      }
-    };
-    check();
-    const id = setInterval(check, 30_000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
+  const online = isLoading ? null : data?.connected ?? false;
 
   const color =
     online === null ? "text-muted-foreground" : online ? "text-green-600" : "text-red-600";

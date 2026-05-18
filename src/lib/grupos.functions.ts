@@ -91,3 +91,32 @@ export const sincronizarGruposZapi = createServerFn({ method: "POST" })
       total: grupos.length,
     };
   });
+
+export const verificarStatusZapi = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const instanceId = process.env.ZAPI_INSTANCE_ID;
+    const instanceToken = process.env.ZAPI_INSTANCE_TOKEN;
+    const clientToken = process.env.ZAPI_CLIENT_TOKEN;
+
+    if (!instanceId || !instanceToken || !clientToken) {
+      return { connected: false, error: "Credenciais Z-API ausentes" };
+    }
+
+    try {
+      const res = await fetch(
+        `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}/status`,
+        { headers: { "Client-Token": clientToken } },
+      );
+      if (!res.ok) {
+        return { connected: false, error: `Z-API ${res.status}` };
+      }
+      const json = (await res.json()) as { connected?: boolean; smartphoneConnected?: boolean };
+      return {
+        connected: Boolean(json.connected ?? json.smartphoneConnected),
+        error: null,
+      };
+    } catch (e) {
+      return { connected: false, error: e instanceof Error ? e.message : "Erro desconhecido" };
+    }
+  },
+);
