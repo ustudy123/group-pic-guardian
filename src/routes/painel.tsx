@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { BotStatusIndicator } from "@/components/bot-status-indicator";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Inbox } from "lucide-react";
+import { Inbox, BookOpen } from "lucide-react";
 
 function GruposPendentesLink() {
   const { data: count = 0 } = useQuery({
@@ -80,6 +80,14 @@ function PainelLayout() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <GruposPendentesLink />
+            <Link
+              to="/painel/guia"
+              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+              title="Guia do usuário"
+            >
+              <BookOpen size={15} />
+              <span className="hidden sm:inline">Guia</span>
+            </Link>
             <span className="text-muted-foreground hidden sm:inline">{user.email}</span>
             <button
               onClick={async () => {
