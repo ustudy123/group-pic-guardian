@@ -19,6 +19,10 @@ type Foto = {
 function DiaPage() {
   const { encarregado, anoMes, dia } = Route.useParams();
   const [busca, setBusca] = useState("");
+  const [remetenteFiltro, setRemetenteFiltro] = useState<string>("todos");
+  const [horaInicio, setHoraInicio] = useState<string>("");
+  const [horaFim, setHoraFim] = useState<string>("");
+  const [ordem, setOrdem] = useState<"asc" | "desc">("asc");
   const [aberta, setAberta] = useState<Foto | null>(null);
   const dataPasta = `${anoMes}-${dia}`;
 
@@ -52,14 +56,45 @@ function DiaPage() {
     staleTime: 60_000,
   });
 
+  const remetentes = useMemo(() => {
+    const set = new Set<string>();
+    data?.forEach((f) => f.remetente_nome && set.add(f.remetente_nome));
+    return Array.from(set).sort();
+  }, [data]);
+
   const filtradas = useMemo(() => {
-    if (!busca.trim()) return data ?? [];
-    const q = busca.toLowerCase();
-    return (data ?? []).filter(
-      (f) =>
-        f.caption?.toLowerCase().includes(q) || f.remetente_nome?.toLowerCase().includes(q)
-    );
-  }, [data, busca]);
+    let arr = data ?? [];
+    if (busca.trim()) {
+      const q = busca.toLowerCase();
+      arr = arr.filter(
+        (f) =>
+          f.caption?.toLowerCase().includes(q) || f.remetente_nome?.toLowerCase().includes(q)
+      );
+    }
+    if (remetenteFiltro !== "todos") {
+      arr = arr.filter((f) => f.remetente_nome === remetenteFiltro);
+    }
+    if (horaInicio || horaFim) {
+      arr = arr.filter((f) => {
+        if (!f.data_envio) return false;
+        const hora = new Date(f.data_envio).toLocaleTimeString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+        if (horaInicio && hora < horaInicio) return false;
+        if (horaFim && hora > horaFim) return false;
+        return true;
+      });
+    }
+    arr = [...arr].sort((a, b) => {
+      const ta = a.data_envio ? new Date(a.data_envio).getTime() : 0;
+      const tb = b.data_envio ? new Date(b.data_envio).getTime() : 0;
+      return ordem === "asc" ? ta - tb : tb - ta;
+    });
+    return arr;
+  }, [data, busca, remetenteFiltro, horaInicio, horaFim, ordem]);
 
   const tituloData = useMemo(() => {
     const [y, m, d] = dataPasta.split("-");
