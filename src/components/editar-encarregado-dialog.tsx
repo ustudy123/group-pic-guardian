@@ -40,7 +40,7 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
   const [fotoVal, setFotoVal] = useState<string | null>(fotoUrl ?? null);
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [confirmArquivar, setConfirmArquivar] = useState(false);
-  const [confirmExcluir, setConfirmExcluir] = useState(false);
+  
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
