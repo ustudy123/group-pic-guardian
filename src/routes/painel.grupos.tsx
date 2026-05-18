@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, ArrowLeft, Check, X, RotateCcw } from "lucide-react";
+import { sincronizarGruposZapi } from "@/lib/grupos.functions";
+import { Users, ArrowLeft, Check, X, RotateCcw, RefreshCw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
