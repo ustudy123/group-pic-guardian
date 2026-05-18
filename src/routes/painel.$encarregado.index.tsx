@@ -303,6 +303,18 @@ function EncarregadoPage() {
                       </div>
                     </div>
                   </Link>
+                  <button
+                    onClick={() => baixarPasta(d.dataPasta)}
+                    disabled={baixandoPasta === d.dataPasta}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-[11px] font-medium hover:bg-accent transition disabled:opacity-50"
+                    title="Baixar todas as fotos desta pasta (.zip)"
+                  >
+                    {baixandoPasta === d.dataPasta ? (
+                      <><Loader2 size={12} className="animate-spin" /> Baixando...</>
+                    ) : (
+                      <><Download size={12} /> Baixar pasta</>
+                    )}
+                  </button>
                 </div>
               );
             })}
