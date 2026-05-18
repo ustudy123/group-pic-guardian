@@ -42,7 +42,8 @@ function GruposDescobertos() {
   const qc = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nomeEnc, setNomeEnc] = useState("");
-  const [recusarAlvo, setRecusarAlvo] = useState<GrupoDescoberto | null>(null);
+  const [arquivarAlvo, setArquivarAlvo] = useState<GrupoDescoberto | null>(null);
+  const [excluirAlvo, setExcluirAlvo] = useState<GrupoDescoberto | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["grupos-descobertos"],
