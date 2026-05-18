@@ -191,7 +191,7 @@ function PainelHome() {
                   boxShadow: `0 12px 30px -14px ${p.deep}55, 0 2px 6px -2px ${p.dark}30`,
                 }}
               >
-                <EditarEncarregadoDialog id={e.id} nome={e.nome} grupoNome={e.grupo_whatsapp_nome} />
+                <EditarEncarregadoDialog id={e.id} nome={e.nome} grupoNome={e.grupo_whatsapp_nome} fotoUrl={e.foto_url} />
                 {/* WhatsApp green header banner */}
                 <div
                   className="relative h-16 overflow-hidden"
