@@ -137,19 +137,6 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const excluir = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("encarregados").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Encarregado excluído");
-      setConfirmExcluir(false);
-      setOpen(false);
-      invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   return (
     <>
