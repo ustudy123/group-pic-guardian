@@ -246,7 +246,7 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
                 variant="outline"
                 size="sm"
                 onClick={() => setConfirmArquivar(true)}
-                disabled={arquivar.isPending || excluir.isPending}
+                disabled={arquivar.isPending}
               >
                 <Archive size={14} className="mr-1.5" /> Arquivar
               </Button>
