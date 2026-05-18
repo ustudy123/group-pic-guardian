@@ -260,23 +260,44 @@ function DiaPage() {
             <h1 className="text-2xl font-bold capitalize">{tituloData}</h1>
             <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
           </div>
-          <button
-            onClick={baixarZip}
-            disabled={baixando || filtradas.length === 0}
-            className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {baixando ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                {progresso > 0 ? `Baixando ${progresso}/${filtradas.length}...` : "Preparando..."}
-              </>
-            ) : (
-              <>
-                <Download size={16} />
-                Baixar todas (.zip)
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => enviarFotos(e.target.files)}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={enviando || !encarregadoId}
+              className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-semibold hover:bg-accent disabled:opacity-50"
+            >
+              {enviando ? (
+                <><Loader2 size={16} className="animate-spin" /> Enviando...</>
+              ) : (
+                <><Upload size={16} /> Enviar foto</>
+              )}
+            </button>
+            <button
+              onClick={baixarZip}
+              disabled={baixando || filtradas.length === 0}
+              className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {baixando ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {progresso > 0 ? `Baixando ${progresso}/${filtradas.length}...` : "Preparando..."}
+                </>
+              ) : (
+                <>
+                  <Download size={16} />
+                  Baixar todas (.zip)
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
