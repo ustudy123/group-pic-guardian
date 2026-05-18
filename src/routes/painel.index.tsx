@@ -31,7 +31,7 @@ function PainelHome() {
     queryFn: async (): Promise<Row[]> => {
       const { data: encs, error } = await supabase
         .from("encarregados")
-        .select("id, nome, grupo_whatsapp_nome, ativo")
+        .select("id, nome, grupo_whatsapp_nome, foto_url, ativo")
         .eq("ativo", true)
         .order("nome");
       if (error) throw error;
@@ -57,6 +57,7 @@ function PainelHome() {
           id: e.id,
           nome: e.nome,
           grupo_whatsapp_nome: e.grupo_whatsapp_nome,
+          foto_url: (e as { foto_url: string | null }).foto_url ?? null,
           ...v,
         };
       });
