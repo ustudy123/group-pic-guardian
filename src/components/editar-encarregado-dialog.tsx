@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Archive, Trash2, Upload, User, X, Loader2 } from "lucide-react";
+import { Pencil, Archive, Upload, User, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -40,7 +40,7 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
   const [fotoVal, setFotoVal] = useState<string | null>(fotoUrl ?? null);
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [confirmArquivar, setConfirmArquivar] = useState(false);
-  const [confirmExcluir, setConfirmExcluir] = useState(false);
+  
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -137,19 +137,6 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const excluir = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("encarregados").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Encarregado excluído");
-      setConfirmExcluir(false);
-      setOpen(false);
-      invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   return (
     <>
@@ -259,19 +246,9 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
                 variant="outline"
                 size="sm"
                 onClick={() => setConfirmArquivar(true)}
-                disabled={arquivar.isPending || excluir.isPending}
+                disabled={arquivar.isPending}
               >
                 <Archive size={14} className="mr-1.5" /> Arquivar
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setConfirmExcluir(true)}
-                disabled={arquivar.isPending || excluir.isPending}
-                className="text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
-              >
-                <Trash2 size={14} className="mr-1.5" /> Excluir
               </Button>
             </div>
 
@@ -316,30 +293,6 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmExcluir} onOpenChange={setConfirmExcluir}>
-        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
-            <AlertDialogDescription>
-              <span className="font-semibold text-foreground">{nome}</span> será removido do banco. As fotos
-              já armazenadas continuam existentes, mas ficarão sem vínculo. Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={excluir.isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                excluir.mutate();
-              }}
-              disabled={excluir.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {excluir.isPending ? "Excluindo..." : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
