@@ -477,6 +477,46 @@ function DiaPage() {
           </div>
         </div>
       )}
+
+      <AlertDialog
+        open={!!confirmarExcluir}
+        onOpenChange={(o) => !o && !removendoId && setConfirmarExcluir(null)}
+      >
+        <AlertDialogContent className="border-red-200">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+              <AlertTriangle className="h-7 w-7 text-red-600" />
+            </div>
+            <AlertDialogTitle className="text-center text-xl font-bold text-red-700">
+              Excluir esta foto?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              Esta ação é <span className="font-semibold text-red-600">permanente</span> e a foto
+              não poderá ser recuperada.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center gap-2">
+            <AlertDialogCancel disabled={!!removendoId}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!!removendoId}
+              onClick={async (e) => {
+                e.preventDefault();
+                const alvo = confirmarExcluir;
+                if (!alvo) return;
+                await deletarFoto(alvo);
+                setConfirmarExcluir(null);
+              }}
+              className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-600"
+            >
+              {removendoId ? (
+                <><Loader2 size={14} className="mr-1.5 animate-spin" /> Excluindo...</>
+              ) : (
+                <><Trash2 size={14} className="mr-1.5" /> Sim, excluir</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
