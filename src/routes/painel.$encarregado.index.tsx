@@ -70,6 +70,51 @@ function EncarregadoPage() {
     staleTime: 60_000,
   });
 
+  const [filtroAno, setFiltroAno] = useState<string>("todos");
+  const [filtroMes, setFiltroMes] = useState<string>("todos");
+  const [filtroDia, setFiltroDia] = useState<string>("");
+
+  const anosDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    data?.forEach((m) => set.add(m.anoMes.split("-")[0]));
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [data]);
+
+  const mesesDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    data?.forEach((m) => {
+      const [y, mm] = m.anoMes.split("-");
+      if (filtroAno === "todos" || y === filtroAno) set.add(mm);
+    });
+    return Array.from(set).sort();
+  }, [data, filtroAno]);
+
+  const filtrado = useMemo(() => {
+    if (!data) return [];
+    return data
+      .map((mes) => {
+        const [y, mm] = mes.anoMes.split("-");
+        if (filtroAno !== "todos" && y !== filtroAno) return null;
+        if (filtroMes !== "todos" && mm !== filtroMes) return null;
+        const dias = filtroDia
+          ? mes.dias.filter((d) => d.dia.includes(filtroDia.padStart(2, "0")) || d.dia.includes(filtroDia))
+          : mes.dias;
+        if (dias.length === 0) return null;
+        return { ...mes, dias };
+      })
+      .filter(Boolean) as typeof data;
+  }, [data, filtroAno, filtroMes, filtroDia]);
+
+  const limparFiltros = () => {
+    setFiltroAno("todos");
+    setFiltroMes("todos");
+    setFiltroDia("");
+  };
+
+  const temFiltro = filtroAno !== "todos" || filtroMes !== "todos" || filtroDia !== "";
+
+  const nomesMeses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
   return (
     <div className="space-y-6">
       <div>
@@ -81,6 +126,53 @@ function EncarregadoPage() {
           Clique em um dia pra ver todas as fotos em tela cheia
         </p>
       </div>
+
+      {/* Filtros */}
+      {!isLoading && data && data.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border bg-card">
+          <Calendar size={16} className="text-muted-foreground" />
+          <select
+            value={filtroAno}
+            onChange={(e) => { setFiltroAno(e.target.value); setFiltroMes("todos"); }}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          >
+            <option value="todos">Todos os anos</option>
+            {anosDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select>
+          <select
+            value={filtroMes}
+            onChange={(e) => setFiltroMes(e.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          >
+            <option value="todos">Todos os meses</option>
+            {mesesDisponiveis.map((m) => (
+              <option key={m} value={m}>{nomesMeses[Number(m) - 1]}</option>
+            ))}
+          </select>
+          <div className="relative">
+            <input
+              type="number"
+              min={1}
+              max={31}
+              placeholder="Dia"
+              value={filtroDia}
+              onChange={(e) => setFiltroDia(e.target.value)}
+              className="w-20 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+          {temFiltro && (
+            <button
+              onClick={limparFiltros}
+              className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent"
+            >
+              <X size={12} /> Limpar
+            </button>
+          )}
+          <div className="text-xs text-muted-foreground ml-auto">
+            {filtrado.reduce((acc, m) => acc + m.dias.length, 0)} dia(s)
+          </div>
+        </div>
+      )}
 
       {isLoading && (
         <div className="space-y-4">
@@ -99,7 +191,13 @@ function EncarregadoPage() {
         </p>
       )}
 
-      {data?.map((mes) => (
+      {!isLoading && data && data.length > 0 && filtrado.length === 0 && (
+        <p className="text-muted-foreground py-8 text-center border rounded-md">
+          Nenhum dia corresponde aos filtros aplicados.
+        </p>
+      )}
+
+      {filtrado.map((mes) => (
         <section key={mes.anoMes}>
           <h2 className="text-lg font-semibold mb-3 capitalize">{mes.label}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
