@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo, useRef } from "react";
 import JSZip from "jszip";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Trash2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/painel/$encarregado/$anoMes/$dia")({
@@ -13,10 +13,13 @@ type Foto = {
   id: string;
   caption: string | null;
   storage_url: string | null;
+  storage_path: string | null;
   data_envio: string | null;
   remetente_nome: string | null;
   mime_type: string | null;
 };
+
+type QueryResult = { encarregadoId: string | null; fotos: Foto[] };
 
 function DiaPage() {
   const { encarregado, anoMes, dia } = Route.useParams();
@@ -27,36 +30,119 @@ function DiaPage() {
   const [ordem, setOrdem] = useState<"asc" | "desc">("asc");
   const [aberta, setAberta] = useState<Foto | null>(null);
   const dataPasta = `${anoMes}-${dia}`;
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [removendoId, setRemovendoId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data: result, isLoading } = useQuery({
     queryKey: ["fotos-dia", encarregado, dataPasta],
-    queryFn: async (): Promise<Foto[]> => {
+    queryFn: async (): Promise<QueryResult> => {
       const { data: enc, error: encErr } = await supabase
         .from("encarregados")
         .select("id")
         .eq("nome", encarregado)
         .maybeSingle();
       if (encErr) throw encErr;
-      if (!enc) return [];
+      if (!enc) return { encarregadoId: null, fotos: [] };
 
       const { data, error } = await supabase
         .from("fotos")
-        .select("id, caption, storage_url, data_envio, remetente_nome, mime_type")
+        .select("id, caption, storage_url, storage_path, data_envio, remetente_nome, mime_type")
         .eq("encarregado_id", enc.id)
         .eq("data_pasta", dataPasta)
         .order("data_envio", { ascending: true });
       if (error) throw error;
-      return (data ?? []).map((f) => ({
+      const fotos: Foto[] = (data ?? []).map((f) => ({
         id: f.id ?? "",
         caption: f.caption,
         storage_url: f.storage_url,
+        storage_path: f.storage_path ?? null,
         data_envio: f.data_envio,
         remetente_nome: f.remetente_nome,
         mime_type: f.mime_type,
       }));
+      return { encarregadoId: enc.id, fotos };
     },
     staleTime: 60_000,
   });
+
+  const data = result?.fotos;
+  const encarregadoId = result?.encarregadoId ?? null;
+
+  async function enviarFotos(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    if (!encarregadoId) {
+      alert("Encarregado não encontrado.");
+      return;
+    }
+    setEnviando(true);
+    try {
+      const dataEnvioBase = new Date(`${dataPasta}T12:00:00-03:00`).toISOString();
+      for (const file of Array.from(files)) {
+        const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+        const nomeArquivo = `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const storagePath = `${encarregadoId}/${dataPasta}/${nomeArquivo}`;
+
+        const { error: upErr } = await supabase.storage
+          .from("fotos-obras")
+          .upload(storagePath, file, { contentType: file.type, upsert: false });
+        if (upErr) throw upErr;
+
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("fotos-obras")
+          .createSignedUrl(storagePath, 60 * 60 * 24 * 365 * 10); // 10 anos
+        if (signErr) throw signErr;
+
+        const { error: insErr } = await supabase.from("fotos").insert({
+          encarregado_id: encarregadoId,
+          message_id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+          data_envio: dataEnvioBase,
+          data_pasta: dataPasta,
+          storage_path: storagePath,
+          storage_url: signed.signedUrl,
+          mime_type: file.type || "image/jpeg",
+          tamanho_bytes: file.size,
+          remetente_nome: "Upload manual",
+          status: "processada",
+        });
+        if (insErr) {
+          // rollback storage
+          await supabase.storage.from("fotos-obras").remove([storagePath]);
+          throw insErr;
+        }
+      }
+      await queryClient.invalidateQueries({ queryKey: ["fotos-dia", encarregado, dataPasta] });
+      await queryClient.invalidateQueries({ queryKey: ["encarregado-fotos", encarregado] });
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao enviar foto(s): " + (err as Error).message);
+    } finally {
+      setEnviando(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function deletarFoto(foto: Foto) {
+    if (!confirm("Excluir esta foto definitivamente?")) return;
+    setRemovendoId(foto.id);
+    try {
+      if (foto.storage_path) {
+        await supabase.storage.from("fotos-obras").remove([foto.storage_path]);
+      }
+      const { error } = await supabase.from("fotos").delete().eq("id", foto.id);
+      if (error) throw error;
+      setAberta(null);
+      await queryClient.invalidateQueries({ queryKey: ["fotos-dia", encarregado, dataPasta] });
+      await queryClient.invalidateQueries({ queryKey: ["encarregado-fotos", encarregado] });
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao excluir foto: " + (err as Error).message);
+    } finally {
+      setRemovendoId(null);
+    }
+  }
+
 
   const remetentes = useMemo(() => {
     const set = new Set<string>();
@@ -174,23 +260,44 @@ function DiaPage() {
             <h1 className="text-2xl font-bold capitalize">{tituloData}</h1>
             <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
           </div>
-          <button
-            onClick={baixarZip}
-            disabled={baixando || filtradas.length === 0}
-            className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {baixando ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                {progresso > 0 ? `Baixando ${progresso}/${filtradas.length}...` : "Preparando..."}
-              </>
-            ) : (
-              <>
-                <Download size={16} />
-                Baixar todas (.zip)
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => enviarFotos(e.target.files)}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={enviando || !encarregadoId}
+              className="inline-flex items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-semibold hover:bg-accent disabled:opacity-50"
+            >
+              {enviando ? (
+                <><Loader2 size={16} className="animate-spin" /> Enviando...</>
+              ) : (
+                <><Upload size={16} /> Enviar foto</>
+              )}
+            </button>
+            <button
+              onClick={baixarZip}
+              disabled={baixando || filtradas.length === 0}
+              className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {baixando ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {progresso > 0 ? `Baixando ${progresso}/${filtradas.length}...` : "Preparando..."}
+                </>
+              ) : (
+                <>
+                  <Download size={16} />
+                  Baixar todas (.zip)
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -260,10 +367,10 @@ function DiaPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         {filtradas.map((f) => (
-          <button
+          <div
             key={f.id}
             onClick={() => setAberta(f)}
-            className="group relative aspect-square overflow-hidden rounded-md border bg-muted"
+            className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
           >
             {f.storage_url ? (
               <img
@@ -277,7 +384,15 @@ function DiaPage() {
                 sem preview
               </div>
             )}
-            <div className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-xs px-2 py-1.5 opacity-0 group-hover:opacity-100 transition flex items-center justify-between gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); deletarFoto(f); }}
+              disabled={removendoId === f.id}
+              title="Excluir foto"
+              className="absolute top-2 right-2 z-10 rounded-md bg-black/60 hover:bg-red-600 text-white p-1.5 opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
+            >
+              {removendoId === f.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+            </button>
+            <div className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-xs px-2 py-1.5 opacity-0 group-hover:opacity-100 transition flex items-center justify-between gap-2 pointer-events-none">
               <span className="font-medium">
                 {f.data_envio &&
                   new Date(f.data_envio).toLocaleTimeString("pt-BR", {
@@ -288,7 +403,7 @@ function DiaPage() {
               </span>
               {f.caption && <span className="truncate">{f.caption}</span>}
             </div>
-          </button>
+          </div>
         ))}
       </div>
 
@@ -331,6 +446,14 @@ function DiaPage() {
                       Baixar foto
                     </a>
                   )}
+                  <button
+                    onClick={() => deletarFoto(aberta)}
+                    disabled={removendoId === aberta.id}
+                    className="inline-flex items-center gap-1 rounded-md border border-red-300 text-red-600 px-3 py-1.5 text-sm hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {removendoId === aberta.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    Excluir
+                  </button>
                   <button
                     onClick={() => setAberta(null)}
                     className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
