@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Archive, Trash2 } from "lucide-react";
+import { Pencil, Archive, Trash2, Upload, User, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -29,22 +29,53 @@ type Props = {
   id: string;
   nome: string;
   grupoNome: string | null;
+  fotoUrl?: string | null;
 };
 
-export function EditarEncarregadoDialog({ id, nome, grupoNome }: Props) {
+export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [nomeVal, setNomeVal] = useState(nome);
   const [grupoVal, setGrupoVal] = useState(grupoNome ?? "");
+  const [fotoVal, setFotoVal] = useState<string | null>(fotoUrl ?? null);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [confirmArquivar, setConfirmArquivar] = useState(false);
   const [confirmExcluir, setConfirmExcluir] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setNomeVal(nome);
       setGrupoVal(grupoNome ?? "");
+      setFotoVal(fotoUrl ?? null);
     }
-  }, [open, nome, grupoNome]);
+  }, [open, nome, grupoNome, fotoUrl]);
+
+  async function enviarFoto(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem");
+      return;
+    }
+    setEnviandoFoto(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `encarregados/${id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("fotos-obras")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: signed, error: sErr } = await supabase.storage
+        .from("fotos-obras")
+        .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+      if (sErr) throw sErr;
+      setFotoVal(signed.signedUrl);
+      toast.success("Foto carregada — clique em Salvar para confirmar");
+    } catch (e) {
+      toast.error("Erro ao enviar foto: " + (e as Error).message);
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["painel-encarregados"] });
