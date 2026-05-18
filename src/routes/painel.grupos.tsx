@@ -40,8 +40,6 @@ function sugerirNome(nomeGrupo: string): string {
 
 function GruposDescobertos() {
   const qc = useQueryClient();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [nomeEnc, setNomeEnc] = useState("");
   const [arquivarAlvo, setArquivarAlvo] = useState<GrupoDescoberto | null>(null);
   const [excluirAlvo, setExcluirAlvo] = useState<GrupoDescoberto | null>(null);
 
