@@ -367,10 +367,10 @@ function DiaPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         {filtradas.map((f) => (
-          <button
+          <div
             key={f.id}
             onClick={() => setAberta(f)}
-            className="group relative aspect-square overflow-hidden rounded-md border bg-muted"
+            className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
           >
             {f.storage_url ? (
               <img
@@ -384,7 +384,15 @@ function DiaPage() {
                 sem preview
               </div>
             )}
-            <div className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-xs px-2 py-1.5 opacity-0 group-hover:opacity-100 transition flex items-center justify-between gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); deletarFoto(f); }}
+              disabled={removendoId === f.id}
+              title="Excluir foto"
+              className="absolute top-2 right-2 z-10 rounded-md bg-black/60 hover:bg-red-600 text-white p-1.5 opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
+            >
+              {removendoId === f.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+            </button>
+            <div className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-xs px-2 py-1.5 opacity-0 group-hover:opacity-100 transition flex items-center justify-between gap-2 pointer-events-none">
               <span className="font-medium">
                 {f.data_envio &&
                   new Date(f.data_envio).toLocaleTimeString("pt-BR", {
@@ -395,7 +403,7 @@ function DiaPage() {
               </span>
               {f.caption && <span className="truncate">{f.caption}</span>}
             </div>
-          </button>
+          </div>
         ))}
       </div>
 
