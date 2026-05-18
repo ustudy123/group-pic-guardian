@@ -447,6 +447,14 @@ function DiaPage() {
                     </a>
                   )}
                   <button
+                    onClick={() => deletarFoto(aberta)}
+                    disabled={removendoId === aberta.id}
+                    className="inline-flex items-center gap-1 rounded-md border border-red-300 text-red-600 px-3 py-1.5 text-sm hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {removendoId === aberta.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                    Excluir
+                  </button>
+                  <button
                     onClick={() => setAberta(null)}
                     className="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
                   >
