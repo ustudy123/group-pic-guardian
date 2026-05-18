@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil } from "lucide-react";
+import { Pencil, Archive, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -11,6 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,6 +36,8 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome }: Props) {
   const [open, setOpen] = useState(false);
   const [nomeVal, setNomeVal] = useState(nome);
   const [grupoVal, setGrupoVal] = useState(grupoNome ?? "");
+  const [confirmArquivar, setConfirmArquivar] = useState(false);
+  const [confirmExcluir, setConfirmExcluir] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -33,6 +45,11 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome }: Props) {
       setGrupoVal(grupoNome ?? "");
     }
   }, [open, nome, grupoNome]);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["painel-encarregados"] });
+    qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
+  };
 
   const salvar = useMutation({
     mutationFn: async () => {
@@ -49,7 +66,6 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome }: Props) {
         .eq("id", id);
       if (error) throw error;
 
-      // Atualiza também o nome de exibição do grupo se houver vínculo
       if (novoGrupo) {
         const { data: enc } = await supabase
           .from("encarregados")
@@ -67,8 +83,38 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome }: Props) {
     onSuccess: () => {
       toast.success("Alterações salvas");
       setOpen(false);
-      qc.invalidateQueries({ queryKey: ["painel-encarregados"] });
-      qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const arquivar = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("encarregados")
+        .update({ ativo: false })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Encarregado arquivado");
+      setConfirmArquivar(false);
+      setOpen(false);
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const excluir = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("encarregados").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Encarregado excluído");
+      setConfirmExcluir(false);
+      setOpen(false);
+      invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -124,6 +170,28 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome }: Props) {
               />
             </div>
 
+            <div className="flex flex-wrap gap-2 pt-2 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmArquivar(true)}
+                disabled={arquivar.isPending || excluir.isPending}
+              >
+                <Archive size={14} className="mr-1.5" /> Arquivar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmExcluir(true)}
+                disabled={arquivar.isPending || excluir.isPending}
+                className="text-destructive hover:bg-destructive hover:text-destructive-foreground hover:border-destructive"
+              >
+                <Trash2 size={14} className="mr-1.5" /> Excluir
+              </Button>
+            </div>
+
             <DialogFooter>
               <Button
                 type="button"
@@ -140,6 +208,55 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome }: Props) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmArquivar} onOpenChange={setConfirmArquivar}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arquivar encarregado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">{nome}</span> não aparecerá mais no painel,
+              mas as fotos e o histórico ficam preservados. Você pode reativar depois.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={arquivar.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                arquivar.mutate();
+              }}
+              disabled={arquivar.isPending}
+            >
+              {arquivar.isPending ? "Arquivando..." : "Arquivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmExcluir} onOpenChange={setConfirmExcluir}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold text-foreground">{nome}</span> será removido do banco. As fotos
+              já armazenadas continuam existentes, mas ficarão sem vínculo. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluir.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                excluir.mutate();
+              }}
+              disabled={excluir.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {excluir.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
