@@ -121,13 +121,55 @@ function DiaPage() {
         </div>
       </div>
 
-      <input
-        type="text"
-        placeholder="Buscar por legenda ou remetente..."
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-        className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm"
-      />
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border bg-card">
+        <input
+          type="text"
+          placeholder="Buscar por legenda ou remetente..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
+        <select
+          value={remetenteFiltro}
+          onChange={(e) => setRemetenteFiltro(e.target.value)}
+          className="rounded-md border border-input bg-background px-2 py-2 text-sm"
+        >
+          <option value="todos">Todos remetentes</option>
+          {remetentes.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <div className="flex items-center gap-1 text-xs">
+          <span className="text-muted-foreground">Hora:</span>
+          <input
+            type="time"
+            value={horaInicio}
+            onChange={(e) => setHoraInicio(e.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          />
+          <span className="text-muted-foreground">até</span>
+          <input
+            type="time"
+            value={horaFim}
+            onChange={(e) => setHoraFim(e.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          />
+        </div>
+        <select
+          value={ordem}
+          onChange={(e) => setOrdem(e.target.value as "asc" | "desc")}
+          className="rounded-md border border-input bg-background px-2 py-2 text-sm"
+        >
+          <option value="asc">Mais antigas primeiro</option>
+          <option value="desc">Mais recentes primeiro</option>
+        </select>
+        {(busca || remetenteFiltro !== "todos" || horaInicio || horaFim) && (
+          <button
+            onClick={() => { setBusca(""); setRemetenteFiltro("todos"); setHoraInicio(""); setHoraFim(""); }}
+            className="rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            Limpar
+          </button>
+        )}
+      </div>
 
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
