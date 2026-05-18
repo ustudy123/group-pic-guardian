@@ -2,8 +2,18 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useRef } from "react";
 import JSZip from "jszip";
-import { Download, Loader2, Trash2, Upload } from "lucide-react";
+import { Download, Loader2, Trash2, Upload, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/painel/$encarregado/$anoMes/$dia")({
   component: DiaPage,
@@ -34,6 +44,7 @@ function DiaPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
   const [removendoId, setRemovendoId] = useState<string | null>(null);
+  const [confirmarExcluir, setConfirmarExcluir] = useState<Foto | null>(null);
 
   const { data: result, isLoading } = useQuery({
     queryKey: ["fotos-dia", encarregado, dataPasta],
@@ -124,7 +135,6 @@ function DiaPage() {
   }
 
   async function deletarFoto(foto: Foto) {
-    if (!confirm("Excluir esta foto definitivamente?")) return;
     setRemovendoId(foto.id);
     try {
       if (foto.storage_path) {
@@ -385,7 +395,7 @@ function DiaPage() {
               </div>
             )}
             <button
-              onClick={(e) => { e.stopPropagation(); deletarFoto(f); }}
+              onClick={(e) => { e.stopPropagation(); setConfirmarExcluir(f); }}
               disabled={removendoId === f.id}
               title="Excluir foto"
               className="absolute top-2 right-2 z-10 rounded-md bg-black/60 hover:bg-red-600 text-white p-1.5 opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
@@ -447,7 +457,7 @@ function DiaPage() {
                     </a>
                   )}
                   <button
-                    onClick={() => deletarFoto(aberta)}
+                    onClick={() => setConfirmarExcluir(aberta)}
                     disabled={removendoId === aberta.id}
                     className="inline-flex items-center gap-1 rounded-md border border-red-300 text-red-600 px-3 py-1.5 text-sm hover:bg-red-50 disabled:opacity-50"
                   >
@@ -467,6 +477,46 @@ function DiaPage() {
           </div>
         </div>
       )}
+
+      <AlertDialog
+        open={!!confirmarExcluir}
+        onOpenChange={(o) => !o && !removendoId && setConfirmarExcluir(null)}
+      >
+        <AlertDialogContent className="border-red-200">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+              <AlertTriangle className="h-7 w-7 text-red-600" />
+            </div>
+            <AlertDialogTitle className="text-center text-xl font-bold text-red-700">
+              Excluir esta foto?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              Esta ação é <span className="font-semibold text-red-600">permanente</span> e a foto
+              não poderá ser recuperada.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center gap-2">
+            <AlertDialogCancel disabled={!!removendoId}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!!removendoId}
+              onClick={async (e) => {
+                e.preventDefault();
+                const alvo = confirmarExcluir;
+                if (!alvo) return;
+                await deletarFoto(alvo);
+                setConfirmarExcluir(null);
+              }}
+              className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-600"
+            >
+              {removendoId ? (
+                <><Loader2 size={14} className="mr-1.5 animate-spin" /> Excluindo...</>
+              ) : (
+                <><Trash2 size={14} className="mr-1.5" /> Sim, excluir</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
