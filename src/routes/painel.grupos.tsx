@@ -40,8 +40,6 @@ function sugerirNome(nomeGrupo: string): string {
 
 function GruposDescobertos() {
   const qc = useQueryClient();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [nomeEnc, setNomeEnc] = useState("");
   const [arquivarAlvo, setArquivarAlvo] = useState<GrupoDescoberto | null>(null);
   const [excluirAlvo, setExcluirAlvo] = useState<GrupoDescoberto | null>(null);
 
@@ -84,8 +82,6 @@ function GruposDescobertos() {
     },
     onSuccess: () => {
       toast.success("Encarregado ativado");
-      setEditingId(null);
-      setNomeEnc("");
       qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
       qc.invalidateQueries({ queryKey: ["painel-encarregados"] });
       qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
@@ -204,71 +200,39 @@ function GruposDescobertos() {
                   )}
                 </div>
 
-                {editingId === g.id ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!nomeEnc.trim()) return;
-                      ativar.mutate({ jid: g.whatsapp_jid, nomeGrupo: g.nome_exibicao, nome: nomeEnc });
-                    }}
-                    className="flex gap-2 items-center"
+                <div className="flex items-center gap-2">
+                  {podeExcluir && (
+                    <button
+                      onClick={() => setExcluirAlvo(g)}
+                      disabled={excluir.isPending}
+                      className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
+                      title="Excluir permanentemente"
+                    >
+                      <Trash2 size={14} /> Excluir
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setArquivarAlvo(g)}
+                    disabled={setAtivo.isPending}
+                    className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition disabled:opacity-50"
+                    title="Arquivar (pode reativar depois)"
                   >
-                    <input
-                      autoFocus
-                      value={nomeEnc}
-                      onChange={(e) => setNomeEnc(e.target.value)}
-                      placeholder="Nome do encarregado"
-                      className="rounded-md border border-input bg-background px-3 py-1.5 text-sm w-52"
-                    />
-                    <button
-                      type="submit"
-                      disabled={ativar.isPending}
-                      className="rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-                    >
-                      {ativar.isPending ? "..." : "Salvar"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingId(null);
-                        setNomeEnc("");
-                      }}
-                      className="text-sm text-muted-foreground hover:text-foreground px-2"
-                    >
-                      Cancelar
-                    </button>
-                  </form>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    {podeExcluir && (
-                      <button
-                        onClick={() => setExcluirAlvo(g)}
-                        disabled={excluir.isPending}
-                        className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
-                        title="Excluir permanentemente"
-                      >
-                        <Trash2 size={14} /> Excluir
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setArquivarAlvo(g)}
-                      disabled={setAtivo.isPending}
-                      className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition disabled:opacity-50"
-                      title="Arquivar (pode reativar depois)"
-                    >
-                      <Archive size={14} /> Arquivar
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingId(g.id);
-                        setNomeEnc(sugerirNome(g.nome_exibicao));
-                      }}
-                      className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
-                    >
-                      Ativar
-                    </button>
-                  </div>
-                )}
+                    <Archive size={14} /> Arquivar
+                  </button>
+                  <button
+                    onClick={() =>
+                      ativar.mutate({
+                        jid: g.whatsapp_jid,
+                        nomeGrupo: g.nome_exibicao,
+                        nome: sugerirNome(g.nome_exibicao),
+                      })
+                    }
+                    disabled={ativar.isPending}
+                    className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+                  >
+                    {ativar.isPending ? "Ativando..." : "Ativar"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
