@@ -290,7 +290,7 @@ function GruposDescobertos() {
       {recusados.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Recusados ({recusados.length})
+            Arquivados ({recusados.length})
           </h2>
           <div className="grid gap-2">
             {recusados.map((g) => (
@@ -298,7 +298,7 @@ function GruposDescobertos() {
                 key={g.id}
                 className="border rounded-lg bg-muted/20 p-3 flex items-center gap-3 text-sm opacity-70"
               >
-                <X size={16} className="text-muted-foreground shrink-0" />
+                <Archive size={16} className="text-muted-foreground shrink-0" />
                 <span className="flex-1 truncate">{g.nome_exibicao}</span>
                 <button
                   onClick={() => setAtivo.mutate({ id: g.id, ativo: true })}
@@ -307,31 +307,62 @@ function GruposDescobertos() {
                 >
                   <RotateCcw size={12} /> Reativar
                 </button>
+                <button
+                  onClick={() => setExcluirAlvo(g)}
+                  disabled={excluir.isPending}
+                  className="inline-flex items-center gap-1 text-xs rounded-md border border-input px-2.5 py-1 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
+                >
+                  <Trash2 size={12} /> Excluir
+                </button>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      <AlertDialog open={!!recusarAlvo} onOpenChange={(o) => !o && setRecusarAlvo(null)}>
+      <AlertDialog open={!!arquivarAlvo} onOpenChange={(o) => !o && setArquivarAlvo(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Recusar este grupo?</AlertDialogTitle>
+            <AlertDialogTitle>Arquivar este grupo?</AlertDialogTitle>
             <AlertDialogDescription>
-              O grupo <span className="font-semibold text-foreground">{recusarAlvo?.nome_exibicao}</span> não
-              aparecerá mais como pendente no painel. Você pode reativá-lo depois na seção "Recusados".
+              O grupo <span className="font-semibold text-foreground">{arquivarAlvo?.nome_exibicao}</span> não
+              aparecerá mais como pendente. Você pode reativá-lo depois na seção "Arquivados".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (recusarAlvo) setAtivo.mutate({ id: recusarAlvo.id, ativo: false });
-                setRecusarAlvo(null);
+                if (arquivarAlvo) setAtivo.mutate({ id: arquivarAlvo.id, ativo: false });
+                setArquivarAlvo(null);
+              }}
+            >
+              Arquivar grupo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!excluirAlvo} onOpenChange={(o) => !o && setExcluirAlvo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O grupo <span className="font-semibold text-foreground">{excluirAlvo?.nome_exibicao}</span> será
+              removido do banco de dados. Se ele continuar existindo no WhatsApp, voltará a aparecer na
+              próxima sincronização. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (excluirAlvo) excluir.mutate(excluirAlvo.id);
+                setExcluirAlvo(null);
               }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Recusar grupo
+              Excluir grupo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
