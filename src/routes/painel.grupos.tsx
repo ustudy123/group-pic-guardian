@@ -240,14 +240,16 @@ function GruposDescobertos() {
                   </form>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setExcluirAlvo(g)}
-                      disabled={excluir.isPending}
-                      className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
-                      title="Excluir permanentemente"
-                    >
-                      <Trash2 size={14} /> Excluir
-                    </button>
+                    {podeExcluir && (
+                      <button
+                        onClick={() => setExcluirAlvo(g)}
+                        disabled={excluir.isPending}
+                        className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
+                        title="Excluir permanentemente"
+                      >
+                        <Trash2 size={14} /> Excluir
+                      </button>
+                    )}
                     <button
                       onClick={() => setArquivarAlvo(g)}
                       disabled={setAtivo.isPending}
