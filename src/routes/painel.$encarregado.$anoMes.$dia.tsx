@@ -19,6 +19,10 @@ type Foto = {
 function DiaPage() {
   const { encarregado, anoMes, dia } = Route.useParams();
   const [busca, setBusca] = useState("");
+  const [remetenteFiltro, setRemetenteFiltro] = useState<string>("todos");
+  const [horaInicio, setHoraInicio] = useState<string>("");
+  const [horaFim, setHoraFim] = useState<string>("");
+  const [ordem, setOrdem] = useState<"asc" | "desc">("asc");
   const [aberta, setAberta] = useState<Foto | null>(null);
   const dataPasta = `${anoMes}-${dia}`;
 
@@ -52,14 +56,45 @@ function DiaPage() {
     staleTime: 60_000,
   });
 
+  const remetentes = useMemo(() => {
+    const set = new Set<string>();
+    data?.forEach((f) => f.remetente_nome && set.add(f.remetente_nome));
+    return Array.from(set).sort();
+  }, [data]);
+
   const filtradas = useMemo(() => {
-    if (!busca.trim()) return data ?? [];
-    const q = busca.toLowerCase();
-    return (data ?? []).filter(
-      (f) =>
-        f.caption?.toLowerCase().includes(q) || f.remetente_nome?.toLowerCase().includes(q)
-    );
-  }, [data, busca]);
+    let arr = data ?? [];
+    if (busca.trim()) {
+      const q = busca.toLowerCase();
+      arr = arr.filter(
+        (f) =>
+          f.caption?.toLowerCase().includes(q) || f.remetente_nome?.toLowerCase().includes(q)
+      );
+    }
+    if (remetenteFiltro !== "todos") {
+      arr = arr.filter((f) => f.remetente_nome === remetenteFiltro);
+    }
+    if (horaInicio || horaFim) {
+      arr = arr.filter((f) => {
+        if (!f.data_envio) return false;
+        const hora = new Date(f.data_envio).toLocaleTimeString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+        if (horaInicio && hora < horaInicio) return false;
+        if (horaFim && hora > horaFim) return false;
+        return true;
+      });
+    }
+    arr = [...arr].sort((a, b) => {
+      const ta = a.data_envio ? new Date(a.data_envio).getTime() : 0;
+      const tb = b.data_envio ? new Date(b.data_envio).getTime() : 0;
+      return ordem === "asc" ? ta - tb : tb - ta;
+    });
+    return arr;
+  }, [data, busca, remetenteFiltro, horaInicio, horaFim, ordem]);
 
   const tituloData = useMemo(() => {
     const [y, m, d] = dataPasta.split("-");
@@ -86,13 +121,55 @@ function DiaPage() {
         </div>
       </div>
 
-      <input
-        type="text"
-        placeholder="Buscar por legenda ou remetente..."
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-        className="w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm"
-      />
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border bg-card">
+        <input
+          type="text"
+          placeholder="Buscar por legenda ou remetente..."
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
+        <select
+          value={remetenteFiltro}
+          onChange={(e) => setRemetenteFiltro(e.target.value)}
+          className="rounded-md border border-input bg-background px-2 py-2 text-sm"
+        >
+          <option value="todos">Todos remetentes</option>
+          {remetentes.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <div className="flex items-center gap-1 text-xs">
+          <span className="text-muted-foreground">Hora:</span>
+          <input
+            type="time"
+            value={horaInicio}
+            onChange={(e) => setHoraInicio(e.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          />
+          <span className="text-muted-foreground">até</span>
+          <input
+            type="time"
+            value={horaFim}
+            onChange={(e) => setHoraFim(e.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+          />
+        </div>
+        <select
+          value={ordem}
+          onChange={(e) => setOrdem(e.target.value as "asc" | "desc")}
+          className="rounded-md border border-input bg-background px-2 py-2 text-sm"
+        >
+          <option value="asc">Mais antigas primeiro</option>
+          <option value="desc">Mais recentes primeiro</option>
+        </select>
+        {(busca || remetenteFiltro !== "todos" || horaInicio || horaFim) && (
+          <button
+            onClick={() => { setBusca(""); setRemetenteFiltro("todos"); setHoraInicio(""); setHoraFim(""); }}
+            className="rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent"
+          >
+            Limpar
+          </button>
+        )}
+      </div>
 
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
