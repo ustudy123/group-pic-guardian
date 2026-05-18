@@ -226,7 +226,7 @@ function PainelHome() {
                 {/* Avatar - WhatsApp group logo for all */}
                 <div className="relative px-3 pb-3 -mt-6">
                   <div className="w-11 h-11 rounded-xl shadow-lg ring-[3px] ring-card overflow-hidden bg-white">
-                    <img src={waGroupLogo} alt="Grupo WhatsApp" className="w-full h-full object-cover" />
+                    <img src={e.foto_url || waGroupLogo} alt={e.nome} className="w-full h-full object-cover" />
                   </div>
 
                   <div className="mt-2">
