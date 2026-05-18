@@ -184,6 +184,57 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
             className="space-y-4"
           >
             <div className="space-y-2">
+              <Label>Foto do encarregado</Label>
+              <div className="flex items-center gap-3">
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-muted border flex items-center justify-center shrink-0">
+                  {fotoVal ? (
+                    <img src={fotoVal} alt={nome} className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={28} className="text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) enviarFoto(f);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={enviandoFoto}
+                  >
+                    {enviandoFoto ? (
+                      <><Loader2 size={14} className="mr-1.5 animate-spin" /> Enviando...</>
+                    ) : (
+                      <><Upload size={14} className="mr-1.5" /> {fotoVal ? "Trocar foto" : "Enviar foto"}</>
+                    )}
+                  </Button>
+                  {fotoVal && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFotoVal(null)}
+                      disabled={enviandoFoto}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <X size={14} className="mr-1.5" /> Remover
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="enc-nome">Nome do encarregado</Label>
               <Input
                 id="enc-nome"
