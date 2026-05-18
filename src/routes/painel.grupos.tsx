@@ -100,6 +100,19 @@ function GruposDescobertos() {
     onError: (e: Error) => toast.error("Erro: " + e.message),
   });
 
+  const sincronizarFn = useServerFn(sincronizarGruposZapi);
+  const sincronizar = useMutation({
+    mutationFn: () => sincronizarFn({ data: undefined as never }),
+    onSuccess: (r) => {
+      toast.success(
+        `Sincronização concluída: ${r.criados} novo(s), ${r.atualizados} atualizado(s)`,
+      );
+      qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
+      qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
+    },
+    onError: (e: Error) => toast.error("Falha ao sincronizar: " + e.message),
+  });
+
   const pendentes = (data ?? []).filter((g) => g.ativo && !g.ja_ativado);
   const ativados = (data ?? []).filter((g) => g.ativo && g.ja_ativado);
   const recusados = (data ?? []).filter((g) => !g.ativo);
