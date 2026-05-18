@@ -93,6 +93,7 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
         .update({
           nome: novoNome,
           grupo_whatsapp_nome: novoGrupo || null,
+          foto_url: fotoVal,
         })
         .eq("id", id);
       if (error) throw error;
