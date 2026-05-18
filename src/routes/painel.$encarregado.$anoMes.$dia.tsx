@@ -135,7 +135,6 @@ function DiaPage() {
   }
 
   async function deletarFoto(foto: Foto) {
-    if (!confirm("Excluir esta foto definitivamente?")) return;
     setRemovendoId(foto.id);
     try {
       if (foto.storage_path) {
