@@ -233,11 +233,20 @@ function GruposDescobertos() {
                 ) : (
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setRecusarAlvo(g)}
-                      disabled={setAtivo.isPending}
+                      onClick={() => setExcluirAlvo(g)}
+                      disabled={excluir.isPending}
                       className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
+                      title="Excluir permanentemente"
                     >
-                      <X size={14} /> Recusar
+                      <Trash2 size={14} /> Excluir
+                    </button>
+                    <button
+                      onClick={() => setArquivarAlvo(g)}
+                      disabled={setAtivo.isPending}
+                      className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-accent transition disabled:opacity-50"
+                      title="Arquivar (pode reativar depois)"
+                    >
+                      <Archive size={14} /> Arquivar
                     </button>
                     <button
                       onClick={() => {
