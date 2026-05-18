@@ -100,7 +100,7 @@ function PainelHome() {
       )}
 
       {!isLoading && data && data.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" style={{ perspective: "1200px" }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3" style={{ perspective: "1200px" }}>
           {data.map((e, idx) => {
             const p = palettes[idx % palettes.length];
             const initials = e.nome.split(" ").map(s => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
