@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { sincronizarGruposZapi } from "@/lib/grupos.functions";
-import { Users, ArrowLeft, Check, X, RotateCcw, RefreshCw, Archive, Trash2 } from "lucide-react";
+import { Users, ArrowLeft, Check, RotateCcw, RefreshCw, Archive, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
