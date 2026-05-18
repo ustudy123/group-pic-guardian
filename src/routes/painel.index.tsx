@@ -14,6 +14,7 @@ type Row = {
   id: string;
   nome: string;
   grupo_whatsapp_nome: string | null;
+  foto_url: string | null;
   total: number;
   hoje: number;
   ultima: string | null;
