@@ -100,7 +100,7 @@ function PainelHome() {
         <div className="text-center py-16 space-y-3 border rounded-2xl bg-card" style={{ boxShadow: "var(--shadow-card)" }}>
           <h2 className="text-xl font-semibold">Nenhum encarregado cadastrado</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Clique em "+ Novo encarregado" para começar.
+            Acesse "Grupos novos" para ativar os grupos onde o bot foi adicionado.
           </p>
         </div>
       )}
