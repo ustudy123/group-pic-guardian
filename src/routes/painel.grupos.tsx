@@ -128,11 +128,22 @@ function GruposDescobertos() {
         </Link>
       </div>
 
-      <div className="space-y-1">
-        <h1 className="text-3xl font-black tracking-tight">Grupos descobertos</h1>
-        <p className="text-muted-foreground text-sm">
-          Grupos do WhatsApp em que o bot foi adicionado. Ative cada um informando o nome do encarregado.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black tracking-tight">Grupos descobertos</h1>
+          <p className="text-muted-foreground text-sm">
+            Grupos do WhatsApp em que o bot foi adicionado. Ative cada um informando o nome do encarregado.
+          </p>
+        </div>
+        <button
+          onClick={() => sincronizar.mutate()}
+          disabled={sincronizar.isPending}
+          className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm font-medium hover:bg-accent transition disabled:opacity-50"
+          title="Buscar todos os grupos diretamente da Z-API"
+        >
+          <RefreshCw size={14} className={sincronizar.isPending ? "animate-spin" : ""} />
+          {sincronizar.isPending ? "Sincronizando..." : "Sincronizar do WhatsApp"}
+        </button>
       </div>
 
       {isLoading && <div className="text-muted-foreground">Carregando...</div>}
