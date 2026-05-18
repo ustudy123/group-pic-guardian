@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Users, Camera, Clock } from "lucide-react";
+import { Users, Camera, Clock, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { NovoEncarregadoDialog } from "@/components/novo-encarregado-dialog";
 import { EditarEncarregadoDialog } from "@/components/editar-encarregado-dialog";
 import waGroupLogo from "@/assets/wa-group.png";
 
@@ -81,7 +80,12 @@ function PainelHome() {
           </div>
           <h1 className="text-3xl font-black tracking-tight">Encarregados</h1>
         </div>
-        <NovoEncarregadoDialog />
+        <Link
+          to="/painel/grupos"
+          className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+        >
+          <UserPlus size={16} /> Grupos novos
+        </Link>
       </div>
 
       {isLoading && (
@@ -96,7 +100,7 @@ function PainelHome() {
         <div className="text-center py-16 space-y-3 border rounded-2xl bg-card" style={{ boxShadow: "var(--shadow-card)" }}>
           <h2 className="text-xl font-semibold">Nenhum encarregado cadastrado</h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Clique em "+ Novo encarregado" para começar.
+            Acesse "Grupos novos" para ativar os grupos onde o bot foi adicionado.
           </p>
         </div>
       )}
