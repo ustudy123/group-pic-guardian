@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, ArrowLeft, Check, X, RotateCcw } from "lucide-react";
+import { sincronizarGruposZapi } from "@/lib/grupos.functions";
+import { Users, ArrowLeft, Check, X, RotateCcw, RefreshCw } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -98,6 +100,19 @@ function GruposDescobertos() {
     onError: (e: Error) => toast.error("Erro: " + e.message),
   });
 
+  const sincronizarFn = useServerFn(sincronizarGruposZapi);
+  const sincronizar = useMutation({
+    mutationFn: () => sincronizarFn({ data: undefined as never }),
+    onSuccess: (r) => {
+      toast.success(
+        `Sincronização concluída: ${r.criados} novo(s), ${r.atualizados} atualizado(s)`,
+      );
+      qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
+      qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
+    },
+    onError: (e: Error) => toast.error("Falha ao sincronizar: " + e.message),
+  });
+
   const pendentes = (data ?? []).filter((g) => g.ativo && !g.ja_ativado);
   const ativados = (data ?? []).filter((g) => g.ativo && g.ja_ativado);
   const recusados = (data ?? []).filter((g) => !g.ativo);
@@ -113,11 +128,22 @@ function GruposDescobertos() {
         </Link>
       </div>
 
-      <div className="space-y-1">
-        <h1 className="text-3xl font-black tracking-tight">Grupos descobertos</h1>
-        <p className="text-muted-foreground text-sm">
-          Grupos do WhatsApp em que o bot foi adicionado. Ative cada um informando o nome do encarregado.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black tracking-tight">Grupos descobertos</h1>
+          <p className="text-muted-foreground text-sm">
+            Grupos do WhatsApp em que o bot foi adicionado. Ative cada um informando o nome do encarregado.
+          </p>
+        </div>
+        <button
+          onClick={() => sincronizar.mutate()}
+          disabled={sincronizar.isPending}
+          className="inline-flex items-center gap-2 rounded-md border border-input px-3 py-2 text-sm font-medium hover:bg-accent transition disabled:opacity-50"
+          title="Buscar todos os grupos diretamente da Z-API"
+        >
+          <RefreshCw size={14} className={sincronizar.isPending ? "animate-spin" : ""} />
+          {sincronizar.isPending ? "Sincronizando..." : "Sincronizar do WhatsApp"}
+        </button>
       </div>
 
       {isLoading && <div className="text-muted-foreground">Carregando...</div>}
