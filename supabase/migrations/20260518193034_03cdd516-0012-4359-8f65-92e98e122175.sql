@@ -1,0 +1,1 @@
+ALTER TABLE public.encarregados ADD COLUMN IF NOT EXISTS foto_url text;
