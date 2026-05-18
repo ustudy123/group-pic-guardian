@@ -1,0 +1,1 @@
+CREATE POLICY "grupos_insert_admin" ON public.grupos FOR INSERT TO authenticated WITH CHECK (has_role(auth.uid(), 'admin'::app_role));
