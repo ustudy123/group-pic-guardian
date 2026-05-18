@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PainelRouteImport } from './routes/painel'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
@@ -18,6 +19,11 @@ import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarreg
 import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PainelRoute = PainelRouteImport.update({
   id: '/painel',
   path: '/painel',
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/': typeof PainelIndexRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel': typeof PainelIndexRoute
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/': typeof PainelIndexRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/painel'
+    | '/reset-password'
     | '/painel/$encarregado'
     | '/painel/grupos'
     | '/painel/'
@@ -104,6 +114,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/reset-password'
     | '/painel/grupos'
     | '/painel'
     | '/painel/$encarregado'
@@ -113,6 +124,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/painel'
+    | '/reset-password'
     | '/painel/$encarregado'
     | '/painel/grupos'
     | '/painel/'
@@ -124,10 +136,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/painel': {
       id: '/painel'
       path: '/painel'
@@ -219,6 +239,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
