@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import JSZip from "jszip";
+import { Download, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/painel/$encarregado/$anoMes/$dia")({
@@ -105,6 +107,58 @@ function DiaPage() {
     });
   }, [dataPasta]);
 
+  const [baixando, setBaixando] = useState(false);
+  const [progresso, setProgresso] = useState(0);
+
+  async function baixarZip() {
+    if (filtradas.length === 0) return;
+    setBaixando(true);
+    setProgresso(0);
+    try {
+      const zip = new JSZip();
+      const usados = new Set<string>();
+      let i = 0;
+      for (const f of filtradas) {
+        i++;
+        if (!f.storage_url) continue;
+        try {
+          const res = await fetch(f.storage_url);
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          const ext = (f.mime_type?.split("/")[1] || "jpg").split("+")[0];
+          const hora = f.data_envio
+            ? new Date(f.data_envio).toLocaleTimeString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              }).replace(/:/g, "-")
+            : "sem-hora";
+          const remet = (f.remetente_nome || "desconhecido").replace(/[^\w\-]+/g, "_");
+          let nome = `${String(i).padStart(3, "0")}_${hora}_${remet}.${ext}`;
+          while (usados.has(nome)) nome = `${String(i).padStart(3, "0")}_${hora}_${remet}_${Math.random().toString(36).slice(2, 5)}.${ext}`;
+          usados.add(nome);
+          zip.file(nome, blob);
+        } catch (err) {
+          console.error("Falha ao baixar foto", f.id, err);
+        }
+        setProgresso(i);
+      }
+      const conteudo = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(conteudo);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${encarregado}_${dataPasta}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setBaixando(false);
+      setProgresso(0);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div>
@@ -115,9 +169,28 @@ function DiaPage() {
         >
           ← {encarregado}
         </Link>
-        <div className="mt-2">
-          <h1 className="text-2xl font-bold capitalize">{tituloData}</h1>
-          <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold capitalize">{tituloData}</h1>
+            <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
+          </div>
+          <button
+            onClick={baixarZip}
+            disabled={baixando || filtradas.length === 0}
+            className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {baixando ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                {progresso > 0 ? `Baixando ${progresso}/${filtradas.length}...` : "Preparando..."}
+              </>
+            ) : (
+              <>
+                <Download size={16} />
+                Baixar todas (.zip)
+              </>
+            )}
+          </button>
         </div>
       </div>
 
