@@ -457,7 +457,7 @@ function DiaPage() {
                     </a>
                   )}
                   <button
-                    onClick={() => deletarFoto(aberta)}
+                    onClick={() => setConfirmarExcluir(aberta)}
                     disabled={removendoId === aberta.id}
                     className="inline-flex items-center gap-1 rounded-md border border-red-300 text-red-600 px-3 py-1.5 text-sm hover:bg-red-50 disabled:opacity-50"
                   >
