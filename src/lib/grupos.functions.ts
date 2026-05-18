@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 type ZapiChat = {
   phone?: string;
@@ -10,7 +9,8 @@ type ZapiChat = {
 
 export const sincronizarGruposZapi = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    const { supabase } = context;
     const instanceId = process.env.ZAPI_INSTANCE_ID;
     const instanceToken = process.env.ZAPI_INSTANCE_TOKEN;
     const clientToken = process.env.ZAPI_CLIENT_TOKEN;
@@ -24,7 +24,6 @@ export const sincronizarGruposZapi = createServerFn({ method: "POST" })
     const grupos: { jid: string; nome: string }[] = [];
     const seen = new Set<string>();
 
-    // Paginação defensiva: para no máximo 50 páginas
     for (let page = 1; page <= 50; page++) {
       const res = await fetch(`${base}?page=${page}&pageSize=100`, {
         headers: { "Client-Token": clientToken },
@@ -55,34 +54,31 @@ export const sincronizarGruposZapi = createServerFn({ method: "POST" })
       return { criados: 0, atualizados: 0, total: 0 };
     }
 
-    // Busca quais já existem para distinguir criados x atualizados
     const jids = grupos.map((g) => g.jid);
-    const { data: existentes, error: selErr } = await supabaseAdmin
+    const { data: existentes, error: selErr } = await supabase
       .from("grupos")
       .select("whatsapp_jid")
       .in("whatsapp_jid", jids);
-    if (selErr) throw selErr;
+    if (selErr) throw new Error(`Erro ao consultar grupos: ${selErr.message}`);
 
     const existSet = new Set((existentes ?? []).map((e) => e.whatsapp_jid));
 
-    // Insere os novos com ativo=true
     const novos = grupos.filter((g) => !existSet.has(g.jid));
     if (novos.length > 0) {
-      const { error: insErr } = await supabaseAdmin.from("grupos").insert(
+      const { error: insErr } = await supabase.from("grupos").insert(
         novos.map((g) => ({
           whatsapp_jid: g.jid,
           nome_exibicao: g.nome,
           ativo: true,
         })),
       );
-      if (insErr) throw insErr;
+      if (insErr) throw new Error(`Erro ao inserir grupos: ${insErr.message}`);
     }
 
-    // Atualiza nome_exibicao dos existentes (preserva ativo / ultima_foto_em)
     let atualizados = 0;
     for (const g of grupos) {
       if (!existSet.has(g.jid)) continue;
-      const { error: upErr } = await supabaseAdmin
+      const { error: upErr } = await supabase
         .from("grupos")
         .update({ nome_exibicao: g.nome })
         .eq("whatsapp_jid", g.jid);
