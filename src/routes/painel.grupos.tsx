@@ -45,6 +45,14 @@ function GruposDescobertos() {
   const [arquivarAlvo, setArquivarAlvo] = useState<GrupoDescoberto | null>(null);
   const [excluirAlvo, setExcluirAlvo] = useState<GrupoDescoberto | null>(null);
 
+  const { data: podeExcluir = false } = useQuery({
+    queryKey: ["pode-excluir-grupos"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getUser();
+      return data.user?.email?.toLowerCase() === "wallasmonteiro019@gmail.com";
+    },
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["grupos-descobertos"],
     queryFn: async (): Promise<GrupoDescoberto[]> => {
@@ -232,14 +240,16 @@ function GruposDescobertos() {
                   </form>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setExcluirAlvo(g)}
-                      disabled={excluir.isPending}
-                      className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
-                      title="Excluir permanentemente"
-                    >
-                      <Trash2 size={14} /> Excluir
-                    </button>
+                    {podeExcluir && (
+                      <button
+                        onClick={() => setExcluirAlvo(g)}
+                        disabled={excluir.isPending}
+                        className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-2 text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
+                        title="Excluir permanentemente"
+                      >
+                        <Trash2 size={14} /> Excluir
+                      </button>
+                    )}
                     <button
                       onClick={() => setArquivarAlvo(g)}
                       disabled={setAtivo.isPending}
@@ -307,13 +317,15 @@ function GruposDescobertos() {
                 >
                   <RotateCcw size={12} /> Reativar
                 </button>
-                <button
-                  onClick={() => setExcluirAlvo(g)}
-                  disabled={excluir.isPending}
-                  className="inline-flex items-center gap-1 text-xs rounded-md border border-input px-2.5 py-1 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
-                >
-                  <Trash2 size={12} /> Excluir
-                </button>
+                {podeExcluir && (
+                  <button
+                    onClick={() => setExcluirAlvo(g)}
+                    disabled={excluir.isPending}
+                    className="inline-flex items-center gap-1 text-xs rounded-md border border-input px-2.5 py-1 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-50"
+                  >
+                    <Trash2 size={12} /> Excluir
+                  </button>
+                )}
               </div>
             ))}
           </div>
