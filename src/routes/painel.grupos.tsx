@@ -82,8 +82,6 @@ function GruposDescobertos() {
     },
     onSuccess: () => {
       toast.success("Encarregado ativado");
-      setEditingId(null);
-      setNomeEnc("");
       qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
       qc.invalidateQueries({ queryKey: ["painel-encarregados"] });
       qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
