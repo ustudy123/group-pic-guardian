@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Search, X, Calendar } from "lucide-react";
+import JSZip from "jszip";
+import { toast } from "sonner";
+import { X, Calendar, Download, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/painel/$encarregado/")({
