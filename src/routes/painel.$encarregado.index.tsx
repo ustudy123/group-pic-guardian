@@ -75,6 +75,64 @@ function EncarregadoPage() {
   const [filtroAno, setFiltroAno] = useState<string>("todos");
   const [filtroMes, setFiltroMes] = useState<string>("todos");
   const [filtroDia, setFiltroDia] = useState<string>("");
+  const [baixandoPasta, setBaixandoPasta] = useState<string | null>(null);
+
+  async function baixarPasta(dataPasta: string) {
+    setBaixandoPasta(dataPasta);
+    try {
+      const { data: enc } = await supabase
+        .from("encarregados")
+        .select("id")
+        .eq("nome", encarregado)
+        .maybeSingle();
+      if (!enc) throw new Error("Encarregado não encontrado");
+
+      const { data: fotos, error } = await supabase
+        .from("fotos")
+        .select("id, storage_url, mime_type, data_envio, remetente_nome")
+        .eq("encarregado_id", enc.id)
+        .eq("data_pasta", dataPasta)
+        .order("data_envio", { ascending: true });
+      if (error) throw error;
+      if (!fotos || fotos.length === 0) {
+        toast.error("Nenhuma foto nesta pasta");
+        return;
+      }
+
+      const zip = new JSZip();
+      let idx = 0;
+      for (const f of fotos) {
+        if (!f.storage_url) continue;
+        idx++;
+        try {
+          const res = await fetch(f.storage_url);
+          const blob = await res.blob();
+          const ext = (f.mime_type?.split("/")[1] ?? "jpg").split("+")[0];
+          const hora = f.data_envio
+            ? new Date(f.data_envio).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour12: false }).replace(/:/g, "-")
+            : "sem-hora";
+          const remet = (f.remetente_nome ?? "sem-nome").replace(/[^a-zA-Z0-9]/g, "_");
+          zip.file(`${String(idx).padStart(3, "0")}_${hora}_${remet}.${ext}`, blob);
+        } catch (e) {
+          console.error("Falha em foto", f.id, e);
+        }
+      }
+
+      const conteudo = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(conteudo);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${encarregado}_${dataPasta}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Pasta baixada (${idx} foto${idx === 1 ? "" : "s"})`);
+    } catch (e) {
+      toast.error("Erro ao baixar: " + (e as Error).message);
+    } finally {
+      setBaixandoPasta(null);
+    }
+  }
+
 
   const anosDisponiveis = useMemo(() => {
     const set = new Set<string>();
