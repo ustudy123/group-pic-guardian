@@ -117,9 +117,28 @@ function DiaPage() {
         >
           ← {encarregado}
         </Link>
-        <div className="mt-2">
-          <h1 className="text-2xl font-bold capitalize">{tituloData}</h1>
-          <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold capitalize">{tituloData}</h1>
+            <p className="text-muted-foreground text-sm">{filtradas.length} foto(s)</p>
+          </div>
+          <button
+            onClick={baixarZip}
+            disabled={baixando || filtradas.length === 0}
+            className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {baixando ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                {progresso > 0 ? `Baixando ${progresso}/${filtradas.length}...` : "Preparando..."}
+              </>
+            ) : (
+              <>
+                <Download size={16} />
+                Baixar todas (.zip)
+              </>
+            )}
+          </button>
         </div>
       </div>
 
