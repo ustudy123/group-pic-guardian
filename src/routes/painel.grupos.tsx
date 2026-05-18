@@ -45,6 +45,14 @@ function GruposDescobertos() {
   const [arquivarAlvo, setArquivarAlvo] = useState<GrupoDescoberto | null>(null);
   const [excluirAlvo, setExcluirAlvo] = useState<GrupoDescoberto | null>(null);
 
+  const { data: podeExcluir = false } = useQuery({
+    queryKey: ["pode-excluir-grupos"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getUser();
+      return data.user?.email?.toLowerCase() === "wallasmonteiro019@gmail.com";
+    },
+  });
+
   const { data, isLoading } = useQuery({
     queryKey: ["grupos-descobertos"],
     queryFn: async (): Promise<GrupoDescoberto[]> => {
