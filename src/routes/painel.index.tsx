@@ -72,14 +72,83 @@ function PainelHome() {
     { primary: "#10B981", deep: "#047857", dark: "#064E3B", tint: "#D1FAE5", label: "Frente" },
   ];
 
+  const [busca, setBusca] = useState("");
+  const [filtroAtividade, setFiltroAtividade] = useState<"todos" | "hoje" | "semana" | "mes" | "inativos">("todos");
+
+  const filtrados = useMemo(() => {
+    if (!data) return [];
+    const q = busca.trim().toLowerCase();
+    const agora = Date.now();
+    const DIA = 24 * 60 * 60 * 1000;
+    return data.filter((e) => {
+      if (q) {
+        const match =
+          e.nome.toLowerCase().includes(q) ||
+          (e.grupo_whatsapp_nome ?? "").toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      if (filtroAtividade === "todos") return true;
+      if (filtroAtividade === "inativos") return !e.ultima;
+      if (!e.ultima) return false;
+      const diff = agora - new Date(e.ultima).getTime();
+      if (filtroAtividade === "hoje") return diff < DIA;
+      if (filtroAtividade === "semana") return diff < 7 * DIA;
+      if (filtroAtividade === "mes") return diff < 30 * DIA;
+      return true;
+    });
+  }, [data, busca, filtroAtividade]);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--accent-orange)" }}>
             <span className="w-6 h-px" style={{ background: "var(--accent-orange)" }} /> Equipe de campo
           </div>
           <h1 className="text-3xl font-black tracking-tight">Encarregados</h1>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border bg-card">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Buscar por encarregado ou grupo..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="w-full rounded-md border border-input bg-background pl-9 pr-8 py-2 text-sm"
+          />
+          {busca && (
+            <button onClick={() => setBusca("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {([
+            ["todos", "Todos"],
+            ["hoje", "Hoje"],
+            ["semana", "7 dias"],
+            ["mes", "30 dias"],
+            ["inativos", "Sem fotos"],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setFiltroAtividade(key)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold border transition ${
+                filtroAtividade === key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background hover:bg-accent border-input"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="text-xs text-muted-foreground ml-auto">
+          {filtrados.length} de {data?.length ?? 0}
         </div>
       </div>
 
@@ -100,11 +169,16 @@ function PainelHome() {
         </div>
       )}
 
-      {!isLoading && data && data.length > 0 && (
+      {!isLoading && data && data.length > 0 && filtrados.length === 0 && (
+        <div className="text-center py-12 text-sm text-muted-foreground border rounded-xl">
+          Nenhum encarregado corresponde aos filtros.
+        </div>
+      )}
+
+      {!isLoading && filtrados.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3" style={{ perspective: "1200px" }}>
-          {data.map((e, idx) => {
+          {filtrados.map((e, idx) => {
             const p = palettes[idx % palettes.length];
-            const initials = e.nome.split(" ").map(s => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
             return (
               <Link
                 key={e.id}
