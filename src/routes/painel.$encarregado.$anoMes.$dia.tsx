@@ -44,6 +44,7 @@ function DiaPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
   const [removendoId, setRemovendoId] = useState<string | null>(null);
+  const [confirmarExcluir, setConfirmarExcluir] = useState<Foto | null>(null);
 
   const { data: result, isLoading } = useQuery({
     queryKey: ["fotos-dia", encarregado, dataPasta],
