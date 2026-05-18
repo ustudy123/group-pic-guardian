@@ -100,7 +100,7 @@ function PainelHome() {
       )}
 
       {!isLoading && data && data.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" style={{ perspective: "1200px" }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3" style={{ perspective: "1200px" }}>
           {data.map((e, idx) => {
             const p = palettes[idx % palettes.length];
             const initials = e.nome.split(" ").map(s => s[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
@@ -117,7 +117,7 @@ function PainelHome() {
                 <EditarEncarregadoDialog id={e.id} nome={e.nome} grupoNome={e.grupo_whatsapp_nome} />
                 {/* WhatsApp green header banner */}
                 <div
-                  className="relative h-24 overflow-hidden"
+                  className="relative h-16 overflow-hidden"
                   style={{
                     background: `linear-gradient(135deg, ${p.primary} 0%, ${p.deep} 60%, ${p.dark} 100%)`,
                   }}
@@ -131,60 +131,59 @@ function PainelHome() {
                     }}
                   />
                   {/* Speech-bubble tail decoration */}
-                  <svg className="absolute -bottom-1 right-6 opacity-20" width="80" height="40" viewBox="0 0 80 40" fill="none">
+                  <svg className="absolute -bottom-1 right-4 opacity-20" width="56" height="28" viewBox="0 0 80 40" fill="none">
                     <path d="M10 30 Q 10 10 30 10 L 60 10 Q 80 10 80 30 L 80 35 L 70 30 L 30 30 Q 10 30 10 30 Z" fill="white"/>
                   </svg>
 
 
                   {/* Online dot */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5 text-[10px] font-semibold text-white/90 uppercase tracking-wider">
-                    <span className="relative flex h-2 w-2">
+                  <div className="absolute top-2 left-2 flex items-center gap-1 text-[9px] font-semibold text-white/90 uppercase tracking-wider">
+                    <span className="relative flex h-1.5 w-1.5">
                       <span className="absolute inset-0 rounded-full bg-white animate-ping opacity-70" />
-                      <span className="relative rounded-full h-2 w-2 bg-white" />
+                      <span className="relative rounded-full h-1.5 w-1.5 bg-white" />
                     </span>
                     Ativo
                   </div>
                 </div>
 
                 {/* Avatar - WhatsApp group logo for all */}
-                <div className="relative px-5 pb-5 -mt-9">
-                  <div className="w-[68px] h-[68px] rounded-2xl shadow-lg ring-4 ring-card overflow-hidden bg-white">
+                <div className="relative px-3 pb-3 -mt-6">
+                  <div className="w-11 h-11 rounded-xl shadow-lg ring-[3px] ring-card overflow-hidden bg-white">
                     <img src={waGroupLogo} alt="Grupo WhatsApp" className="w-full h-full object-cover" />
                   </div>
 
-                  <div className="mt-3">
-                    <h2 className="font-bold text-lg leading-tight">{e.nome}</h2>
+                  <div className="mt-2">
+                    <h2 className="font-bold text-sm leading-tight truncate">{e.nome}</h2>
                     {e.grupo_whatsapp_nome && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1">
-                        <img src={waGroupLogo} alt="" className="w-3.5 h-3.5 inline-block" />
+                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate flex items-center gap-1">
+                        <img src={waGroupLogo} alt="" className="w-3 h-3 inline-block" />
                         {e.grupo_whatsapp_nome}
                       </p>
                     )}
                   </div>
 
                   {/* Stats as chat bubbles */}
-                  <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="mt-2.5 grid grid-cols-2 gap-1.5">
                     <div
-                      className="rounded-2xl rounded-bl-sm p-3 relative"
+                      className="rounded-xl rounded-bl-sm p-2 relative"
                       style={{ background: p.tint, color: p.dark }}
                     >
-                      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-wider font-bold opacity-70">
-                        <Camera size={11} /> Hoje
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-bold opacity-70">
+                        <Camera size={9} /> Hoje
                       </div>
-                      <div className="text-2xl font-black leading-tight mt-0.5">{e.hoje}</div>
+                      <div className="text-lg font-black leading-tight mt-0.5">{e.hoje}</div>
                     </div>
-                    <div className="rounded-2xl rounded-br-sm p-3 bg-muted/60 border">
-                      <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-wider font-bold text-muted-foreground">
-                        <Camera size={11} /> Total
+                    <div className="rounded-xl rounded-br-sm p-2 bg-muted/60 border">
+                      <div className="flex items-center gap-1 text-[8px] uppercase tracking-wider font-bold text-muted-foreground">
+                        <Camera size={9} /> Total
                       </div>
-                      <div className="text-2xl font-black leading-tight mt-0.5">{e.total}</div>
+                      <div className="text-lg font-black leading-tight mt-0.5">{e.total}</div>
                     </div>
                   </div>
 
                   {e.ultima && (
-                    <p className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1">
-                      <Clock size={11} />
-                      Última:{" "}
+                    <p className="mt-2 text-[10px] text-muted-foreground flex items-center gap-1 truncate">
+                      <Clock size={10} />
                       {new Date(e.ultima).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                     </p>
                   )}
