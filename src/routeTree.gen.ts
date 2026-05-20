@@ -18,6 +18,7 @@ import { Route as PainelGuiaRouteImport } from './routes/painel.guia'
 import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
 import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
+import { Route as ApiPublicConfirmUserRouteImport } from './routes/api/public/confirm-user'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -65,6 +66,11 @@ const PainelEncarregadoIndexRoute = PainelEncarregadoIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PainelEncarregadoRoute,
 } as any)
+const ApiPublicConfirmUserRoute = ApiPublicConfirmUserRouteImport.update({
+  id: '/api/public/confirm-user',
+  path: '/api/public/confirm-user',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PainelEncarregadoAnoMesDiaRoute =
   PainelEncarregadoAnoMesDiaRouteImport.update({
     id: '/$anoMes/$dia',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/': typeof PainelIndexRoute
+  '/api/public/confirm-user': typeof ApiPublicConfirmUserRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel': typeof PainelIndexRoute
+  '/api/public/confirm-user': typeof ApiPublicConfirmUserRoute
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/': typeof PainelIndexRoute
+  '/api/public/confirm-user': typeof ApiPublicConfirmUserRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/'
+    | '/api/public/confirm-user'
     | '/painel/$encarregado/'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel'
+    | '/api/public/confirm-user'
     | '/painel/$encarregado'
     | '/painel/$encarregado/$anoMes/$dia'
   id:
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/'
+    | '/api/public/confirm-user'
     | '/painel/$encarregado/'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
@@ -149,6 +161,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicConfirmUserRoute: typeof ApiPublicConfirmUserRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -216,6 +229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelEncarregadoIndexRouteImport
       parentRoute: typeof PainelEncarregadoRoute
     }
+    '/api/public/confirm-user': {
+      id: '/api/public/confirm-user'
+      path: '/api/public/confirm-user'
+      fullPath: '/api/public/confirm-user'
+      preLoaderRoute: typeof ApiPublicConfirmUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/painel/$encarregado/$anoMes/$dia': {
       id: '/painel/$encarregado/$anoMes/$dia'
       path: '/$anoMes/$dia'
@@ -261,6 +281,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicConfirmUserRoute: ApiPublicConfirmUserRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
