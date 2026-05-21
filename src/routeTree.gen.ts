@@ -16,6 +16,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
 import { Route as PainelGuiaRouteImport } from './routes/painel.guia'
 import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
+import { Route as PainelAdminRouteImport } from './routes/painel.admin'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
 import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
@@ -55,6 +56,11 @@ const PainelGruposRoute = PainelGruposRouteImport.update({
   path: '/grupos',
   getParentRoute: () => PainelRoute,
 } as any)
+const PainelAdminRoute = PainelAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => PainelRoute,
+} as any)
 const PainelEncarregadoRoute = PainelEncarregadoRouteImport.update({
   id: '/$encarregado',
   path: '/$encarregado',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/painel': typeof PainelRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
+  '/painel/admin': typeof PainelAdminRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/': typeof PainelIndexRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/painel/admin': typeof PainelAdminRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel': typeof PainelIndexRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/painel': typeof PainelRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
+  '/painel/admin': typeof PainelAdminRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/': typeof PainelIndexRoute
@@ -115,6 +124,7 @@ export interface FileRouteTypes {
     | '/painel'
     | '/reset-password'
     | '/painel/$encarregado'
+    | '/painel/admin'
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reset-password'
+    | '/painel/admin'
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/painel'
     | '/reset-password'
     | '/painel/$encarregado'
+    | '/painel/admin'
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/'
@@ -202,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelGruposRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/painel/admin': {
+      id: '/painel/admin'
+      path: '/admin'
+      fullPath: '/painel/admin'
+      preLoaderRoute: typeof PainelAdminRouteImport
+      parentRoute: typeof PainelRoute
+    }
     '/painel/$encarregado': {
       id: '/painel/$encarregado'
       path: '/$encarregado'
@@ -241,6 +260,7 @@ const PainelEncarregadoRouteWithChildren =
 
 interface PainelRouteChildren {
   PainelEncarregadoRoute: typeof PainelEncarregadoRouteWithChildren
+  PainelAdminRoute: typeof PainelAdminRoute
   PainelGruposRoute: typeof PainelGruposRoute
   PainelGuiaRoute: typeof PainelGuiaRoute
   PainelIndexRoute: typeof PainelIndexRoute
@@ -248,6 +268,7 @@ interface PainelRouteChildren {
 
 const PainelRouteChildren: PainelRouteChildren = {
   PainelEncarregadoRoute: PainelEncarregadoRouteWithChildren,
+  PainelAdminRoute: PainelAdminRoute,
   PainelGruposRoute: PainelGruposRoute,
   PainelGuiaRoute: PainelGuiaRoute,
   PainelIndexRoute: PainelIndexRoute,

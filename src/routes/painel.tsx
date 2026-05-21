@@ -5,7 +5,35 @@ import { useAuth } from "@/lib/auth-context";
 import { BotStatusIndicator } from "@/components/bot-status-indicator";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Inbox, BookOpen } from "lucide-react";
+import { Inbox, BookOpen, ShieldCheck } from "lucide-react";
+
+function AdminLink() {
+  const { data } = useQuery({
+    queryKey: ["is-admin-header"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+      const { data: row } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      return !!row;
+    },
+  });
+  if (!data) return null;
+  return (
+    <Link
+      to="/painel/admin"
+      className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+      title="Painel administrativo"
+    >
+      <ShieldCheck size={15} />
+      <span className="hidden sm:inline">Admin</span>
+    </Link>
+  );
+}
 
 function GruposPendentesLink() {
   const { data: count = 0 } = useQuery({
@@ -80,6 +108,7 @@ function PainelLayout() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <GruposPendentesLink />
+            <AdminLink />
             <Link
               to="/painel/guia"
               className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
