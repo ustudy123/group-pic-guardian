@@ -175,14 +175,14 @@ export const getAdminStats = createServerFn({ method: "GET" })
     await assertAdmin(context.supabase, context.userId);
 
     const [users, encs, fotos, grupos] = await Promise.all([
-      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 }),
-      supabaseAdmin.from("encarregados").select("id", { count: "exact", head: true }).eq("ativo", true),
-      supabaseAdmin.from("fotos").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("grupos").select("id", { count: "exact", head: true }).eq("ativo", true),
+      context.supabase.from("profiles").select("id", { count: "exact", head: true }),
+      context.supabase.from("encarregados").select("id", { count: "exact", head: true }).eq("ativo", true),
+      context.supabase.from("fotos").select("id", { count: "exact", head: true }),
+      context.supabase.from("grupos").select("id", { count: "exact", head: true }).eq("ativo", true),
     ]);
 
     return {
-      totalUsers: users.data?.users.length ?? 0,
+      totalUsers: users.count ?? 0,
       totalEncarregados: encs.count ?? 0,
       totalFotos: fotos.count ?? 0,
       totalGrupos: grupos.count ?? 0,
