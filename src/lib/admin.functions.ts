@@ -1,19 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
-async function assertAdmin(supabase: SupabaseClient, userId: string) {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error("Acesso negado: somente administradores.");
-}
+import {
+  assertAdmin,
+  changeAuthUserPassword,
+  confirmAuthUserEmail,
+  createAuthUser,
+  removeAuthUser,
+  setAdminRole,
+} from "@/lib/admin.server";
 
 export const listUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -64,24 +59,7 @@ export const createUser = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-
-    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: data.password,
-      email_confirm: true,
-    });
-    if (error) throw new Error(error.message);
-
-    if (data.isAdmin && created.user) {
-      const { error: roleErr } = await supabaseAdmin
-        .from("user_roles")
-        .insert({ user_id: created.user.id, role: "admin" });
-      if (roleErr && !roleErr.message.includes("duplicate")) {
-        throw new Error(roleErr.message);
-      }
-    }
-
-    return { id: created.user?.id, email: created.user?.email };
+    return createAuthUser(data);
   });
 
 export const deleteUser = createServerFn({ method: "POST" })
@@ -94,8 +72,7 @@ export const deleteUser = createServerFn({ method: "POST" })
     if (data.userId === context.userId) {
       throw new Error("Você não pode excluir sua própria conta.");
     }
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
-    if (error) throw new Error(error.message);
+    await removeAuthUser(data.userId);
     return { ok: true };
   });
 
@@ -111,11 +88,7 @@ export const updateUserPassword = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      data.userId,
-      { password: data.password },
-    );
-    if (error) throw new Error(error.message);
+    await changeAuthUserPassword(data.userId, data.password);
     return { ok: true };
   });
 
@@ -136,21 +109,7 @@ export const setUserAdmin = createServerFn({ method: "POST" })
       throw new Error("Você não pode remover seu próprio acesso de admin.");
     }
 
-    if (data.isAdmin) {
-      const { error } = await supabaseAdmin
-        .from("user_roles")
-        .insert({ user_id: data.userId, role: "admin" });
-      if (error && !error.message.includes("duplicate")) {
-        throw new Error(error.message);
-      }
-    } else {
-      const { error } = await supabaseAdmin
-        .from("user_roles")
-        .delete()
-        .eq("user_id", data.userId)
-        .eq("role", "admin");
-      if (error) throw new Error(error.message);
-    }
+    await setAdminRole(data.userId, data.isAdmin);
     return { ok: true };
   });
 
@@ -161,11 +120,7 @@ export const confirmUserEmail = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.supabase, context.userId);
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(
-      data.userId,
-      { email_confirm: true },
-    );
-    if (error) throw new Error(error.message);
+    await confirmAuthUserEmail(data.userId);
     return { ok: true };
   });
 
