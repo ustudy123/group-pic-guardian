@@ -1,10 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-async function assertAdmin(userId: string) {
-  const { data, error } = await supabaseAdmin
+async function assertAdmin(supabase: SupabaseClient, userId: string) {
+  const { data, error } = await supabase
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
@@ -17,7 +18,7 @@ async function assertAdmin(userId: string) {
 export const listUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.userId);
+    await assertAdmin(context.supabase, context.userId);
 
     const { data: usersData, error: usersErr } =
       await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
@@ -59,7 +60,7 @@ export const createUser = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertAdmin(context.supabase, context.userId);
 
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
@@ -86,7 +87,7 @@ export const deleteUser = createServerFn({ method: "POST" })
     z.object({ userId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertAdmin(context.supabase, context.userId);
     if (data.userId === context.userId) {
       throw new Error("Você não pode excluir sua própria conta.");
     }
@@ -106,7 +107,7 @@ export const updateUserPassword = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertAdmin(context.supabase, context.userId);
     const { error } = await supabaseAdmin.auth.admin.updateUserById(
       data.userId,
       { password: data.password },
@@ -126,7 +127,7 @@ export const setUserAdmin = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertAdmin(context.supabase, context.userId);
 
     if (!data.isAdmin && data.userId === context.userId) {
       throw new Error("Você não pode remover seu próprio acesso de admin.");
@@ -156,7 +157,7 @@ export const confirmUserEmail = createServerFn({ method: "POST" })
     z.object({ userId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertAdmin(context.supabase, context.userId);
     const { error } = await supabaseAdmin.auth.admin.updateUserById(
       data.userId,
       { email_confirm: true },
@@ -168,7 +169,7 @@ export const confirmUserEmail = createServerFn({ method: "POST" })
 export const getAdminStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.userId);
+    await assertAdmin(context.supabase, context.userId);
 
     const [users, encs, fotos, grupos] = await Promise.all([
       supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 }),
@@ -188,7 +189,7 @@ export const getAdminStats = createServerFn({ method: "GET" })
 export const checkIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await supabaseAdmin
+    const { data } = await context.supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId)
