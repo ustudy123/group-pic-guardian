@@ -189,7 +189,7 @@ export const getAdminStats = createServerFn({ method: "GET" })
 export const checkIsAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await supabaseAdmin
+    const { data } = await context.supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId)
