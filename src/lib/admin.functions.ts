@@ -20,13 +20,15 @@ export const listUsers = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context.supabase, context.userId);
 
-    const { data: usersData, error: usersErr } =
-      await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    if (usersErr) throw new Error(usersErr.message);
-
-    const { data: roles, error: rolesErr } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id, role");
+    const [{ data: profiles, error: profErr }, { data: roles, error: rolesErr }] =
+      await Promise.all([
+        context.supabase
+          .from("profiles")
+          .select("id, email, display_name, created_at")
+          .order("created_at", { ascending: false }),
+        context.supabase.from("user_roles").select("user_id, role"),
+      ]);
+    if (profErr) throw new Error(profErr.message);
     if (rolesErr) throw new Error(rolesErr.message);
 
     const rolesByUser = new Map<string, string[]>();
@@ -37,16 +39,17 @@ export const listUsers = createServerFn({ method: "GET" })
     }
 
     return {
-      users: usersData.users.map((u) => ({
-        id: u.id,
-        email: u.email ?? "",
-        created_at: u.created_at,
-        last_sign_in_at: u.last_sign_in_at ?? null,
-        email_confirmed_at: u.email_confirmed_at ?? null,
-        roles: rolesByUser.get(u.id) ?? [],
+      users: (profiles ?? []).map((p) => ({
+        id: p.id,
+        email: p.email ?? "",
+        created_at: p.created_at,
+        last_sign_in_at: null as string | null,
+        email_confirmed_at: null as string | null,
+        roles: rolesByUser.get(p.id) ?? [],
       })),
     };
   });
+
 
 export const createUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -172,14 +175,14 @@ export const getAdminStats = createServerFn({ method: "GET" })
     await assertAdmin(context.supabase, context.userId);
 
     const [users, encs, fotos, grupos] = await Promise.all([
-      supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 }),
-      supabaseAdmin.from("encarregados").select("id", { count: "exact", head: true }).eq("ativo", true),
-      supabaseAdmin.from("fotos").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("grupos").select("id", { count: "exact", head: true }).eq("ativo", true),
+      context.supabase.from("profiles").select("id", { count: "exact", head: true }),
+      context.supabase.from("encarregados").select("id", { count: "exact", head: true }).eq("ativo", true),
+      context.supabase.from("fotos").select("id", { count: "exact", head: true }),
+      context.supabase.from("grupos").select("id", { count: "exact", head: true }).eq("ativo", true),
     ]);
 
     return {
-      totalUsers: users.data?.users.length ?? 0,
+      totalUsers: users.count ?? 0,
       totalEncarregados: encs.count ?? 0,
       totalFotos: fotos.count ?? 0,
       totalGrupos: grupos.count ?? 0,
