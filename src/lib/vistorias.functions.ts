@@ -179,7 +179,7 @@ export const saveFoto = createServerFn({ method: "POST" })
         storage_path_original: data.storagePathOriginal,
         storage_path_carimbada: data.storagePathCarimbada,
         par_pre_id: data.parPreId ?? null,
-        exif: data.exif ?? {},
+        exif: (data.exif ?? {}) as never,
         enviado_por: context.userId,
       })
       .select()
