@@ -80,8 +80,8 @@ function LoginPage() {
       {/* Lado direito — form */}
       <div className="flex items-center justify-center p-6 lg:p-12 relative">
         <div className="absolute top-6 right-6 lg:hidden flex items-center gap-2">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "var(--gradient-safety)" }}>
-            <HardHat className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-white border">
+            <img src={logoMacro} alt="Macro Ambiental" className="w-7 h-7 object-contain" />
           </div>
         </div>
 
