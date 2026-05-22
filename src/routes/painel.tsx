@@ -117,6 +117,7 @@ function PainelLayout() {
               <span className="hidden sm:inline">Vistorias</span>
             </Link>
             <AdminLink />
+            <Link
               to="/painel/guia"
               className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
               title="Guia do usuário"
