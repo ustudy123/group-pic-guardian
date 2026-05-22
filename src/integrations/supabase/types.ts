@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      bairros: {
+        Row: {
+          contrato_id: string
+          created_at: string
+          id: string
+          mapa_url: string | null
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          contrato_id: string
+          created_at?: string
+          id?: string
+          mapa_url?: string | null
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          contrato_id?: string
+          created_at?: string
+          id?: string
+          mapa_url?: string | null
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bairros_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contratos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          municipio: string | null
+          numero: string
+          periodo: string | null
+          regional: string | null
+          responsavel_tecnico: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          municipio?: string | null
+          numero: string
+          periodo?: string | null
+          regional?: string | null
+          responsavel_tecnico?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          municipio?: string | null
+          numero?: string
+          periodo?: string | null
+          regional?: string | null
+          responsavel_tecnico?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       encarregados: {
         Row: {
           ativo: boolean
@@ -292,6 +369,41 @@ export type Database = {
         }
         Relationships: []
       }
+      ruas: {
+        Row: {
+          bairro_id: string
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          bairro_id: string
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          bairro_id?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ruas_bairro_id_fkey"
+            columns: ["bairro_id"]
+            isOneToOne: false
+            referencedRelation: "bairros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -312,6 +424,167 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      vistoria_atribuicoes: {
+        Row: {
+          created_at: string
+          fase: string
+          id: string
+          rua_id: string
+          vistoriante_id: string
+        }
+        Insert: {
+          created_at?: string
+          fase?: string
+          id?: string
+          rua_id: string
+          vistoriante_id: string
+        }
+        Update: {
+          created_at?: string
+          fase?: string
+          id?: string
+          rua_id?: string
+          vistoriante_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vistoria_atribuicoes_rua_id_fkey"
+            columns: ["rua_id"]
+            isOneToOne: false
+            referencedRelation: "ruas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vistoria_fotos: {
+        Row: {
+          captured_at: string
+          created_at: string
+          endereco_formatado: string | null
+          enviado_por: string
+          exif: Json
+          fase: string
+          id: string
+          lado: string | null
+          latitude: number | null
+          longitude: number | null
+          numero_casa: string | null
+          observacao: string | null
+          par_pre_id: string | null
+          rua_id: string
+          similaridade_angulo: number | null
+          status: string
+          storage_path_carimbada: string
+          storage_path_original: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          captured_at: string
+          created_at?: string
+          endereco_formatado?: string | null
+          enviado_por: string
+          exif?: Json
+          fase: string
+          id?: string
+          lado?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          numero_casa?: string | null
+          observacao?: string | null
+          par_pre_id?: string | null
+          rua_id: string
+          similaridade_angulo?: number | null
+          status?: string
+          storage_path_carimbada: string
+          storage_path_original: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          endereco_formatado?: string | null
+          enviado_por?: string
+          exif?: Json
+          fase?: string
+          id?: string
+          lado?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          numero_casa?: string | null
+          observacao?: string | null
+          par_pre_id?: string | null
+          rua_id?: string
+          similaridade_angulo?: number | null
+          status?: string
+          storage_path_carimbada?: string
+          storage_path_original?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vistoria_fotos_par_pre_id_fkey"
+            columns: ["par_pre_id"]
+            isOneToOne: false
+            referencedRelation: "vistoria_fotos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vistoria_fotos_rua_id_fkey"
+            columns: ["rua_id"]
+            isOneToOne: false
+            referencedRelation: "ruas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vistoria_relatorios: {
+        Row: {
+          bairro_id: string | null
+          contrato_id: string
+          gerado_em: string
+          gerado_por: string
+          id: string
+          pdf_path: string
+          revisao: string
+        }
+        Insert: {
+          bairro_id?: string | null
+          contrato_id: string
+          gerado_em?: string
+          gerado_por: string
+          id?: string
+          pdf_path: string
+          revisao?: string
+        }
+        Update: {
+          bairro_id?: string | null
+          contrato_id?: string
+          gerado_em?: string
+          gerado_por?: string
+          id?: string
+          pdf_path?: string
+          revisao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vistoria_relatorios_bairro_id_fkey"
+            columns: ["bairro_id"]
+            isOneToOne: false
+            referencedRelation: "bairros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vistoria_relatorios_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_bot_status: {
         Row: {
@@ -395,6 +668,10 @@ export type Database = {
         Returns: boolean
       }
       limpar_eventos_antigos: { Args: { dias?: number }; Returns: number }
+      vistoriante_tem_rua: {
+        Args: { _rua: string; _user: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "vistoriante" | "analista"
