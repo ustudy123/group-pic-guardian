@@ -21,6 +21,7 @@ import { Route as PainelAdminRouteImport } from './routes/painel.admin'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
 import { Route as PainelVistoriasIndexRouteImport } from './routes/painel.vistorias.index'
 import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
+import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistorias.admin'
 import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 
@@ -84,6 +85,11 @@ const PainelEncarregadoIndexRoute = PainelEncarregadoIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PainelEncarregadoRoute,
 } as any)
+const PainelVistoriasAdminRoute = PainelVistoriasAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => PainelVistoriasRoute,
+} as any)
 const PainelVistoriasRuaIdRoute = PainelVistoriasRuaIdRouteImport.update({
   id: '/$ruaId',
   path: '/$ruaId',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
+  '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/painel/guia': typeof PainelGuiaRoute
   '/painel': typeof PainelIndexRoute
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
+  '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias': typeof PainelVistoriasIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
@@ -138,6 +146,7 @@ export interface FileRoutesById {
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
+  '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/painel/vistorias'
     | '/painel/'
     | '/painel/vistorias/$ruaId'
+    | '/painel/vistorias/admin'
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/painel/$encarregado/$anoMes/$dia'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/painel/guia'
     | '/painel'
     | '/painel/vistorias/$ruaId'
+    | '/painel/vistorias/admin'
     | '/painel/$encarregado'
     | '/painel/vistorias'
     | '/painel/$encarregado/$anoMes/$dia'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/painel/vistorias'
     | '/painel/'
     | '/painel/vistorias/$ruaId'
+    | '/painel/vistorias/admin'
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/painel/$encarregado/$anoMes/$dia'
@@ -283,6 +295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelEncarregadoIndexRouteImport
       parentRoute: typeof PainelEncarregadoRoute
     }
+    '/painel/vistorias/admin': {
+      id: '/painel/vistorias/admin'
+      path: '/admin'
+      fullPath: '/painel/vistorias/admin'
+      preLoaderRoute: typeof PainelVistoriasAdminRouteImport
+      parentRoute: typeof PainelVistoriasRoute
+    }
     '/painel/vistorias/$ruaId': {
       id: '/painel/vistorias/$ruaId'
       path: '/$ruaId'
@@ -315,11 +334,13 @@ const PainelEncarregadoRouteWithChildren =
 
 interface PainelVistoriasRouteChildren {
   PainelVistoriasRuaIdRoute: typeof PainelVistoriasRuaIdRoute
+  PainelVistoriasAdminRoute: typeof PainelVistoriasAdminRoute
   PainelVistoriasIndexRoute: typeof PainelVistoriasIndexRoute
 }
 
 const PainelVistoriasRouteChildren: PainelVistoriasRouteChildren = {
   PainelVistoriasRuaIdRoute: PainelVistoriasRuaIdRoute,
+  PainelVistoriasAdminRoute: PainelVistoriasAdminRoute,
   PainelVistoriasIndexRoute: PainelVistoriasIndexRoute,
 }
 
