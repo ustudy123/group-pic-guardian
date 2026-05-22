@@ -69,18 +69,18 @@
   --card-foreground: oklch(0.22 0.03 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.22 0.03 250);
-  /* Steel blue — construction/engineering */
-  --primary: oklch(0.38 0.07 250);
+  /* Deep navy — Macro Ambiental logo outer */
+  --primary: oklch(0.32 0.06 250);
   --primary-foreground: oklch(0.99 0.005 90);
-  --primary-glow: oklch(0.52 0.11 245);
-  /* Safety orange */
-  --accent-orange: oklch(0.7 0.19 50);
-  --accent-orange-foreground: oklch(0.18 0.02 60);
-  /* Hi-vis yellow */
-  --accent-yellow: oklch(0.88 0.18 95);
+  --primary-glow: oklch(0.62 0.08 240);
+  /* Steel blue accent — logo inner */
+  --accent-orange: oklch(0.55 0.07 245);
+  --accent-orange-foreground: oklch(0.99 0.005 90);
+  /* Soft sky accent */
+  --accent-yellow: oklch(0.78 0.06 235);
   /* Concrete */
-  --concrete: oklch(0.78 0.01 80);
-  --secondary: oklch(0.95 0.01 80);
+  --concrete: oklch(0.78 0.01 240);
+  --secondary: oklch(0.95 0.01 240);
   --secondary-foreground: oklch(0.22 0.03 250);
   --muted: oklch(0.95 0.01 80);
   --muted-foreground: oklch(0.5 0.02 250);
