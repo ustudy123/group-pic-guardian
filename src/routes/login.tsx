@@ -51,20 +51,17 @@ function LoginPage() {
         <div className="absolute top-1/3 -left-20 w-80 h-80 rounded-full blur-3xl" style={{ background: "var(--gradient-steel)", opacity: 0.5 }} />
 
         <div className="relative z-10 flex items-center gap-3">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center shadow-2xl"
-            style={{ background: "var(--gradient-safety)", boxShadow: "var(--shadow-glow)" }}
-          >
-            <HardHat className="w-6 h-6 text-white" />
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-white/95 shadow-2xl">
+            <img src={logoMacro} alt="Macro Ambiental" className="w-10 h-10 object-contain" />
           </div>
           <span className="text-xl font-bold tracking-tight">Macro Ambiental</span>
         </div>
 
         <div className="relative z-10 space-y-6">
-          <div className="h-2 w-32 rounded-full bg-construction-stripes" />
+          <div className="h-2 w-32 rounded-full" style={{ background: "var(--gradient-steel)" }} />
           <h1 className="text-5xl font-black leading-tight">
             Fotos de obras,<br />
-            <span style={{ color: "var(--accent-yellow)" }}>organizadas</span> automaticamente.
+            <span style={{ color: "var(--primary-glow)" }}>organizadas</span> automaticamente.
           </h1>
           <p className="text-white/75 text-lg max-w-md">
             Receba, classifique e gere relatórios fotográficos direto do WhatsApp dos encarregados de campo.
