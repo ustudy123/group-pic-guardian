@@ -397,7 +397,7 @@ export type Database = {
       limpar_eventos_antigos: { Args: { dias?: number }; Returns: number }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "vistoriante" | "analista"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -525,7 +525,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "vistoriante", "analista"],
     },
   },
 } as const
