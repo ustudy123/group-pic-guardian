@@ -75,7 +75,7 @@ export const Route = createFileRoute("/api/public/hooks/processar-relatorios")({
 
         let body: any = {};
         try { body = await request.json(); } catch {}
-        const job = await pickJob(body.jobId);
+        const job = (await pickJob(body.jobId)) as any;
         if (!job) {
           return Response.json({ done: true, idle: true });
         }

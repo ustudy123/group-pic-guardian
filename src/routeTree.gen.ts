@@ -24,6 +24,7 @@ import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$enc
 import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistorias.admin'
 import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
+import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -101,6 +102,12 @@ const PainelEncarregadoAnoMesDiaRoute =
     path: '/$anoMes/$dia',
     getParentRoute: () => PainelEncarregadoRoute,
   } as any)
+const ApiPublicHooksProcessarRelatoriosRoute =
+  ApiPublicHooksProcessarRelatoriosRouteImport.update({
+    id: '/api/public/hooks/processar-relatorios',
+    path: '/api/public/hooks/processar-relatorios',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
+  '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesByTo {
@@ -131,6 +139,7 @@ export interface FileRoutesByTo {
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias': typeof PainelVistoriasIndexRoute
+  '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesById {
@@ -149,6 +158,7 @@ export interface FileRoutesById {
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
+  '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRouteTypes {
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/painel/vistorias/admin'
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
+    | '/api/public/hooks/processar-relatorios'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/painel/vistorias/admin'
     | '/painel/$encarregado'
     | '/painel/vistorias'
+    | '/api/public/hooks/processar-relatorios'
     | '/painel/$encarregado/$anoMes/$dia'
   id:
     | '__root__'
@@ -199,6 +211,7 @@ export interface FileRouteTypes {
     | '/painel/vistorias/admin'
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
+    | '/api/public/hooks/processar-relatorios'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
 }
@@ -207,6 +220,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -316,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelEncarregadoAnoMesDiaRouteImport
       parentRoute: typeof PainelEncarregadoRoute
     }
+    '/api/public/hooks/processar-relatorios': {
+      id: '/api/public/hooks/processar-relatorios'
+      path: '/api/public/hooks/processar-relatorios'
+      fullPath: '/api/public/hooks/processar-relatorios'
+      preLoaderRoute: typeof ApiPublicHooksProcessarRelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -374,6 +395,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicHooksProcessarRelatoriosRoute:
+    ApiPublicHooksProcessarRelatoriosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
