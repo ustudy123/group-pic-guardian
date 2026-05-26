@@ -10,6 +10,7 @@ import {
   listFotosRua,
   deleteFoto,
   setFotoStatus,
+  getMyRoles,
 } from "@/lib/vistorias.functions";
 
 export const Route = createFileRoute("/painel/vistorias/$ruaId")({
