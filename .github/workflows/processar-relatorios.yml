@@ -1,0 +1,69 @@
+name: Processar Relatórios de Vistoria
+
+# Dispara quando o app coloca um job na fila (via repository_dispatch)
+# ou periodicamente como fallback caso algum job tenha ficado para trás.
+on:
+  repository_dispatch:
+    types: [processar-relatorio]
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: processar-relatorios
+  cancel-in-progress: false
+
+jobs:
+  processar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350  # ~5h45 — GitHub Actions corta em 6h
+    steps:
+      - name: Processar fila de PDFs
+        env:
+          ENDPOINT: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks/processar-relatorios
+          SECRET: ${{ secrets.RELATORIOS_WORKER_SECRET }}
+          JOB_ID: ${{ github.event.client_payload.jobId }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "RELATORIOS_WORKER_SECRET não configurado nos secrets do repo."
+            exit 1
+          fi
+
+          BODY="{}"
+          if [ -n "$JOB_ID" ]; then
+            BODY="{\"jobId\":\"$JOB_ID\"}"
+          fi
+
+          MAX_ITER=2000  # cada chamada processa 1 chunk (capa ou 1 rua)
+          for i in $(seq 1 $MAX_ITER); do
+            echo "Iteração $i..."
+            RESP=$(curl -sS -X POST "$ENDPOINT" \
+              -H "Content-Type: application/json" \
+              -H "x-relatorios-secret: $SECRET" \
+              -d "$BODY")
+            echo "Resp: $RESP"
+
+            DONE=$(echo "$RESP" | grep -o '"done":true' || true)
+            IDLE=$(echo "$RESP" | grep -o '"idle":true' || true)
+            ERR=$(echo "$RESP" | grep -o '"error"' || true)
+
+            if [ -n "$IDLE" ]; then
+              echo "Fila vazia."
+              break
+            fi
+            if [ -n "$DONE" ] && [ -z "$JOB_ID" ]; then
+              echo "Job concluído; checa se há mais na fila..."
+              BODY="{}"
+              sleep 1
+              continue
+            fi
+            if [ -n "$DONE" ]; then
+              echo "Job alvo concluído."
+              break
+            fi
+            if [ -n "$ERR" ]; then
+              echo "Erro reportado pelo endpoint; abortando este job."
+              break
+            fi
+            sleep 1
+          done

@@ -541,6 +541,63 @@ export type Database = {
           },
         ]
       }
+      vistoria_relatorio_jobs: {
+        Row: {
+          bairro_id: string
+          chunks_path: string | null
+          concluido_em: string | null
+          contrato_id: string
+          fotos_processadas: number
+          id: string
+          iniciado_em: string | null
+          mensagem_erro: string | null
+          pdf_path: string | null
+          progresso_atual: number
+          progresso_total: number
+          solicitado_em: string
+          solicitado_por: string
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          bairro_id: string
+          chunks_path?: string | null
+          concluido_em?: string | null
+          contrato_id: string
+          fotos_processadas?: number
+          id?: string
+          iniciado_em?: string | null
+          mensagem_erro?: string | null
+          pdf_path?: string | null
+          progresso_atual?: number
+          progresso_total?: number
+          solicitado_em?: string
+          solicitado_por: string
+          status?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          bairro_id?: string
+          chunks_path?: string | null
+          concluido_em?: string | null
+          contrato_id?: string
+          fotos_processadas?: number
+          id?: string
+          iniciado_em?: string | null
+          mensagem_erro?: string | null
+          pdf_path?: string | null
+          progresso_atual?: number
+          progresso_total?: number
+          solicitado_em?: string
+          solicitado_por?: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       vistoria_relatorios: {
         Row: {
           bairro_id: string | null
