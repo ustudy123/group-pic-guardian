@@ -418,7 +418,36 @@ export const upsertRua = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
+
+    // Auto-atribui o criador à rua para conseguir fotografar imediatamente
+    await context.supabase
+      .from("vistoria_atribuicoes")
+      .insert({ rua_id: row.id, vistoriante_id: context.userId, fase: "ambas" });
+
     return { id: row.id };
+  });
+
+// Aprovar todas as fotos pendentes de uma rua (opcionalmente filtradas por fase)
+export const aprovarFotosRua = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z
+      .object({
+        ruaId: z.string().uuid(),
+        fase: z.enum(["pre", "pos"]).optional(),
+      })
+      .parse(i),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("vistoria_fotos")
+      .update({ status: "aprovada" })
+      .eq("rua_id", data.ruaId)
+      .eq("status", "pendente");
+    if (data.fase) q = q.eq("fase", data.fase);
+    const { error, count } = await q.select("id", { count: "exact" });
+    if (error) throw new Error(error.message);
+    return { aprovadas: count ?? 0 };
   });
 
 export const deleteRua = createServerFn({ method: "POST" })
