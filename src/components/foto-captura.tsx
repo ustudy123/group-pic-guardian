@@ -113,16 +113,7 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
         if (inputRef.current) inputRef.current.value = "";
         return;
       }
-      if (gps.accuracy > 60) {
-        const ok = confirm(
-          `A precisão do GPS está baixa (±${Math.round(gps.accuracy)}m). O endereço pode ficar impreciso.\n\nDicas:\n• Vá para um local aberto, longe de prédios\n• Aguarde alguns segundos e tente de novo\n\nDeseja continuar mesmo assim?`,
-        );
-        if (!ok) {
-          setBusy(false);
-          setProgress("");
-          if (inputRef.current) inputRef.current.value = "";
-          return;
-        }
+      // Sem confirmação por baixa precisão — o carimbo já registra ±Xm.
       }
 
       setProgress("Buscando endereço...");
