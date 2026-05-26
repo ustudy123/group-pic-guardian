@@ -90,6 +90,28 @@ export const listRuas = createServerFn({ method: "POST" })
   });
 
 // Minhas ruas (vistoriante) — ou todas se admin/analista
+// Helper: agrega contadores de vistoria_fotos por rua para uma lista de rua_ids
+async function getProgressoMap(supabase: any, ruaIds: string[]) {
+  const map = new Map<string, { preRua: number; preRuaAprov: number; preCasa: number; preCasaAprov: number; posRua: number; posRuaAprov: number }>();
+  if (!ruaIds.length) return map;
+  const { data: rows } = await supabase
+    .from("vistoria_fotos")
+    .select("rua_id, fase, tipo, status")
+    .in("rua_id", ruaIds);
+  for (const id of ruaIds) {
+    map.set(id, { preRua: 0, preRuaAprov: 0, preCasa: 0, preCasaAprov: 0, posRua: 0, posRuaAprov: 0 });
+  }
+  for (const r of (rows ?? []) as any[]) {
+    const m = map.get(r.rua_id);
+    if (!m) continue;
+    const aprov = r.status === "aprovada";
+    if (r.fase === "pre" && r.tipo === "rua") { m.preRua++; if (aprov) m.preRuaAprov++; }
+    else if (r.fase === "pre" && r.tipo === "casa") { m.preCasa++; if (aprov) m.preCasaAprov++; }
+    else if (r.fase === "pos") { m.posRua++; if (aprov) m.posRuaAprov++; }
+  }
+  return map;
+}
+
 export const listMinhasRuas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -99,22 +121,26 @@ export const listMinhasRuas = createServerFn({ method: "GET" })
       .eq("user_id", context.userId);
     const isPriv = (roles ?? []).some((r) => r.role === "admin" || r.role === "analista");
 
+    let ruas: any[] = [];
     if (isPriv) {
       const { data, error } = await context.supabase
         .from("ruas")
         .select("id, nome, bairro_id, bairros(nome, contrato_id, contratos(numero, descricao))")
         .order("nome");
       if (error) throw new Error(error.message);
-      return { ruas: data ?? [], isPrivileged: true };
+      ruas = data ?? [];
+    } else {
+      const { data: atrib, error: ae } = await context.supabase
+        .from("vistoria_atribuicoes")
+        .select("rua_id, ruas(id, nome, bairro_id, bairros(nome, contrato_id, contratos(numero, descricao)))")
+        .eq("vistoriante_id", context.userId);
+      if (ae) throw new Error(ae.message);
+      ruas = (atrib ?? []).map((a: any) => a.ruas).filter(Boolean);
     }
 
-    const { data: atrib, error: ae } = await context.supabase
-      .from("vistoria_atribuicoes")
-      .select("rua_id, ruas(id, nome, bairro_id, bairros(nome, contrato_id, contratos(numero, descricao)))")
-      .eq("vistoriante_id", context.userId);
-    if (ae) throw new Error(ae.message);
-    const ruas = (atrib ?? []).map((a: any) => a.ruas).filter(Boolean);
-    return { ruas, isPrivileged: false };
+    const progresso = await getProgressoMap(context.supabase, ruas.map((r) => r.id));
+    const ruasComProgresso = ruas.map((r) => ({ ...r, progresso: progresso.get(r.id) }));
+    return { ruas: ruasComProgresso, isPrivileged: isPriv };
   });
 
 export const getRua = createServerFn({ method: "POST" })
@@ -127,8 +153,10 @@ export const getRua = createServerFn({ method: "POST" })
       .eq("id", data.ruaId)
       .single();
     if (error) throw new Error(error.message);
-    return { rua };
+    const progresso = (await getProgressoMap(context.supabase, [data.ruaId])).get(data.ruaId);
+    return { rua, progresso };
   });
+
 
 export const listFotosRua = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
