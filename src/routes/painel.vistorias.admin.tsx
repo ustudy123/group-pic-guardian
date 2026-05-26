@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Plus, Trash2, UserPlus, FileDown, Loader2 } from "lucide-react";
+import { Plus, Trash2, UserPlus, FileDown, Loader2, TriangleAlert, RotateCcw, CircleX } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -11,7 +11,7 @@ import {
   listRuas, upsertRua, deleteRua,
   listAtribuicoesRua, addAtribuicao, removeAtribuicao,
 } from "@/lib/vistorias.functions";
-import { enfileirarRelatorio, listJobsBairro, retryJob } from "@/lib/relatorios-jobs.functions";
+import { cancelarJob, enfileirarRelatorio, listJobsBairro, retryJob } from "@/lib/relatorios-jobs.functions";
 
 export const Route = createFileRoute("/painel/vistorias/admin")({
   component: AdminVistorias,
@@ -230,6 +230,7 @@ function RelatoriosBairro({ bairroId }: { bairroId: string }) {
   const listJobs = useServerFn(listJobsBairro);
   const enfileirar = useServerFn(enfileirarRelatorio);
   const retry = useServerFn(retryJob);
+  const cancelar = useServerFn(cancelarJob);
   const [loading, setLoading] = useState<"pre" | "pos" | null>(null);
 
   const { data } = useQuery({
@@ -282,6 +283,11 @@ function RelatoriosBairro({ bairroId }: { bairroId: string }) {
             const pct = j.progresso_total > 0
               ? Math.round((j.progresso_atual / j.progresso_total) * 100)
               : 0;
+            const minutosNaFila = Math.max(
+              0,
+              Math.floor((Date.now() - new Date(j.iniciado_em ?? j.solicitado_em).getTime()) / 60000),
+            );
+            const filaTravada = j.status === "na_fila" && minutosNaFila >= 5;
             const statusLabel: Record<string, string> = {
               na_fila: "Na fila",
               processando: `Processando ${j.progresso_atual}/${j.progresso_total} ruas`,
@@ -307,6 +313,25 @@ function RelatoriosBairro({ bairroId }: { bairroId: string }) {
                     <div className="h-full bg-blue-500" style={{ width: `${pct}%` }} />
                   </div>
                 )}
+                {(filaTravada || j.stuck) && (
+                  <div className="mt-1 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-amber-900">
+                    <div className="flex items-start gap-1.5">
+                      <TriangleAlert size={12} className="mt-0.5 shrink-0" />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p>Está parado na fila há {minutosNaFila} min.</p>
+                        <p className="text-[9px] text-amber-800">Se o GitHub Actions não rodar, use tentar novamente ou cancelar este job.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {(j.status === "na_fila" || j.status === "processando") && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                    <span>
+                      {j.status === "na_fila" ? `Na fila há ${minutosNaFila} min` : `Atualizado há ${minutosNaFila} min`}
+                    </span>
+                    {j.mensagem_erro && <span className="truncate" title={j.mensagem_erro}>{j.mensagem_erro}</span>}
+                  </div>
+                )}
                 {j.status === "erro" && (
                   <div className="mt-1 flex items-center justify-between gap-1">
                     <span className="text-red-700 truncate" title={j.mensagem_erro}>
@@ -320,6 +345,30 @@ function RelatoriosBairro({ bairroId }: { bairroId: string }) {
                       className="text-primary underline"
                     >
                       Tentar novamente
+                    </button>
+                  </div>
+                )}
+                {(j.status === "na_fila" || j.status === "processando") && (
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    <button
+                      onClick={async () => {
+                        await retry({ data: { jobId: j.id } });
+                        toast.success("Job reenfileirado");
+                        qc.invalidateQueries({ queryKey: ["v-jobs", bairroId] });
+                      }}
+                      className="inline-flex items-center gap-1 text-primary underline"
+                    >
+                      <RotateCcw size={11} /> Tentar novamente
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await cancelar({ data: { jobId: j.id } });
+                        toast.success("Job cancelado");
+                        qc.invalidateQueries({ queryKey: ["v-jobs", bairroId] });
+                      }}
+                      className="inline-flex items-center gap-1 text-destructive underline"
+                    >
+                      <CircleX size={11} /> Cancelar
                     </button>
                   </div>
                 )}
