@@ -15,16 +15,18 @@ export function VistoriasManual() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="rounded-2xl border bg-card overflow-hidden shadow-sm">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/50 transition"
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-accent/40 transition"
       >
-        <div className="flex items-center gap-2 text-left">
-          <BookOpen size={18} className="text-primary" />
+        <div className="flex items-center gap-3 text-left">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <BookOpen size={18} />
+          </div>
           <div>
-            <div className="font-semibold">Como usar — Manual de Vistorias</div>
+            <div className="font-bold">Como usar — Manual de Vistorias</div>
             <div className="text-xs text-muted-foreground">
               Passo a passo para vistoriantes, analistas e administradores
             </div>
@@ -37,7 +39,7 @@ export function VistoriasManual() {
       </button>
 
       {open && (
-        <div className="px-4 pb-5 pt-1 space-y-6 border-t">
+        <div className="px-5 pb-6 pt-2 space-y-6 border-t bg-muted/20">
           {/* O que é */}
           <section className="space-y-2">
             <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
