@@ -59,9 +59,9 @@ function RuaPage() {
     refetch();
     qc.invalidateQueries({ queryKey: ["fotos-rua", ruaId] });
   }
-  async function handleStatus(id: string, status: "aprovada" | "rejeitada") {
+  async function handleStatus(id: string, status: "pendente" | "aprovada" | "rejeitada") {
     await statusFn({ data: { fotoId: id, status } });
-    toast.success(status === "aprovada" ? "Aprovada" : "Rejeitada");
+    toast.success(status === "aprovada" ? "Aprovada" : status === "rejeitada" ? "Rejeitada" : "Status revertido");
     refetch();
   }
 
@@ -205,7 +205,7 @@ function FotoColuna({
   titulo: string;
   fotos: any[];
   onDelete: (id: string) => void;
-  onStatus: (id: string, s: "aprovada" | "rejeitada") => void;
+  onStatus: (id: string, s: "pendente" | "aprovada" | "rejeitada") => void;
   podeAprovar: boolean;
 }) {
   return (
@@ -241,6 +241,12 @@ function FotoColuna({
                     <button onClick={() => onStatus(f.id, "aprovada")} className="ml-auto text-green-700 hover:underline">Aprovar</button>
                     <button onClick={() => onStatus(f.id, "rejeitada")} className="text-red-700 hover:underline">Rejeitar</button>
                   </>
+                )}
+                {podeAprovar && f.status === "rejeitada" && (
+                  <button onClick={() => onStatus(f.id, "pendente")} className="ml-auto text-amber-700 hover:underline">Desfazer</button>
+                )}
+                {podeAprovar && f.status === "aprovada" && (
+                  <button onClick={() => onStatus(f.id, "pendente")} className="ml-auto text-amber-700 hover:underline">Desfazer</button>
                 )}
                 <button onClick={() => onDelete(f.id)} className={`text-muted-foreground hover:text-destructive ${!podeAprovar ? "ml-auto" : ""}`}>
                   <Trash2 size={13} />
