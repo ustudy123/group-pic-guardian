@@ -59,9 +59,9 @@ function RuaPage() {
     refetch();
     qc.invalidateQueries({ queryKey: ["fotos-rua", ruaId] });
   }
-  async function handleStatus(id: string, status: "aprovada" | "rejeitada") {
+  async function handleStatus(id: string, status: "pendente" | "aprovada" | "rejeitada") {
     await statusFn({ data: { fotoId: id, status } });
-    toast.success(status === "aprovada" ? "Aprovada" : "Rejeitada");
+    toast.success(status === "aprovada" ? "Aprovada" : status === "rejeitada" ? "Rejeitada" : "Status revertido");
     refetch();
   }
 
