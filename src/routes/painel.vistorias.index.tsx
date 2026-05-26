@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listMinhasRuas } from "@/lib/vistorias.functions";
 import { MapPin, ChevronRight, FileText, Camera, Inbox } from "lucide-react";
+import { BadgeStatusRua, ContadoresRua } from "@/components/progresso-rua";
 
 export const Route = createFileRoute("/painel/vistorias/")({
   component: MinhasVistorias,
@@ -96,15 +97,16 @@ function MinhasVistorias() {
                         <div className="w-9 h-9 rounded-lg bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary flex items-center justify-center shrink-0 transition">
                           <Camera size={16} />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold capitalize truncate">{r.nome}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            Toque para capturar fotos pré e pós-obra
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold capitalize truncate">{r.nome}</span>
+                            <BadgeStatusRua p={r.progresso} />
                           </div>
+                          <ContadoresRua p={r.progresso} />
                         </div>
                         <ChevronRight
                           size={18}
-                          className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition"
+                          className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition shrink-0"
                         />
                       </Link>
                     </li>

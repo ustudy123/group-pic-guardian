@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Trash2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { FotoCaptura } from "@/components/foto-captura";
+import { BadgeStatusRua, ContadoresRua } from "@/components/progresso-rua";
 import {
   getRua,
   listFotosRua,
@@ -73,11 +74,17 @@ function RuaPage() {
       </Link>
 
       {rua && (
-        <div className="rounded-xl border bg-card p-4">
-          <div className="text-xs text-muted-foreground">
-            Contrato {rua.bairros?.contratos?.numero} · {rua.bairros?.nome}
+        <div className="rounded-xl border bg-card p-4 space-y-2">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="text-xs text-muted-foreground">
+                Contrato {rua.bairros?.contratos?.numero} · {rua.bairros?.nome}
+              </div>
+              <div className="text-2xl font-bold capitalize">{rua.nome}</div>
+            </div>
+            <BadgeStatusRua p={ruaData?.progresso} />
           </div>
-          <div className="text-2xl font-bold">{rua.nome}</div>
+          <ContadoresRua p={ruaData?.progresso} />
         </div>
       )}
 
