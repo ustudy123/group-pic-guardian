@@ -24,6 +24,7 @@ function RuaPage() {
   const listFn = useServerFn(listFotosRua);
   const delFn = useServerFn(deleteFoto);
   const statusFn = useServerFn(setFotoStatus);
+  const rolesFn = useServerFn(getMyRoles);
 
   const { data: ruaData } = useQuery({
     queryKey: ["rua", ruaId],
@@ -32,6 +33,10 @@ function RuaPage() {
   const { data: fotosData, refetch } = useQuery({
     queryKey: ["fotos-rua", ruaId],
     queryFn: () => listFn({ data: { ruaId } }),
+  });
+  const { data: rolesData } = useQuery({
+    queryKey: ["my-roles"],
+    queryFn: () => rolesFn(),
   });
 
   const [fase, setFase] = useState<"pre" | "pos">("pre");
