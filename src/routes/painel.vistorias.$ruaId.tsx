@@ -10,6 +10,7 @@ import {
   listFotosRua,
   deleteFoto,
   setFotoStatus,
+  getMyRoles,
 } from "@/lib/vistorias.functions";
 
 export const Route = createFileRoute("/painel/vistorias/$ruaId")({
@@ -23,6 +24,7 @@ function RuaPage() {
   const listFn = useServerFn(listFotosRua);
   const delFn = useServerFn(deleteFoto);
   const statusFn = useServerFn(setFotoStatus);
+  const rolesFn = useServerFn(getMyRoles);
 
   const { data: ruaData } = useQuery({
     queryKey: ["rua", ruaId],
@@ -31,6 +33,10 @@ function RuaPage() {
   const { data: fotosData, refetch } = useQuery({
     queryKey: ["fotos-rua", ruaId],
     queryFn: () => listFn({ data: { ruaId } }),
+  });
+  const { data: rolesData } = useQuery({
+    queryKey: ["my-roles"],
+    queryFn: () => rolesFn(),
   });
 
   const [fase, setFase] = useState<"pre" | "pos">("pre");
@@ -175,8 +181,8 @@ function RuaPage() {
 
       {/* Galeria */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FotoColuna titulo="Pré-obra" fotos={fotosPre} onDelete={handleDelete} onStatus={handleStatus} />
-        <FotoColuna titulo="Pós-obra" fotos={fotosPos} onDelete={handleDelete} onStatus={handleStatus} />
+        <FotoColuna titulo="Pré-obra" fotos={fotosPre} onDelete={handleDelete} onStatus={handleStatus} podeAprovar={rolesData?.isPrivileged ?? false} />
+        <FotoColuna titulo="Pós-obra" fotos={fotosPos} onDelete={handleDelete} onStatus={handleStatus} podeAprovar={rolesData?.isPrivileged ?? false} />
       </div>
     </div>
   );
@@ -187,11 +193,13 @@ function FotoColuna({
   fotos,
   onDelete,
   onStatus,
+  podeAprovar,
 }: {
   titulo: string;
   fotos: any[];
   onDelete: (id: string) => void;
   onStatus: (id: string, s: "aprovada" | "rejeitada") => void;
+  podeAprovar: boolean;
 }) {
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
@@ -221,9 +229,13 @@ function FotoColuna({
                   {f.status === "aprovada" ? <CheckCircle2 size={11} /> : f.status === "rejeitada" ? <XCircle size={11} /> : <Clock size={11} />}
                   {f.status}
                 </span>
-                <button onClick={() => onStatus(f.id, "aprovada")} className="ml-auto text-green-700 hover:underline">Aprovar</button>
-                <button onClick={() => onStatus(f.id, "rejeitada")} className="text-red-700 hover:underline">Rejeitar</button>
-                <button onClick={() => onDelete(f.id)} className="text-muted-foreground hover:text-destructive">
+                {podeAprovar && (
+                  <>
+                    <button onClick={() => onStatus(f.id, "aprovada")} className="ml-auto text-green-700 hover:underline">Aprovar</button>
+                    <button onClick={() => onStatus(f.id, "rejeitada")} className="text-red-700 hover:underline">Rejeitar</button>
+                  </>
+                )}
+                <button onClick={() => onDelete(f.id)} className={`text-muted-foreground hover:text-destructive ${!podeAprovar ? "ml-auto" : ""}`}>
                   <Trash2 size={13} />
                 </button>
               </div>
