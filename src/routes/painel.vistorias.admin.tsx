@@ -224,3 +224,57 @@ function AtribuicoesRua({ ruaId }: { ruaId: string }) {
     </div>
   );
 }
+
+function RelatoriosBairro({ bairroId }: { bairroId: string }) {
+  const qc = useQueryClient();
+  const listRel = useServerFn(listRelatoriosBairro);
+  const gerar = useServerFn(gerarRelatorioBairro);
+  const [loading, setLoading] = useState<"pre" | "pos" | null>(null);
+  const { data } = useQuery({
+    queryKey: ["v-relatorios", bairroId],
+    queryFn: () => listRel({ data: { bairroId } }),
+  });
+  const relatorios = (data?.relatorios ?? []) as any[];
+
+  async function handleGerar(tipo: "pre" | "pos") {
+    setLoading(tipo);
+    try {
+      await gerar({ data: { bairroId, tipo } });
+      toast.success(`Relatório ${tipo.toUpperCase()} gerado`);
+      qc.invalidateQueries({ queryKey: ["v-relatorios", bairroId] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao gerar");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t">
+      <button
+        onClick={(e) => { e.stopPropagation(); handleGerar("pre"); }}
+        disabled={loading !== null}
+        className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-xs hover:bg-secondary/80 disabled:opacity-50"
+      >
+        {loading === "pre" ? <Loader2 size={11} className="animate-spin" /> : <FileDown size={11} />}
+        PDF Pré
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); handleGerar("pos"); }}
+        disabled={loading !== null}
+        className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-xs hover:bg-secondary/80 disabled:opacity-50"
+      >
+        {loading === "pos" ? <Loader2 size={11} className="animate-spin" /> : <FileDown size={11} />}
+        PDF Pós
+      </button>
+      {relatorios.slice(0, 3).map((r) => (
+        r.url ? (
+          <a key={r.id} href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
+            className="text-[10px] text-primary underline">
+            {new Date(r.gerado_em).toLocaleDateString()}
+          </a>
+        ) : null
+      ))}
+    </div>
+  );
+}
