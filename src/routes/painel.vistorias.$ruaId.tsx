@@ -245,9 +245,6 @@ function FotoColuna({
                 {podeAprovar && f.status === "rejeitada" && (
                   <button onClick={() => onStatus(f.id, "pendente")} className="ml-auto text-amber-700 hover:underline">Desfazer</button>
                 )}
-                {podeAprovar && f.status === "aprovada" && (
-                  <button onClick={() => onStatus(f.id, "pendente")} className="ml-auto text-amber-700 hover:underline">Desfazer</button>
-                )}
                 <button onClick={() => onDelete(f.id)} className={`text-muted-foreground hover:text-destructive ${!podeAprovar ? "ml-auto" : ""}`}>
                   <Trash2 size={13} />
                 </button>
