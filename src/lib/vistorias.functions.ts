@@ -19,7 +19,7 @@ export const getMyRoles = createServerFn({ method: "GET" })
 // Faz fallback para Nominatim/OpenStreetMap se o conector não estiver configurado.
 async function googleReverse(lat: number, lon: number): Promise<string | null> {
   const lovableKey = process.env.LOVABLE_API_KEY;
-  const gmKey = process.env.LOVABLE_CONNECTOR_GOOGLE_MAPS_API_KEY;
+  const gmKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!lovableKey || !gmKey) return null;
   try {
     const url = `https://connector-gateway.lovable.dev/google_maps/maps/api/geocode/json?latlng=${lat},${lon}&language=pt-BR&region=br&result_type=street_address|premise|route`;
