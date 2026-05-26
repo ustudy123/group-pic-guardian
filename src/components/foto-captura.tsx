@@ -16,14 +16,46 @@ type Props = {
   onSaved?: () => void;
 };
 
-function getGps(): Promise<{ lat: number; lon: number } | null> {
-  return new Promise((res) => {
-    if (!navigator.geolocation) return res(null);
-    navigator.geolocation.getCurrentPosition(
-      (p) => res({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => res(null),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+// Faz várias leituras de GPS por até ~10s e devolve a de melhor precisão.
+// Aceita rápido se já chegou abaixo de 15m; caso contrário, continua amostrando.
+function getGps(
+  onProgress?: (accuracy: number, samples: number) => void,
+): Promise<{ lat: number; lon: number; accuracy: number } | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+
+    let best: { lat: number; lon: number; accuracy: number } | null = null;
+    let samples = 0;
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      try { navigator.geolocation.clearWatch(watchId); } catch {}
+      clearTimeout(hardTimeout);
+      resolve(best);
+    };
+
+    const watchId = navigator.geolocation.watchPosition(
+      (p) => {
+        samples++;
+        const acc = p.coords.accuracy ?? 9999;
+        if (!best || acc < best.accuracy) {
+          best = { lat: p.coords.latitude, lon: p.coords.longitude, accuracy: acc };
+        }
+        onProgress?.(best.accuracy, samples);
+        // Bom o bastante: encerra cedo
+        if (best.accuracy <= 15) finish();
+      },
+      () => {
+        // Em caso de erro encerra com o que tiver
+        finish();
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
+
+    // Limite máximo de 10s amostrando
+    const hardTimeout = setTimeout(finish, 10000);
   });
 }
 
