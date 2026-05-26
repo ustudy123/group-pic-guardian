@@ -14,39 +14,82 @@ export const getMyRoles = createServerFn({ method: "GET" })
     return { roles: (roles ?? []).map((r) => r.role), isPrivileged };
   });
 
-// ============ Reverse geocoding (Nominatim) ============
+// ============ Reverse geocoding ============
+// Prioriza Google Maps (via conector Lovable) por ser muito mais preciso no Brasil.
+// Faz fallback para Nominatim/OpenStreetMap se o conector não estiver configurado.
+async function googleReverse(lat: number, lon: number): Promise<string | null> {
+  const lovableKey = process.env.LOVABLE_API_KEY;
+  const gmKey = process.env.LOVABLE_CONNECTOR_GOOGLE_MAPS_API_KEY;
+  if (!lovableKey || !gmKey) return null;
+  try {
+    const url = `https://connector-gateway.lovable.dev/google_maps/maps/api/geocode/json?latlng=${lat},${lon}&language=pt-BR&region=br&result_type=street_address|premise|route`;
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": gmKey,
+      },
+    });
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    if (j.status !== "OK" || !Array.isArray(j.results) || j.results.length === 0) {
+      // tenta sem filtro de tipo
+      const url2 = `https://connector-gateway.lovable.dev/google_maps/maps/api/geocode/json?latlng=${lat},${lon}&language=pt-BR&region=br`;
+      const r2 = await fetch(url2, {
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "X-Connection-Api-Key": gmKey,
+        },
+      });
+      if (!r2.ok) return null;
+      const j2: any = await r2.json();
+      if (j2.status !== "OK" || !j2.results?.length) return null;
+      return j2.results[0].formatted_address as string;
+    }
+    return j.results[0].formatted_address as string;
+  } catch {
+    return null;
+  }
+}
+
+async function nominatimReverse(lat: number, lon: number): Promise<string> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&addressdetails=1&accept-language=pt-BR&zoom=18`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "MacroAmbiental-Vistorias/1.0" },
+    });
+    if (!res.ok) return "";
+    const j: any = await res.json();
+    const a = j.address ?? {};
+    const rua = a.road || a.pedestrian || a.path || "";
+    const numero = a.house_number ? `, ${a.house_number}` : "";
+    const bairro = a.suburb || a.neighbourhood || a.city_district || "";
+    const cidade = a.city || a.town || a.village || a.municipality || "";
+    const estado = a.state_code || a.state || "";
+    const cep = a.postcode || "";
+    const pais = a.country || "Brasil";
+    const parts = [
+      `${rua}${numero}`.trim(),
+      bairro,
+      `${cidade} ${estado}`.trim(),
+      cep,
+      pais,
+    ].filter(Boolean);
+    return parts.join(", ");
+  } catch {
+    return "";
+  }
+}
+
 export const reverseGeocode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z.object({ lat: z.number(), lon: z.number() }).parse(input),
   )
   .handler(async ({ data }) => {
-    try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${data.lat}&lon=${data.lon}&addressdetails=1&accept-language=pt-BR`;
-      const res = await fetch(url, {
-        headers: { "User-Agent": "MacroAmbiental-Vistorias/1.0" },
-      });
-      if (!res.ok) return { address: "" };
-      const j: any = await res.json();
-      const a = j.address ?? {};
-      const rua = a.road || a.pedestrian || a.path || "";
-      const numero = a.house_number ? `, ${a.house_number}` : "";
-      const bairro = a.suburb || a.neighbourhood || a.city_district || "";
-      const cidade = a.city || a.town || a.village || a.municipality || "";
-      const estado = a.state_code || a.state || "";
-      const cep = a.postcode || "";
-      const pais = a.country || "Brasil";
-      const parts = [
-        `${rua}${numero}`.trim(),
-        bairro,
-        `${cidade} ${estado}`.trim(),
-        cep,
-        pais,
-      ].filter(Boolean);
-      return { address: parts.join(", ") };
-    } catch {
-      return { address: "" };
-    }
+    const google = await googleReverse(data.lat, data.lon);
+    if (google) return { address: google, source: "google" as const };
+    const osm = await nominatimReverse(data.lat, data.lon);
+    return { address: osm, source: "osm" as const };
   });
 
 // ============ Listagens ============
