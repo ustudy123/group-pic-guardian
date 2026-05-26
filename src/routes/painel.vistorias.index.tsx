@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listMinhasRuas } from "@/lib/vistorias.functions";
 import { MapPin, ChevronRight, FileText, Camera, Inbox } from "lucide-react";
+import { BadgeStatusRua, ContadoresRua } from "@/components/progresso-rua";
 
 export const Route = createFileRoute("/painel/vistorias/")({
   component: MinhasVistorias,
