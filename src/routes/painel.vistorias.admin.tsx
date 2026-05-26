@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Plus, Trash2, UserPlus } from "lucide-react";
+import { Plus, Trash2, UserPlus, FileDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -11,6 +11,7 @@ import {
   listRuas, upsertRua, deleteRua,
   listAtribuicoesRua, addAtribuicao, removeAtribuicao,
 } from "@/lib/vistorias.functions";
+import { gerarRelatorioBairro, listRelatoriosBairro } from "@/lib/relatorios.functions";
 
 export const Route = createFileRoute("/painel/vistorias/admin")({
   component: AdminVistorias,
