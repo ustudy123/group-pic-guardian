@@ -445,9 +445,9 @@ export const aprovarFotosRua = createServerFn({ method: "POST" })
       .eq("rua_id", data.ruaId)
       .eq("status", "pendente");
     if (data.fase) q = q.eq("fase", data.fase);
-    const { error, count } = await q.select("id", { count: "exact" });
+    const { error, data: rows } = await q.select("id");
     if (error) throw new Error(error.message);
-    return { aprovadas: count ?? 0 };
+    return { aprovadas: (rows ?? []).length };
   });
 
 export const deleteRua = createServerFn({ method: "POST" })
