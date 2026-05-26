@@ -16,14 +16,46 @@ type Props = {
   onSaved?: () => void;
 };
 
-function getGps(): Promise<{ lat: number; lon: number } | null> {
-  return new Promise((res) => {
-    if (!navigator.geolocation) return res(null);
-    navigator.geolocation.getCurrentPosition(
-      (p) => res({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => res(null),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+// Faz várias leituras de GPS por até ~10s e devolve a de melhor precisão.
+// Aceita rápido se já chegou abaixo de 15m; caso contrário, continua amostrando.
+function getGps(
+  onProgress?: (accuracy: number, samples: number) => void,
+): Promise<{ lat: number; lon: number; accuracy: number } | null> {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+
+    let best: { lat: number; lon: number; accuracy: number } | null = null;
+    let samples = 0;
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      try { navigator.geolocation.clearWatch(watchId); } catch {}
+      clearTimeout(hardTimeout);
+      resolve(best);
+    };
+
+    const watchId = navigator.geolocation.watchPosition(
+      (p) => {
+        samples++;
+        const acc = p.coords.accuracy ?? 9999;
+        if (!best || acc < best.accuracy) {
+          best = { lat: p.coords.latitude, lon: p.coords.longitude, accuracy: acc };
+        }
+        onProgress?.(best.accuracy, samples);
+        // Bom o bastante: encerra cedo
+        if (best.accuracy <= 15) finish();
+      },
+      () => {
+        // Em caso de erro encerra com o que tiver
+        finish();
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
+
+    // Limite máximo de 10s amostrando
+    const hardTimeout = setTimeout(finish, 10000);
   });
 }
 
@@ -69,15 +101,33 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
     if (!file) return;
     setBusy(true);
     try {
-      setProgress("Obtendo localização...");
-      const gps = await getGps();
+      setProgress("Obtendo localização precisa...");
+      const gps = await getGps((acc, n) => {
+        setProgress(`GPS: ±${Math.round(acc)}m (${n} leituras)`);
+      });
+
+      if (!gps) {
+        toast.error("Não foi possível obter a localização. Ative o GPS e tente novamente.");
+        setBusy(false);
+        setProgress("");
+        if (inputRef.current) inputRef.current.value = "";
+        return;
+      }
+      if (gps.accuracy > 60) {
+        const ok = confirm(
+          `A precisão do GPS está baixa (±${Math.round(gps.accuracy)}m). O endereço pode ficar impreciso.\n\nDicas:\n• Vá para um local aberto, longe de prédios\n• Aguarde alguns segundos e tente de novo\n\nDeseja continuar mesmo assim?`,
+        );
+        if (!ok) {
+          setBusy(false);
+          setProgress("");
+          if (inputRef.current) inputRef.current.value = "";
+          return;
+        }
+      }
 
       setProgress("Buscando endereço...");
-      let address = "";
-      if (gps) {
-        const r = await geocodeFn({ data: { lat: gps.lat, lon: gps.lon } });
-        address = r.address;
-      }
+      const r = await geocodeFn({ data: { lat: gps.lat, lon: gps.lon } });
+      const address = r.address;
 
       setProgress("Processando imagem...");
       const img = await readImage(file);
@@ -101,7 +151,7 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
 
       const now = new Date();
       const dataHora = now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-      const lines = [dataHora];
+      const lines = [`${dataHora}  ·  GPS ±${Math.round(gps.accuracy)}m`];
       if (address) lines.push(...address.split(", ").reduce<string[]>((acc, cur) => {
         // junta em pares pra não ficar 1 palavra por linha
         if (acc.length === 0) return [cur];
