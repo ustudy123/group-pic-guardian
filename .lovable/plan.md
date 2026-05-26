@@ -1,97 +1,64 @@
-## Análise da reunião — Demanda
+## Contexto
 
-A Macro Ambiental (Artur + Isabela) descreveu o **Relatório de Vistoria Cautelar (RVC)** pré e pós-obra. Hoje usam um app externo (Coleton) só para foto com timestamp, exportam PDFs, abrem print por print no Word/Excel e montam manualmente o relatório (~1 semana, ~1.000 páginas por bairro).
+Reunião de 26/05/2026 com Arthur e Isabella (Macro Ambiental) revisando a entrega atual do módulo `/painel/vistorias`. Tudo que já existe (captura no app, GPS, carimbo, pré vs pós, rejeitar/aprovar individual, desfazer rejeição) foi aprovado. Eles pediram pontos de polimento e a parte que ainda falta: **geração dos PDFs**.
 
-**Pedidos da reunião:**
+## Itens pedidos na reunião
 
-1. Vistoriante tira a foto **dentro do próprio sistema** (substituindo o Coleton), com carimbo automático de **data, hora e endereço** via GPS.
-2. Organização por **contrato → bairro → rua**, com tipo (rua/casa), número da casa e lado (E/D) no pré-obra.
-3. **Pré-obra:** fotos da rua + de cada casa. **Pós-obra:** só fotos da rua.
-4. Na hora do pós, o vistoriante **vê a foto pré como referência** para repetir o mesmo ângulo.
-5. **6 a 7 acessos do escritório** (analistas) + 4 vistoriantes de campo, com papéis distintos.
-6. **Metadados salvos em banco** (data, hora, GPS, endereço) para permitir busca/filtro posterior.
-7. **IA de conformidade** indicando ~80% de similaridade entre o par pré × pós.
-8. **Checklist/resumo final** ao vistoriante: "tirei fotos de todas as casas e da rua, está tudo ok".
-9. **Geração do PDF final** no formato do modelo (capa, sumário, objetivo, escopo, política, fotos pré × pós lado a lado por rua, conclusão).
+1. **Botões Aprovar / Rejeitar mais visíveis**, com destaque (Rejeitar com cor vermelha forte / fundo, ícone maior), saindo do canto da galeria.
+2. **Confirmação ao Rejeitar** ("Deseja realmente rejeitar esta foto?") para evitar clique acidental. Aprovar continua em 1 clique.
+3. **Aprovar todas** as fotos pendentes da rua de uma vez, com confirmação ("Aprovar N fotos pendentes?").
+4. **Liberar cadastro de bairro e rua para o vistoriante** (hoje só admin/analista pode), para que ele cadastre em campo. Admin/analista continuam podendo.
+5. **Dois modelos de PDF distintos** por bairro:
+   - **Relatório PRÉ-OBRA** — só fotos PRÉ, organizadas por rua, contendo as fotos da rua e as fotos das casas (com nº e lado).
+   - **Relatório PÓS-OBRA** — comparativo PRÉ × PÓS lado a lado, **apenas das fotos de rua** (casas não entram no pós).
+   Ambos seguindo o modelo CT 018/BRISAMAR já mapeado em `.lovable/plan.md` (capa, sumário, objetivo, escopo, política da qualidade, separadores por bairro, rodapé "Revisão 02", paginação).
+6. Apenas confirmações de cor / contraste: rejeitada com badge vermelho mais visível.
 
----
+## Fora de escopo desta entrega
 
-## Diagnóstico — o que JÁ está implementado
+Continuam pendentes (Fases 2 e 3 do plano original) e ficam para depois: galeria/busca por metadados, mapa da rua no PDF, score de similaridade por IA. A reunião não voltou a citar.
 
-Tudo o que segue está pronto no módulo `/painel/vistorias`:
+## Plano de implementação
 
-- ✅ Tabelas `contratos`, `bairros`, `ruas`, `vistoria_atribuicoes`, `vistoria_fotos`, `vistoria_relatorios` com RLS por papel (admin / analista / vistoriante).
-- ✅ Bucket privado `vistorias-fotos`.
-- ✅ Cadastro de contrato → bairro → rua e atribuição do vistoriante (aba **Cadastros**).
-- ✅ **Captura de foto pelo próprio sistema** (`FotoCaptura`), com:
-  - GPS de alta acurácia + reverse geocoding (Nominatim).
-  - Carimbo gráfico de data/hora/endereço sobre a imagem.
-  - Upload de versão original + carimbada.
-  - Metadados salvos no banco (`latitude`, `longitude`, `endereco_formatado`, `captured_at`, `exif`).
-- ✅ **Pré-obra com tipo rua/casa, nº da casa e lado E/D**; pós-obra restrito a rua.
-- ✅ **Referência visual da foto pré** durante a captura do pós (`refUrl` + `par_pre_id` ligando o par).
-- ✅ Aprovação / rejeição por admin e analista; botões escondidos para vistoriante.
-- ✅ Manual de uso integrado na tela.
+### 1. UX de aprovação na galeria da rua
+Arquivo: `src/routes/painel.vistorias.$ruaId.tsx` (`FotoColuna`).
+- Aprovar / Rejeitar viram botões com fundo (verde sólido / vermelho sólido), ícone + texto, tamanho `sm` real, ocupando uma linha própria abaixo da foto — não mais link no canto.
+- Rejeitar abre um `AlertDialog` (shadcn) de confirmação antes de chamar `setFotoStatus`.
+- "Desfazer" da rejeitada vira botão âmbar mais destacado, mesma linha.
 
----
+### 2. Aprovar todas
+- Novo botão "Aprovar todas pendentes (N)" no topo de cada coluna PRÉ / PÓS, só visível para admin/analista, desabilitado quando N=0.
+- Confirma via `AlertDialog`.
+- Nova server function `aprovarFotosRua({ ruaId, fase })` em `src/lib/vistorias.functions.ts` que faz `update vistoria_fotos set status='aprovada' where rua_id=? and fase=? and status='pendente'`. Middleware `requireSupabaseAuth` + checagem de role admin/analista. RLS atual de UPDATE já permite.
 
-## O que AINDA falta (pendências)
+### 3. Liberar cadastro para vistoriante
+- Backend: relaxar as server functions de criação de bairro e rua para aceitar qualquer usuário autenticado (não exigir admin). Continuar exigindo autenticação.
+- DB: as policies atuais (`bairros_admin_all`, `ruas_admin_all` + `*_select`) bloqueiam INSERT do vistoriante. Migration nova adiciona policies:
+  - `bairros_insert_auth` INSERT to authenticated with check (true)
+  - `ruas_insert_auth` INSERT to authenticated with check (true)
+  - Edição/exclusão continuam restritas a admin (mantém `*_admin_all`).
+- Frontend: a aba **Cadastros** (`painel.vistorias.admin.tsx`) hoje só aparece pra admin no menu — manter. Para o vistoriante, expor um caminho mais leve: na tela "Minhas vistorias" (`painel.vistorias.index.tsx`), botão "+ Adicionar bairro/rua" que abre um diálogo simples (contrato pré-selecionado se só houver 1, senão dropdown apenas dos contratos que ele já tem atribuição; campos: bairro novo OU existente, nome da rua). Após salvar, atribuir automaticamente o vistoriante à rua via `vistoria_atribuicoes` para que ele consiga abrir e fotografar.
 
-### 1. Geração do PDF final do RVC no formato do modelo  *(principal pendência)*
-Hoje não existe rota para gerar o PDF. A tabela `vistoria_relatorios` existe mas está vazia. Precisamos:
-- Botão **"Gerar relatório (PDF)"** por bairro (ou contrato) na aba Cadastros / detalhe do bairro, visível só para admin/analista.
-- Server function que monta o PDF reproduzindo o modelo CT 018/BRISAMAR:
-  - Capa com contrato, regional, município, responsável técnico, período, descrição.
-  - Sumário, Objetivo, Escopo, Política da Qualidade, intro do Relatório Fotográfico.
-  - Página separadora por bairro.
-  - Por rua: bloco com nome + mapa, depois grade **Pré × Pós lado a lado** (apenas fotos com status `aprovada`).
-  - Casas do pré-obra agrupadas com nº e lado.
+### 4. Geração dos PDFs (item maior)
+- Dependência: `pdf-lib` (compatível com Cloudflare Workers; `jspdf` já está mas pdf-lib lida melhor com multipágina). Instalar via `bun add pdf-lib`.
+- Server function `gerarRelatorioBairro({ bairroId, tipo: "pre" | "pos" })` em novo arquivo `src/lib/relatorios.functions.ts`:
+  - Middleware `requireSupabaseAuth`, role admin/analista.
+  - Usa `supabaseAdmin` para baixar imagens do bucket `vistorias-fotos` via signed URL.
+  - Considera somente fotos com `status='aprovada'`.
+  - Layout reproduz CT 018/BRISAMAR: capa (contrato, regional, município, responsável técnico, período, descrição), sumário, objetivo, escopo, política da qualidade, intro do relatório fotográfico, separador por bairro, blocos por rua.
+  - **Pré-obra**: por rua, fotos da rua + grupo de casas (nº, lado E/D), uma foto por bloco com legenda data/hora/endereço.
+  - **Pós-obra**: por rua, pares PRÉ × PÓS lado a lado (só `tipo='rua'`, usando `par_pre_id` para parear). Se uma pós não tiver `par_pre_id`, lista no fim como "sem par".
   - Rodapé "Relatório de Vistoria Cautelar – Revisão 02" + paginação.
-- Salvar PDF no bucket e registrar em `vistoria_relatorios`; listar/baixar versões anteriores.
+  - Salva PDF em `vistorias-fotos/relatorios/{bairroId}/{tipo}-{timestamp}.pdf` e registra em `vistoria_relatorios` (a tabela existe).
+- Frontend: na aba **Cadastros**, em cada bairro listado, dois botões: "Gerar PDF Pré-obra" e "Gerar PDF Pós-obra". Após geração, mostra link de download (signed URL) + lista versões anteriores via `vistoria_relatorios`.
 
-### 2. Painel de progresso / checklist da rua para o vistoriante
-Na lista "Minhas vistorias" hoje só aparece o nome da rua. Falta o resumo pedido pelo Artur:
-- Por rua: contadores `pré rua / pré casas / pós rua` (capturadas vs aprovadas).
-- Badge de status (Pendente / Em andamento / Concluída).
-- Na tela da rua, lista de itens faltantes ("falta pós da foto X", "casa 1390 lado D sem foto").
+### 5. Polimento visual da rejeição
+Badge de status "rejeitada" passa a usar `bg-red-600 text-white` (hoje é `bg-red-100`) para chamar atenção, conforme pedido.
 
-### 3. Análise de IA de similaridade de ângulo (pré × pós)
-Coluna `similaridade_angulo` já existe em `vistoria_fotos`, mas não é populada. Implementar:
-- Após salvar uma foto de pós com `par_pre_id`, chamar um modelo de visão (via Lovable AI Gateway, Gemini) para retornar score 0–100.
-- Mostrar badge na galeria: verde ≥80%, amarelo 60–80, vermelho <60.
-- Permitir ao analista filtrar "pares com baixa similaridade".
+## Ordem sugerida de entrega
 
-### 4. Busca / filtro por metadados
-Pedido do Alexandre na reunião ("dois cliques e aparece a foto de tal data/local"). Hoje não existe tela de busca. Criar visão **"Galeria de fotos"** para admin/analista com filtros por contrato, bairro, rua, intervalo de datas, status, fase, vistoriante.
+1. UX dos botões + confirmação de rejeitar + Aprovar todas (rápido, alto valor visual).
+2. Migration + UI de cadastro liberado para vistoriante.
+3. Geração dos PDFs (maior esforço, mas é o que destrava a entrega final do produto).
 
-### 5. Pequenos ajustes operacionais
-- Mapa da rua: campo `bairros.mapa_url` existe mas não é exibido; mostrar no topo da página da rua e embutir no PDF.
-- Dados do contrato (responsável técnico, CREA, período, escopo) já no schema; expor no formulário de cadastro de contrato e usar na capa do PDF.
-
----
-
-## Plano de implementação proposto (em ordem de prioridade)
-
-**Fase 1 — Conclusão funcional do fluxo (alta prioridade, maior valor)**
-1. Painel de progresso por rua (checklist + contadores) na lista do vistoriante e no topo da rua.
-2. Geração do PDF do RVC no formato do modelo + armazenamento e download em `vistoria_relatorios`.
-3. Edição completa dos campos do contrato (resp. técnico, CREA, período, descrição, escopo) usados na capa do PDF.
-
-**Fase 2 — Qualidade e produtividade do escritório**
-4. Galeria/busca de fotos com filtros (admin/analista).
-5. Exibição do mapa da rua (URL) na tela e no PDF.
-
-**Fase 3 — IA**
-6. Score de similaridade de ângulo pré × pós via Lovable AI Gateway, com badges e filtro de baixa similaridade.
-
----
-
-## Detalhes técnicos
-
-- **PDF:** usar `pdf-lib` (compatível com Cloudflare Workers, ao contrário de `puppeteer`/`sharp`); rodar em `createServerFn` para baixar as imagens do bucket via signed URL e compor as páginas. `jspdf` (já no projeto) também funciona, mas `pdf-lib` lida melhor com layouts multipágina e embed de JPEG.
-- **Progresso:** estender `listMinhasRuas` para já retornar contadores por rua (1 query agregada em `vistoria_fotos`), evitando N+1 no front.
-- **IA de similaridade:** chamar `google/gemini-2.5-flash` no Lovable AI Gateway com as duas imagens; gravar score em `similaridade_angulo` de forma assíncrona logo após o `saveFoto` do pós.
-- **Busca:** rota `/painel/vistorias/galeria` (admin/analista), query parametrizada server-side.
-- **Sem mudanças de schema obrigatórias** para Fase 1 e 2 — todas as colunas necessárias já existem.
-
-Confirma se eu sigo nessa ordem (Fase 1 primeiro: progresso + PDF + campos do contrato) ou se prefere priorizar de outra forma.
+Confirma que sigo nessa ordem, ou prefere que eu já comece direto pelo PDF?
