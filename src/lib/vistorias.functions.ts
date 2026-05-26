@@ -2,6 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+// ============ Roles do usuário logado ============
+export const getMyRoles = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: roles } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const isPrivileged = (roles ?? []).some((r) => r.role === "admin" || r.role === "analista");
+    return { roles: (roles ?? []).map((r) => r.role), isPrivileged };
+  });
+
 // ============ Reverse geocoding (Nominatim) ============
 export const reverseGeocode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
