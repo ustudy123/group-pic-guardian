@@ -165,29 +165,30 @@ export const enfileirarRelatorio = createServerFn({ method: "POST" })
       .single();
     if (ie) throw new Error(ie.message);
 
-    // dispara o worker externo (best-effort; se falhar, o cron pega depois)
-    try {
-      const ghToken = process.env.GITHUB_DISPATCH_TOKEN;
-      const ghRepo = process.env.GITHUB_DISPATCH_REPO; // ex: "usuario/repo"
-      if (ghToken && ghRepo) {
-        await fetch(`https://api.github.com/repos/${ghRepo}/dispatches`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${ghToken}`,
-            Accept: "application/vnd.github+json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            event_type: "processar-relatorio",
-            client_payload: { jobId: (job as any).id },
-          }),
-        });
+    const jobId = (job as any).id as string;
+    const gh = await dispararGithub(jobId);
+    if (!gh.ok) {
+      console.error("Falha ao disparar GitHub Actions:", gh.message);
+      await salvarMensagemJob(supabase, jobId, fmtDiag(gh.message));
+
+      const fallback = await processarChunkDireto(jobId);
+      if (!fallback.ok) {
+        console.error("Fallback interno do worker falhou:", fallback.message);
+        await salvarMensagemJob(
+          supabase,
+          jobId,
+          fmtDiag(`${gh.message} Fallback interno também falhou: ${fallback.message}`),
+        );
+      } else {
+        await salvarMensagemJob(
+          supabase,
+          jobId,
+          fmtDiag("GitHub indisponível; processamento iniciado pelo fallback interno."),
+        );
       }
-    } catch {
-      // silencioso: o cron eventualmente processa
     }
 
-    return { jobId: (job as any).id };
+    return { jobId };
   });
 
 // ============ Status de 1 job ============
@@ -239,7 +240,25 @@ export const listJobsBairro = createServerFn({ method: "POST" })
         return { ...j, url: signed?.signedUrl ?? null };
       }),
     );
-    return { jobs: withUrls };
+
+    const jobsComDiagnostico = await Promise.all(
+      withUrls.map(async (job: any) => {
+        if (!isJobTravado(job)) return { ...job, stuck: false };
+
+        const fallback = await processarChunkDireto(job.id);
+        if (fallback.ok) {
+          const recado = fmtDiag("Job reativado automaticamente pelo fallback interno.");
+          if (job.mensagem_erro !== recado) await salvarMensagemJob(supabase, job.id, recado);
+          return { ...job, stuck: false, mensagem_erro: recado };
+        }
+
+        const recado = fmtDiag(fallback.message);
+        if (job.mensagem_erro !== recado) await salvarMensagemJob(supabase, job.id, recado);
+        return { ...job, stuck: true, mensagem_erro: recado };
+      }),
+    );
+
+    return { jobs: jobsComDiagnostico };
   });
 
 // ============ Cancelar/retry ============
@@ -253,13 +272,41 @@ export const retryJob = createServerFn({ method: "POST" })
       .from("vistoria_relatorio_jobs")
       .update({
         status: "na_fila",
-        mensagem_erro: null,
+        mensagem_erro: fmtDiag("Job reenfileirado manualmente."),
         progresso_atual: 0,
         fotos_processadas: 0,
         iniciado_em: null,
         concluido_em: null,
       })
       .eq("id", data.jobId);
+    if (error) throw new Error(error.message);
+
+    const fallback = await processarChunkDireto(data.jobId);
+    if (!fallback.ok) {
+      await salvarMensagemJob(
+        supabase,
+        data.jobId,
+        fmtDiag(`Retry manual sem GitHub: ${fallback.message}`),
+      );
+    }
+    return { ok: true };
+  });
+
+export const cancelarJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ jobId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertPriv(supabase, userId);
+    const { error } = await supabase
+      .from("vistoria_relatorio_jobs")
+      .update({
+        status: "erro",
+        mensagem_erro: "Cancelado manualmente pelo administrador.",
+        concluido_em: new Date().toISOString(),
+      })
+      .eq("id", data.jobId)
+      .in("status", ["na_fila", "processando"]);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
