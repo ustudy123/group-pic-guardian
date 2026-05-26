@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, Link, useLocation } from "@tanstack/react-router";
 import { ClipboardList, Settings } from "lucide-react";
+import { VistoriasManual } from "@/components/vistorias-manual";
 
 export const Route = createFileRoute("/painel/vistorias")({
   component: VistoriasLayout,
@@ -35,6 +36,7 @@ function VistoriasLayout() {
           </Link>
         </div>
       </div>
+      <VistoriasManual />
       <Outlet />
     </div>
   );
