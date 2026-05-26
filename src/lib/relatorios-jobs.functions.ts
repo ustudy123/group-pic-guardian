@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -11,6 +12,114 @@ async function assertPriv(supabase: any, userId: string) {
     (r: any) => r.role === "admin" || r.role === "analista",
   );
   if (!ok) throw new Error("Sem permissão.");
+}
+
+const WORKER_ROUTE = "/api/public/hooks/processar-relatorios";
+const DIAG_PREFIX = "[worker] ";
+
+function fmtDiag(message: string) {
+  return `${DIAG_PREFIX}${message}`.slice(0, 500);
+}
+
+async function salvarMensagemJob(supabase: any, jobId: string, mensagem: string | null) {
+  const { error } = await supabase
+    .from("vistoria_relatorio_jobs")
+    .update({ mensagem_erro: mensagem })
+    .eq("id", jobId);
+  if (error) console.error("Falha ao salvar diagnóstico do job:", error.message);
+}
+
+async function dispararGithub(jobId: string) {
+  const ghToken = process.env.GITHUB_DISPATCH_TOKEN;
+  const ghRepo = process.env.GITHUB_DISPATCH_REPO;
+
+  if (!ghToken || !ghRepo) {
+    return { ok: false as const, message: "GitHub dispatch não configurado neste ambiente." };
+  }
+
+  try {
+    const resp = await fetch(`https://api.github.com/repos/${ghRepo}/dispatches`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${ghToken}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        event_type: "processar-relatorio",
+        client_payload: { jobId },
+      }),
+    });
+
+    if (!resp.ok) {
+      const body = (await resp.text()).slice(0, 200);
+      return {
+        ok: false as const,
+        message: `GitHub Actions recusou o dispatch (${resp.status})${body ? `: ${body}` : "."}`,
+      };
+    }
+
+    return { ok: true as const };
+  } catch (error: any) {
+    return {
+      ok: false as const,
+      message: `Erro ao acionar GitHub Actions: ${String(error?.message ?? error)}`,
+    };
+  }
+}
+
+async function processarChunkDireto(jobId: string) {
+  const secret = process.env.RELATORIOS_WORKER_SECRET;
+  if (!secret) {
+    return { ok: false as const, message: "RELATORIOS_WORKER_SECRET não configurado no servidor." };
+  }
+
+  try {
+    const request = getRequest();
+    const origin = new URL(request.url).origin;
+    const resp = await fetch(`${origin}${WORKER_ROUTE}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-relatorios-secret": secret,
+      },
+      body: JSON.stringify({ jobId }),
+    });
+
+    const raw = await resp.text();
+    let payload: any = null;
+    try {
+      payload = raw ? JSON.parse(raw) : null;
+    } catch {
+      payload = null;
+    }
+
+    if (!resp.ok) {
+      const detalhe = payload?.error ?? raw?.slice(0, 200) ?? resp.statusText;
+      return {
+        ok: false as const,
+        message: `Worker interno falhou (${resp.status})${detalhe ? `: ${detalhe}` : ""}`,
+      };
+    }
+
+    return {
+      ok: true as const,
+      done: Boolean(payload?.done),
+      idle: Boolean(payload?.idle),
+    };
+  } catch (error: any) {
+    return {
+      ok: false as const,
+      message: `Falha ao chamar o worker interno: ${String(error?.message ?? error)}`,
+    };
+  }
+}
+
+function isJobTravado(job: any) {
+  if (!job || (job.status !== "na_fila" && job.status !== "processando")) return false;
+  const base = job.updated_at ?? job.iniciado_em ?? job.solicitado_em;
+  const elapsed = Date.now() - new Date(base).getTime();
+  return elapsed >= 2_500;
 }
 
 // ============ Enfileirar ============
