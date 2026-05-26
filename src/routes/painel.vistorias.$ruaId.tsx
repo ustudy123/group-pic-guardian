@@ -181,8 +181,8 @@ function RuaPage() {
 
       {/* Galeria */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FotoColuna titulo="Pré-obra" fotos={fotosPre} onDelete={handleDelete} onStatus={handleStatus} />
-        <FotoColuna titulo="Pós-obra" fotos={fotosPos} onDelete={handleDelete} onStatus={handleStatus} />
+        <FotoColuna titulo="Pré-obra" fotos={fotosPre} onDelete={handleDelete} onStatus={handleStatus} podeAprovar={rolesData?.isPrivileged ?? false} />
+        <FotoColuna titulo="Pós-obra" fotos={fotosPos} onDelete={handleDelete} onStatus={handleStatus} podeAprovar={rolesData?.isPrivileged ?? false} />
       </div>
     </div>
   );
