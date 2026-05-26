@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Plus, Trash2, UserPlus } from "lucide-react";
+import { Plus, Trash2, UserPlus, FileDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -11,6 +11,7 @@ import {
   listRuas, upsertRua, deleteRua,
   listAtribuicoesRua, addAtribuicao, removeAtribuicao,
 } from "@/lib/vistorias.functions";
+import { gerarRelatorioBairro, listRelatoriosBairro } from "@/lib/relatorios.functions";
 
 export const Route = createFileRoute("/painel/vistorias/admin")({
   component: AdminVistorias,
@@ -104,11 +105,13 @@ function BairrosPanel({ contratoId }: { contratoId: string | null }) {
         </div>
         <ul className="space-y-1">
           {bairros.map((b) => (
-            <li key={b.id} className={`flex items-center justify-between rounded-md border px-2 py-1.5 cursor-pointer text-sm ${bairroId === b.id ? "bg-primary/10 border-primary" : ""}`}
-                onClick={() => setBairroId(b.id)}>
-              <span className="truncate">{b.nome}</span>
-              <button onClick={async (e) => { e.stopPropagation(); if (confirm("Excluir?")) { await delB({ data: { id: b.id } }); qc.invalidateQueries({ queryKey: ["v-bairros", contratoId] }); } }}
-                className="text-muted-foreground hover:text-destructive"><Trash2 size={13} /></button>
+            <li key={b.id} className={`rounded-md border px-2 py-1.5 text-sm space-y-1.5 ${bairroId === b.id ? "bg-primary/10 border-primary" : ""}`}>
+              <div className="flex items-center justify-between cursor-pointer" onClick={() => setBairroId(b.id)}>
+                <span className="truncate">{b.nome}</span>
+                <button onClick={async (e) => { e.stopPropagation(); if (confirm("Excluir?")) { await delB({ data: { id: b.id } }); qc.invalidateQueries({ queryKey: ["v-bairros", contratoId] }); } }}
+                  className="text-muted-foreground hover:text-destructive"><Trash2 size={13} /></button>
+              </div>
+              <RelatoriosBairro bairroId={b.id} />
             </li>
           ))}
           {bairros.length === 0 && <li className="text-xs text-muted-foreground">Nenhum bairro.</li>}
