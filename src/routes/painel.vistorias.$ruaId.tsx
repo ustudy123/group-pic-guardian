@@ -236,11 +236,11 @@ function FotoColuna({
                   {f.status === "aprovada" ? <CheckCircle2 size={11} /> : f.status === "rejeitada" ? <XCircle size={11} /> : <Clock size={11} />}
                   {f.status}
                 </span>
-                {podeAprovar && f.status !== "aprovada" && (
-                  <button onClick={() => onStatus(f.id, "aprovada")} className="ml-auto text-green-700 hover:underline">Aprovar</button>
-                )}
-                {podeAprovar && f.status !== "rejeitada" && (
-                  <button onClick={() => onStatus(f.id, "rejeitada")} className={f.status === "aprovada" ? "ml-auto text-red-700 hover:underline" : "text-red-700 hover:underline"}>Rejeitar</button>
+                {podeAprovar && f.status === "pendente" && (
+                  <>
+                    <button onClick={() => onStatus(f.id, "aprovada")} className="ml-auto text-green-700 hover:underline">Aprovar</button>
+                    <button onClick={() => onStatus(f.id, "rejeitada")} className="text-red-700 hover:underline">Rejeitar</button>
+                  </>
                 )}
                 <button onClick={() => onDelete(f.id)} className={`text-muted-foreground hover:text-destructive ${!podeAprovar ? "ml-auto" : ""}`}>
                   <Trash2 size={13} />
