@@ -151,7 +151,7 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
 
       const now = new Date();
       const dataHora = now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-      const lines = [dataHora];
+      const lines = [`${dataHora}  ·  GPS ±${Math.round(gps.accuracy)}m`];
       if (address) lines.push(...address.split(", ").reduce<string[]>((acc, cur) => {
         // junta em pares pra não ficar 1 palavra por linha
         if (acc.length === 0) return [cur];
