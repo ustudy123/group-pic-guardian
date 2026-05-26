@@ -1,111 +1,97 @@
-## Entendimento da demanda (reunião + anexo 3)
+## Análise da reunião — Demanda
 
-A Macro Ambiental precisa entregar à AEGEA o **Relatório de Vistoria Cautelar (RVC) — Pré e Pós-obra**. Hoje o vistoriante usa um app externo (Coletor) que carimba data/hora/endereço na foto; o escritório depois passa quase uma semana montando manualmente um Word/PDF de até ~1000 páginas, comparando lado a lado "antes" e "depois". Os problemas centrais:
+A Macro Ambiental (Artur + Isabela) descreveu o **Relatório de Vistoria Cautelar (RVC)** pré e pós-obra. Hoje usam um app externo (Coleton) só para foto com timestamp, exportam PDFs, abrem print por print no Word/Excel e montam manualmente o relatório (~1 semana, ~1.000 páginas por bairro).
 
-1. Vistoriante **não tem referência da foto do pré-obra** quando volta pro pós, e acaba tirando em ângulo/local diferente.
-2. Montar o relatório no Word é manual: print do app, colar pré ao lado do pós, repetir por casa/rua/bairro.
-3. Não há rastreabilidade dos metadados (EXIF, GPS, hora) no sistema.
+**Pedidos da reunião:**
 
-O modelo (CT 018/2025 — Brisamar) mostra o formato final: cabeçalho AEGEA, capa do bairro, mapa da rua, e em cada página um par **PRÉ / PÓS** com o carimbo "31 de mai. de 2025, 09:27:11 — Avenida Francisco Assumpção de Carvalho, 1390 — Jd Guadalajara — Vila Velha ES — 29108-021 — Brasil".
-
-Hierarquia de dados confirmada: **Contrato → Bairro → Rua → (Trecho da rua + Casas numeradas com lado E/D)**. Pré-obra exige fotos da rua **e** de cada casa; pós-obra exige só a rua.
+1. Vistoriante tira a foto **dentro do próprio sistema** (substituindo o Coleton), com carimbo automático de **data, hora e endereço** via GPS.
+2. Organização por **contrato → bairro → rua**, com tipo (rua/casa), número da casa e lado (E/D) no pré-obra.
+3. **Pré-obra:** fotos da rua + de cada casa. **Pós-obra:** só fotos da rua.
+4. Na hora do pós, o vistoriante **vê a foto pré como referência** para repetir o mesmo ângulo.
+5. **6 a 7 acessos do escritório** (analistas) + 4 vistoriantes de campo, com papéis distintos.
+6. **Metadados salvos em banco** (data, hora, GPS, endereço) para permitir busca/filtro posterior.
+7. **IA de conformidade** indicando ~80% de similaridade entre o par pré × pós.
+8. **Checklist/resumo final** ao vistoriante: "tirei fotos de todas as casas e da rua, está tudo ok".
+9. **Geração do PDF final** no formato do modelo (capa, sumário, objetivo, escopo, política, fotos pré × pós lado a lado por rua, conclusão).
 
 ---
 
-## Escopo do que vou construir
+## Diagnóstico — o que JÁ está implementado
 
-Um novo módulo dentro do sistema atual (TanStack Start + Supabase), com duas faces:
+Tudo o que segue está pronto no módulo `/painel/vistorias`:
 
-- **App de campo** (`/painel/vistorias` em layout mobile-first, instalável como PWA) — usado pelo vistoriante no celular.
-- **Painel de escritório** (mesmas rotas, layout desktop) — usado pelos 6-7 analistas para revisar, aprovar e exportar.
+- ✅ Tabelas `contratos`, `bairros`, `ruas`, `vistoria_atribuicoes`, `vistoria_fotos`, `vistoria_relatorios` com RLS por papel (admin / analista / vistoriante).
+- ✅ Bucket privado `vistorias-fotos`.
+- ✅ Cadastro de contrato → bairro → rua e atribuição do vistoriante (aba **Cadastros**).
+- ✅ **Captura de foto pelo próprio sistema** (`FotoCaptura`), com:
+  - GPS de alta acurácia + reverse geocoding (Nominatim).
+  - Carimbo gráfico de data/hora/endereço sobre a imagem.
+  - Upload de versão original + carimbada.
+  - Metadados salvos no banco (`latitude`, `longitude`, `endereco_formatado`, `captured_at`, `exif`).
+- ✅ **Pré-obra com tipo rua/casa, nº da casa e lado E/D**; pós-obra restrito a rua.
+- ✅ **Referência visual da foto pré** durante a captura do pós (`refUrl` + `par_pre_id` ligando o par).
+- ✅ Aprovação / rejeição por admin e analista; botões escondidos para vistoriante.
+- ✅ Manual de uso integrado na tela.
 
-Tudo dentro do projeto existente, mesma auth, mesmo header. Sem mexer no fluxo WhatsApp já existente.
+---
 
-### 1. App de campo (mobile)
+## O que AINDA falta (pendências)
 
-- Login pelo Supabase já existente.
-- Tela "Minhas vistorias" lista os trabalhos atribuídos (Contrato → Bairro → Rua).
-- Dentro da rua, dois modos: **Pré-obra** e **Pós-obra**.
-- **Captura de foto**:
-  - Abre `<input type="file" capture="environment">` (câmera nativa do celular).
-  - Lê `navigator.geolocation` no mesmo instante → grava lat/long.
-  - Faz reverse geocoding (Nominatim/OpenStreetMap, gratuito) → endereço formatado igual ao modelo AEGEA.
-  - Renderiza um **carimbo overlay** em canvas (data/hora/endereço) e salva a foto já carimbada no Storage, além de guardar a original + metadados separados.
-  - Tipo de foto: `rua` ou `casa` (com nº e lado E/D).
-- **Modo Pós-obra com referência**:
-  - Lista cada foto pré-obra da rua como "alvo".
-  - Ao tocar em uma, exibe a foto pré-obra **fantasma (semi-transparente)** sobre a câmera ao vivo, ajudando a alinhar o ângulo.
-  - Mostra também a distância em metros entre a posição atual do GPS e a posição da foto pré, alertando se >15 m.
-  - Salva o pós-obra **vinculado** à foto pré correspondente (par 1:1).
-- **Offline-first**: fila local (IndexedDB) com upload em background quando voltar a ter sinal.
+### 1. Geração do PDF final do RVC no formato do modelo  *(principal pendência)*
+Hoje não existe rota para gerar o PDF. A tabela `vistoria_relatorios` existe mas está vazia. Precisamos:
+- Botão **"Gerar relatório (PDF)"** por bairro (ou contrato) na aba Cadastros / detalhe do bairro, visível só para admin/analista.
+- Server function que monta o PDF reproduzindo o modelo CT 018/BRISAMAR:
+  - Capa com contrato, regional, município, responsável técnico, período, descrição.
+  - Sumário, Objetivo, Escopo, Política da Qualidade, intro do Relatório Fotográfico.
+  - Página separadora por bairro.
+  - Por rua: bloco com nome + mapa, depois grade **Pré × Pós lado a lado** (apenas fotos com status `aprovada`).
+  - Casas do pré-obra agrupadas com nº e lado.
+  - Rodapé "Relatório de Vistoria Cautelar – Revisão 02" + paginação.
+- Salvar PDF no bucket e registrar em `vistoria_relatorios`; listar/baixar versões anteriores.
 
-### 2. Painel de escritório (desktop)
+### 2. Painel de progresso / checklist da rua para o vistoriante
+Na lista "Minhas vistorias" hoje só aparece o nome da rua. Falta o resumo pedido pelo Artur:
+- Por rua: contadores `pré rua / pré casas / pós rua` (capturadas vs aprovadas).
+- Badge de status (Pendente / Em andamento / Concluída).
+- Na tela da rua, lista de itens faltantes ("falta pós da foto X", "casa 1390 lado D sem foto").
 
-- Lista de contratos / bairros / ruas com progresso (% pré, % pós, % pares aprovados).
-- Visualizador lado-a-lado de cada par pré/pós, com botões Aprovar / Rejeitar / Pedir refoto.
-- (Já preparado p/ IA futura) campo `similaridade_angulo` reservado no schema, mas a IA fica fora deste plano.
-- Botão **Gerar relatório RVC** que monta o PDF no mesmo layout do anexo 3 (capa do contrato, capa do bairro, mapa da rua, páginas pré/pós com carimbo, paginação "Relatório de Vistoria Cautelar – Revisão 02 X/Y").
+### 3. Análise de IA de similaridade de ângulo (pré × pós)
+Coluna `similaridade_angulo` já existe em `vistoria_fotos`, mas não é populada. Implementar:
+- Após salvar uma foto de pós com `par_pre_id`, chamar um modelo de visão (via Lovable AI Gateway, Gemini) para retornar score 0–100.
+- Mostrar badge na galeria: verde ≥80%, amarelo 60–80, vermelho <60.
+- Permitir ao analista filtrar "pares com baixa similaridade".
 
-### 3. Banco de dados (novas tabelas)
+### 4. Busca / filtro por metadados
+Pedido do Alexandre na reunião ("dois cliques e aparece a foto de tal data/local"). Hoje não existe tela de busca. Criar visão **"Galeria de fotos"** para admin/analista com filtros por contrato, bairro, rua, intervalo de datas, status, fase, vistoriante.
 
-- `contratos` (numero, descricao, regional, municipio, responsavel_tecnico, periodo, ativo)
-- `bairros` (contrato_id, nome, mapa_url)
-- `ruas` (bairro_id, nome, ordem)
-- `vistorias_atribuicoes` (rua_id, vistoriante_id, fase: pre|pos)
-- `vistoria_fotos` (rua_id, fase, tipo: rua|casa, numero_casa, lado: E|D, latitude, longitude, endereco_formatado, captured_at, storage_path_original, storage_path_carimbada, exif jsonb, par_pre_id nullable, status: pendente|aprovada|rejeitada, observacao)
-- `vistoria_relatorios` (contrato_id, bairro_id, gerado_em, gerado_por, pdf_url, revisao)
-- Roles novas: `vistoriante`, `analista` (na `app_role` existente), com policies RLS:
-  - vistoriante: insere/lê fotos das ruas atribuídas a ele;
-  - analista: lê tudo, aprova/rejeita;
-  - admin: tudo.
-- Bucket Storage novo: `vistorias-fotos` (privado), com policies por rua/role.
+### 5. Pequenos ajustes operacionais
+- Mapa da rua: campo `bairros.mapa_url` existe mas não é exibido; mostrar no topo da página da rua e embutir no PDF.
+- Dados do contrato (responsável técnico, CREA, período, escopo) já no schema; expor no formulário de cadastro de contrato e usar na capa do PDF.
 
-### 4. Geração do PDF (relatório RVC)
+---
 
-- Server function que monta o PDF usando `@react-pdf/renderer` (já compatível com workers).
-- Template fiel ao anexo 3: cabeçalho com logo AEGEA + Ambiental Vila Velha, rodapé "Relatório de Vistoria Cautelar – Revisão 02 X/Y", capa do bairro, página de mapa da rua, e grid 2 colunas (PRÉ | PÓS) com 3 pares por página + carimbo embaixo de cada foto.
-- Upload do PDF final no bucket `vistorias-relatorios` e link na lista do escritório.
+## Plano de implementação proposto (em ordem de prioridade)
 
-### 5. Navegação / integração com o que já existe
+**Fase 1 — Conclusão funcional do fluxo (alta prioridade, maior valor)**
+1. Painel de progresso por rua (checklist + contadores) na lista do vistoriante e no topo da rua.
+2. Geração do PDF do RVC no formato do modelo + armazenamento e download em `vistoria_relatorios`.
+3. Edição completa dos campos do contrato (resp. técnico, CREA, período, descrição, escopo) usados na capa do PDF.
 
-- Novo item no header do `/painel`: **Vistorias** (visível pra `vistoriante`, `analista`, `admin`).
-- `/painel/admin` ganha aba "Atribuir vistoriantes a ruas".
-- Nada do fluxo WhatsApp/Encarregados é alterado.
+**Fase 2 — Qualidade e produtividade do escritório**
+4. Galeria/busca de fotos com filtros (admin/analista).
+5. Exibição do mapa da rua (URL) na tela e no PDF.
+
+**Fase 3 — IA**
+6. Score de similaridade de ângulo pré × pós via Lovable AI Gateway, com badges e filtro de baixa similaridade.
 
 ---
 
 ## Detalhes técnicos
 
-- **Stack**: TanStack Start (já em uso), createServerFn + requireSupabaseAuth para tudo que toca DB.
-- **Câmera**: `<input type="file" accept="image/*" capture="environment">` (funciona em iOS Safari e Android Chrome sem app nativo). Carimbo aplicado em `<canvas>` antes do upload (texto branco com sombra preta, igual ao Coletor/anexo 3).
-- **GPS**: `navigator.geolocation.getCurrentPosition` com `enableHighAccuracy: true, timeout 15s`. Se falhar, força usuário a digitar endereço manual antes de salvar.
-- **Reverse geocoding**: Nominatim (gratuito, sem chave) chamado server-side via createServerFn pra respeitar rate-limit; cache por bbox de 10m por 24h.
-- **PWA**: adiciona `manifest.webmanifest` + service worker (Workbox) só pra essa rota, pra permitir "Adicionar à tela inicial" e funcionar offline.
-- **Fila offline**: IndexedDB via `idb` lib; sync ao detectar `online` event.
-- **PDF**: `@react-pdf/renderer` renderizado em server function, streamado pro browser e salvo no Storage.
-- **Permissões**: novas roles adicionadas ao enum `app_role` (`vistoriante`, `analista`), todas as tabelas novas com RLS scoped por `has_role` + atribuição.
+- **PDF:** usar `pdf-lib` (compatível com Cloudflare Workers, ao contrário de `puppeteer`/`sharp`); rodar em `createServerFn` para baixar as imagens do bucket via signed URL e compor as páginas. `jspdf` (já no projeto) também funciona, mas `pdf-lib` lida melhor com layouts multipágina e embed de JPEG.
+- **Progresso:** estender `listMinhasRuas` para já retornar contadores por rua (1 query agregada em `vistoria_fotos`), evitando N+1 no front.
+- **IA de similaridade:** chamar `google/gemini-2.5-flash` no Lovable AI Gateway com as duas imagens; gravar score em `similaridade_angulo` de forma assíncrona logo após o `saveFoto` do pós.
+- **Busca:** rota `/painel/vistorias/galeria` (admin/analista), query parametrizada server-side.
+- **Sem mudanças de schema obrigatórias** para Fase 1 e 2 — todas as colunas necessárias já existem.
 
-```text
-/painel
- ├─ /vistorias                 (lista de contratos/ruas do usuário)
- │   ├─ /:ruaId/pre            (captura pré-obra)
- │   ├─ /:ruaId/pos            (captura pós-obra com referência)
- │   └─ /:ruaId/revisar        (analista: aprova pares)
- ├─ /vistorias/relatorios      (gerar/baixar PDFs)
- └─ /admin/vistorias           (atribuir vistoriantes, criar contratos)
-```
-
----
-
-## Fora do escopo deste plano (próximas iterações)
-
-- IA de similaridade de ângulo (80% compatível) — schema já preparado, mas implementação fica pra fase 2.
-- Importação automática dos relatórios antigos do Coletor.
-- App nativo (iOS/Android) — começamos com PWA, que cobre 100% do caso de uso descrito.
-
----
-
-## Antes de começar a implementar, preciso confirmar 2 coisas:
-
-1. **Cadastro inicial de contratos/bairros/ruas**: começo permitindo o admin cadastrar manualmente pelo painel.
-2. usar só o logo da Macro Ambiental nesta primeira versão?
+Confirma se eu sigo nessa ordem (Fase 1 primeiro: progresso + PDF + campos do contrato) ou se prefere priorizar de outra forma.
