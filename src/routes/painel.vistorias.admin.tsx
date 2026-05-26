@@ -105,11 +105,13 @@ function BairrosPanel({ contratoId }: { contratoId: string | null }) {
         </div>
         <ul className="space-y-1">
           {bairros.map((b) => (
-            <li key={b.id} className={`flex items-center justify-between rounded-md border px-2 py-1.5 cursor-pointer text-sm ${bairroId === b.id ? "bg-primary/10 border-primary" : ""}`}
-                onClick={() => setBairroId(b.id)}>
-              <span className="truncate">{b.nome}</span>
-              <button onClick={async (e) => { e.stopPropagation(); if (confirm("Excluir?")) { await delB({ data: { id: b.id } }); qc.invalidateQueries({ queryKey: ["v-bairros", contratoId] }); } }}
-                className="text-muted-foreground hover:text-destructive"><Trash2 size={13} /></button>
+            <li key={b.id} className={`rounded-md border px-2 py-1.5 text-sm space-y-1.5 ${bairroId === b.id ? "bg-primary/10 border-primary" : ""}`}>
+              <div className="flex items-center justify-between cursor-pointer" onClick={() => setBairroId(b.id)}>
+                <span className="truncate">{b.nome}</span>
+                <button onClick={async (e) => { e.stopPropagation(); if (confirm("Excluir?")) { await delB({ data: { id: b.id } }); qc.invalidateQueries({ queryKey: ["v-bairros", contratoId] }); } }}
+                  className="text-muted-foreground hover:text-destructive"><Trash2 size={13} /></button>
+              </div>
+              <RelatoriosBairro bairroId={b.id} />
             </li>
           ))}
           {bairros.length === 0 && <li className="text-xs text-muted-foreground">Nenhum bairro.</li>}
