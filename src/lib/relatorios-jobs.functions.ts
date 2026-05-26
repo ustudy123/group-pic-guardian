@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { processarRelatoriosJob } from "@/lib/processar-relatorios.server";
 
 async function assertPriv(supabase: any, userId: string) {
   const { data: roles } = await supabase
@@ -14,7 +14,6 @@ async function assertPriv(supabase: any, userId: string) {
   if (!ok) throw new Error("Sem permissão.");
 }
 
-const WORKER_ROUTE = "/api/public/hooks/processar-relatorios";
 const DIAG_PREFIX = "[worker] ";
 
 function fmtDiag(message: string) {
@@ -69,43 +68,20 @@ async function dispararGithub(jobId: string) {
 }
 
 async function processarChunkDireto(jobId: string) {
-  const secret = process.env.RELATORIOS_WORKER_SECRET;
-  if (!secret) {
-    return { ok: false as const, message: "RELATORIOS_WORKER_SECRET não configurado no servidor." };
-  }
-
   try {
-    const request = getRequest();
-    const origin = new URL(request.url).origin;
-    const resp = await fetch(`${origin}${WORKER_ROUTE}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-relatorios-secret": secret,
-      },
-      body: JSON.stringify({ jobId }),
-    });
-
-    const raw = await resp.text();
-    let payload: any = null;
-    try {
-      payload = raw ? JSON.parse(raw) : null;
-    } catch {
-      payload = null;
-    }
-
-    if (!resp.ok) {
-      const detalhe = payload?.error ?? raw?.slice(0, 200) ?? resp.statusText;
+    const payload = await processarRelatoriosJob(jobId);
+    if (payload.error) {
+      const detalhe = String(payload.error).slice(0, 200);
       return {
         ok: false as const,
-        message: `Worker interno falhou (${resp.status})${detalhe ? `: ${detalhe}` : ""}`,
+        message: `Worker interno falhou${detalhe ? `: ${detalhe}` : ""}`,
       };
     }
 
     return {
       ok: true as const,
-      done: Boolean(payload?.done),
-      idle: Boolean(payload?.idle),
+      done: Boolean(payload.done),
+      idle: Boolean(payload.idle),
     };
   } catch (error: any) {
     return {
