@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Trash2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { FotoCaptura } from "@/components/foto-captura";
+import { BadgeStatusRua, ContadoresRua } from "@/components/progresso-rua";
 import {
   getRua,
   listFotosRua,
