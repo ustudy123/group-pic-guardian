@@ -11,7 +11,7 @@ import {
   listRuas, upsertRua, deleteRua,
   listAtribuicoesRua, addAtribuicao, removeAtribuicao,
 } from "@/lib/vistorias.functions";
-import { gerarRelatorioBairro, listRelatoriosBairro } from "@/lib/relatorios.functions";
+import { enfileirarRelatorio, listJobsBairro, retryJob } from "@/lib/relatorios-jobs.functions";
 
 export const Route = createFileRoute("/painel/vistorias/admin")({
   component: AdminVistorias,
@@ -227,54 +227,117 @@ function AtribuicoesRua({ ruaId }: { ruaId: string }) {
 
 function RelatoriosBairro({ bairroId }: { bairroId: string }) {
   const qc = useQueryClient();
-  const listRel = useServerFn(listRelatoriosBairro);
-  const gerar = useServerFn(gerarRelatorioBairro);
+  const listJobs = useServerFn(listJobsBairro);
+  const enfileirar = useServerFn(enfileirarRelatorio);
+  const retry = useServerFn(retryJob);
   const [loading, setLoading] = useState<"pre" | "pos" | null>(null);
-  const { data } = useQuery({
-    queryKey: ["v-relatorios", bairroId],
-    queryFn: () => listRel({ data: { bairroId } }),
-  });
-  const relatorios = (data?.relatorios ?? []) as any[];
 
-  async function handleGerar(tipo: "pre" | "pos") {
+  const { data } = useQuery({
+    queryKey: ["v-jobs", bairroId],
+    queryFn: () => listJobs({ data: { bairroId } }),
+    refetchInterval: (q) => {
+      const jobs = (q.state.data as any)?.jobs ?? [];
+      const ativo = jobs.some((j: any) => j.status === "na_fila" || j.status === "processando");
+      return ativo ? 3000 : false;
+    },
+  });
+  const jobs = (data?.jobs ?? []) as any[];
+
+  async function handleEnfileirar(tipo: "pre" | "pos") {
     setLoading(tipo);
     try {
-      await gerar({ data: { bairroId, tipo } });
-      toast.success(`Relatório ${tipo.toUpperCase()} gerado`);
-      qc.invalidateQueries({ queryKey: ["v-relatorios", bairroId] });
+      await enfileirar({ data: { bairroId, tipo } });
+      toast.success(`Relatório ${tipo.toUpperCase()} adicionado à fila`);
+      qc.invalidateQueries({ queryKey: ["v-jobs", bairroId] });
     } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao gerar");
+      toast.error(e?.message ?? "Falha ao enfileirar");
     } finally {
       setLoading(null);
     }
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t">
-      <button
-        onClick={(e) => { e.stopPropagation(); handleGerar("pre"); }}
-        disabled={loading !== null}
-        className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-xs hover:bg-secondary/80 disabled:opacity-50"
-      >
-        {loading === "pre" ? <Loader2 size={11} className="animate-spin" /> : <FileDown size={11} />}
-        PDF Pré
-      </button>
-      <button
-        onClick={(e) => { e.stopPropagation(); handleGerar("pos"); }}
-        disabled={loading !== null}
-        className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-xs hover:bg-secondary/80 disabled:opacity-50"
-      >
-        {loading === "pos" ? <Loader2 size={11} className="animate-spin" /> : <FileDown size={11} />}
-        PDF Pós
-      </button>
-      {relatorios.slice(0, 3).map((r) => (
-        r.url ? (
-          <a key={r.id} href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
-            className="text-[10px] text-primary underline">
-            {new Date(r.gerado_em).toLocaleDateString()}
-          </a>
-        ) : null
-      ))}
+    <div className="flex flex-col gap-1.5 pt-1 border-t" onClick={(e) => e.stopPropagation()}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          onClick={() => handleEnfileirar("pre")}
+          disabled={loading !== null}
+          className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-xs hover:bg-secondary/80 disabled:opacity-50"
+        >
+          {loading === "pre" ? <Loader2 size={11} className="animate-spin" /> : <FileDown size={11} />}
+          Gerar PDF Pré
+        </button>
+        <button
+          onClick={() => handleEnfileirar("pos")}
+          disabled={loading !== null}
+          className="inline-flex items-center gap-1 rounded bg-secondary px-2 py-0.5 text-xs hover:bg-secondary/80 disabled:opacity-50"
+        >
+          {loading === "pos" ? <Loader2 size={11} className="animate-spin" /> : <FileDown size={11} />}
+          Gerar PDF Pós
+        </button>
+      </div>
+      {jobs.length > 0 && (
+        <ul className="space-y-1">
+          {jobs.slice(0, 5).map((j) => {
+            const pct = j.progresso_total > 0
+              ? Math.round((j.progresso_atual / j.progresso_total) * 100)
+              : 0;
+            const statusLabel: Record<string, string> = {
+              na_fila: "Na fila",
+              processando: `Processando ${j.progresso_atual}/${j.progresso_total} ruas`,
+              pronto: "Pronto",
+              erro: "Erro",
+            };
+            const statusColor: Record<string, string> = {
+              na_fila: "bg-muted text-muted-foreground",
+              processando: "bg-blue-100 text-blue-800",
+              pronto: "bg-green-100 text-green-800",
+              erro: "bg-red-100 text-red-800",
+            };
+            return (
+              <li key={j.id} className="rounded border bg-background/50 p-1.5 text-[10px]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium uppercase">{j.tipo}</span>
+                  <span className={`px-1.5 py-0.5 rounded ${statusColor[j.status]}`}>
+                    {statusLabel[j.status]}
+                  </span>
+                </div>
+                {j.status === "processando" && (
+                  <div className="mt-1 h-1 w-full rounded bg-muted overflow-hidden">
+                    <div className="h-full bg-blue-500" style={{ width: `${pct}%` }} />
+                  </div>
+                )}
+                {j.status === "erro" && (
+                  <div className="mt-1 flex items-center justify-between gap-1">
+                    <span className="text-red-700 truncate" title={j.mensagem_erro}>
+                      {j.mensagem_erro ?? "Falha desconhecida"}
+                    </span>
+                    <button
+                      onClick={async () => {
+                        await retry({ data: { jobId: j.id } });
+                        qc.invalidateQueries({ queryKey: ["v-jobs", bairroId] });
+                      }}
+                      className="text-primary underline"
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+                )}
+                {j.status === "pronto" && j.url && (
+                  <a
+                    href={j.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline"
+                  >
+                    Baixar PDF
+                  </a>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
