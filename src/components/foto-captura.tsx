@@ -114,7 +114,6 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
         return;
       }
       // Sem confirmação por baixa precisão — o carimbo já registra ±Xm.
-      }
 
       setProgress("Buscando endereço...");
       const r = await geocodeFn({ data: { lat: gps.lat, lon: gps.lon } });
