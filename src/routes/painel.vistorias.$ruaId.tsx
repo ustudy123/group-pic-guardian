@@ -205,7 +205,7 @@ function FotoColuna({
   titulo: string;
   fotos: any[];
   onDelete: (id: string) => void;
-  onStatus: (id: string, s: "aprovada" | "rejeitada") => void;
+  onStatus: (id: string, s: "pendente" | "aprovada" | "rejeitada") => void;
   podeAprovar: boolean;
 }) {
   return (
