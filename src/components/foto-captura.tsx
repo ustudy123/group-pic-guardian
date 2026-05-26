@@ -101,15 +101,33 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
     if (!file) return;
     setBusy(true);
     try {
-      setProgress("Obtendo localização...");
-      const gps = await getGps();
+      setProgress("Obtendo localização precisa...");
+      const gps = await getGps((acc, n) => {
+        setProgress(`GPS: ±${Math.round(acc)}m (${n} leituras)`);
+      });
+
+      if (!gps) {
+        toast.error("Não foi possível obter a localização. Ative o GPS e tente novamente.");
+        setBusy(false);
+        setProgress("");
+        if (inputRef.current) inputRef.current.value = "";
+        return;
+      }
+      if (gps.accuracy > 60) {
+        const ok = confirm(
+          `A precisão do GPS está baixa (±${Math.round(gps.accuracy)}m). O endereço pode ficar impreciso.\n\nDicas:\n• Vá para um local aberto, longe de prédios\n• Aguarde alguns segundos e tente de novo\n\nDeseja continuar mesmo assim?`,
+        );
+        if (!ok) {
+          setBusy(false);
+          setProgress("");
+          if (inputRef.current) inputRef.current.value = "";
+          return;
+        }
+      }
 
       setProgress("Buscando endereço...");
-      let address = "";
-      if (gps) {
-        const r = await geocodeFn({ data: { lat: gps.lat, lon: gps.lon } });
-        address = r.address;
-      }
+      const r = await geocodeFn({ data: { lat: gps.lat, lon: gps.lon } });
+      const address = r.address;
 
       setProgress("Processando imagem...");
       const img = await readImage(file);
