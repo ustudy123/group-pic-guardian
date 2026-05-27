@@ -67,9 +67,9 @@ async function dispararGithub(jobId: string) {
   }
 }
 
-async function processarChunkDireto(jobId: string) {
+async function processarChunkDireto(jobId: string, supabase: any) {
   try {
-    const payload = await processarRelatoriosJob(jobId);
+    const payload = await processarRelatoriosJob({ jobId, supabase });
     if (payload.error) {
       const detalhe = String(payload.error).slice(0, 200);
       return {
@@ -147,7 +147,7 @@ export const enfileirarRelatorio = createServerFn({ method: "POST" })
       console.error("Falha ao disparar GitHub Actions:", gh.message);
       await salvarMensagemJob(supabase, jobId, fmtDiag(gh.message));
 
-      const fallback = await processarChunkDireto(jobId);
+      const fallback = await processarChunkDireto(jobId, supabase);
       if (!fallback.ok) {
         console.error("Fallback interno do worker falhou:", fallback.message);
         await salvarMensagemJob(
@@ -221,7 +221,7 @@ export const listJobsBairro = createServerFn({ method: "POST" })
       withUrls.map(async (job: any) => {
         if (!isJobTravado(job)) return { ...job, stuck: false };
 
-        const fallback = await processarChunkDireto(job.id);
+        const fallback = await processarChunkDireto(job.id, supabase);
         if (fallback.ok) {
           const recado = fmtDiag("Job reativado automaticamente pelo fallback interno.");
           if (job.mensagem_erro !== recado) await salvarMensagemJob(supabase, job.id, recado);
@@ -257,7 +257,7 @@ export const retryJob = createServerFn({ method: "POST" })
       .eq("id", data.jobId);
     if (error) throw new Error(error.message);
 
-    const fallback = await processarChunkDireto(data.jobId);
+    const fallback = await processarChunkDireto(data.jobId, supabase);
     if (!fallback.ok) {
       await salvarMensagemJob(
         supabase,
