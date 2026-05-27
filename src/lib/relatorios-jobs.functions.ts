@@ -29,6 +29,13 @@ async function salvarMensagemJob(supabase: any, jobId: string, mensagem: string 
 }
 
 async function dispararGithub(jobId: string) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return {
+      ok: false as const,
+      message: "Worker externo indisponível neste ambiente; processamento interno será usado.",
+    };
+  }
+
   const ghToken = process.env.GITHUB_DISPATCH_TOKEN;
   const ghRepo = process.env.GITHUB_DISPATCH_REPO;
 
