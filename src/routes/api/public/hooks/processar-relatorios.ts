@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/public/hooks/processar-relatorios")({
 
         let body: any = {};
         try { body = await request.json(); } catch {}
-        const result = await processarRelatoriosJob(body.jobId);
+        const result = await processarRelatoriosJob({ jobId: body.jobId });
         return Response.json(result, { status: result.error ? 500 : 200 });
       },
     },
