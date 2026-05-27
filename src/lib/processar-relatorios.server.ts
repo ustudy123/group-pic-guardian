@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildCapaChunk, buildRuaChunk, concatPDFs } from "@/lib/pdf-builder.server";
 
 const BUCKET = "vistorias-fotos";
+type ProcessingSupabase = any;
 
 function chunksFolder(jobId: string) {
   return `relatorios/jobs/${jobId}`;
@@ -11,21 +12,21 @@ function ruaChunkName(i: number) {
   return `rua-${String(i).padStart(3, "0")}.pdf`;
 }
 
-async function listChunkFiles(jobId: string): Promise<Set<string>> {
-  const { data } = await supabaseAdmin.storage.from(BUCKET).list(chunksFolder(jobId));
+async function listChunkFiles(supabase: ProcessingSupabase, jobId: string): Promise<Set<string>> {
+  const { data } = await supabase.storage.from(BUCKET).list(chunksFolder(jobId));
   return new Set((data ?? []).map((f: any) => f.name));
 }
 
-async function downloadChunk(jobId: string, name: string): Promise<Uint8Array | null> {
-  const { data } = await supabaseAdmin.storage
+async function downloadChunk(supabase: ProcessingSupabase, jobId: string, name: string): Promise<Uint8Array | null> {
+  const { data } = await supabase.storage
     .from(BUCKET)
     .download(`${chunksFolder(jobId)}/${name}`);
   if (!data) return null;
   return new Uint8Array(await data.arrayBuffer());
 }
 
-async function uploadChunk(jobId: string, name: string, bytes: Uint8Array) {
-  const { error } = await supabaseAdmin.storage
+async function uploadChunk(supabase: ProcessingSupabase, jobId: string, name: string, bytes: Uint8Array) {
+  const { error } = await supabase.storage
     .from(BUCKET)
     .upload(`${chunksFolder(jobId)}/${name}`, bytes, {
       contentType: "application/pdf",
@@ -34,9 +35,9 @@ async function uploadChunk(jobId: string, name: string, bytes: Uint8Array) {
   if (error) throw new Error(`upload ${name}: ${error.message}`);
 }
 
-async function pickJob(jobId?: string) {
+async function pickJob(supabase: ProcessingSupabase, jobId?: string) {
   if (jobId) {
-    const { data } = await supabaseAdmin
+    const { data } = await supabase
       .from("vistoria_relatorio_jobs")
       .select("*")
       .eq("id", jobId)
@@ -44,7 +45,7 @@ async function pickJob(jobId?: string) {
     return data;
   }
 
-  const { data } = await supabaseAdmin
+  const { data } = await supabase
     .from("vistoria_relatorio_jobs")
     .select("*")
     .in("status", ["na_fila", "processando"])
@@ -53,21 +54,22 @@ async function pickJob(jobId?: string) {
   return (data ?? [])[0] ?? null;
 }
 
-export async function processarRelatoriosJob(jobId?: string) {
-  const job = (await pickJob(jobId)) as any;
+export async function processarRelatoriosJob(options: { jobId?: string; supabase?: ProcessingSupabase } = {}) {
+  const supabase = options.supabase ?? supabaseAdmin;
+  const job = (await pickJob(supabase, options.jobId)) as any;
   if (!job) {
     return { done: true, idle: true };
   }
 
   if (job.status === "na_fila") {
-    await supabaseAdmin
+    await supabase
       .from("vistoria_relatorio_jobs")
       .update({ status: "processando", iniciado_em: new Date().toISOString() })
       .eq("id", job.id);
   }
 
   try {
-    const { data: bairro, error: be } = await supabaseAdmin
+    const { data: bairro, error: be } = await supabase
       .from("bairros")
       .select("id, nome, contratos(id, numero, descricao, regional, municipio, responsavel_tecnico, periodo)")
       .eq("id", job.bairro_id)
@@ -77,7 +79,7 @@ export async function processarRelatoriosJob(jobId?: string) {
     const contrato: any = (bairro as any).contratos ?? {};
     const bairroNome = (bairro as any).nome;
 
-    const { data: ruas, error: re } = await supabaseAdmin
+    const { data: ruas, error: re } = await supabase
       .from("ruas")
       .select("id, nome, ordem")
       .eq("bairro_id", job.bairro_id)
@@ -87,17 +89,17 @@ export async function processarRelatoriosJob(jobId?: string) {
     const ruasArr = (ruas ?? []) as any[];
 
     if (job.progresso_total !== ruasArr.length) {
-      await supabaseAdmin
+      await supabase
         .from("vistoria_relatorio_jobs")
         .update({ progresso_total: ruasArr.length })
         .eq("id", job.id);
     }
 
-    const existing = await listChunkFiles(job.id);
+    const existing = await listChunkFiles(supabase, job.id);
 
     if (!existing.has("capa.pdf")) {
       const capa = await buildCapaChunk({ tipo: job.tipo, bairroNome, contrato });
-      await uploadChunk(job.id, "capa.pdf", capa);
+      await uploadChunk(supabase, job.id, "capa.pdf", capa);
       return { done: false, step: "capa", jobId: job.id };
     }
 
@@ -106,7 +108,7 @@ export async function processarRelatoriosJob(jobId?: string) {
       if (existing.has(name)) continue;
       const rua = ruasArr[i];
 
-      const { data: fotos } = await supabaseAdmin
+      const { data: fotos } = await supabase
         .from("vistoria_fotos")
         .select("*")
         .eq("rua_id", rua.id)
@@ -117,7 +119,7 @@ export async function processarRelatoriosJob(jobId?: string) {
       let fotosPrePos: any[] | undefined;
       if (job.tipo === "pos") {
         const ruaIds = ruasArr.map((r) => r.id);
-        const { data: pres } = await supabaseAdmin
+        const { data: pres } = await supabase
           .from("vistoria_fotos")
           .select("id, fase, tipo, storage_path_carimbada, captured_at")
           .in("rua_id", ruaIds)
@@ -128,15 +130,15 @@ export async function processarRelatoriosJob(jobId?: string) {
       }
 
       const ruaChunk = await buildRuaChunk({
-        supabase: supabaseAdmin,
+        supabase,
         tipo: job.tipo,
         rua,
         fotos: fotosArr,
         fotosPrePos,
       });
-      await uploadChunk(job.id, name, ruaChunk);
+      await uploadChunk(supabase, job.id, name, ruaChunk);
 
-      await supabaseAdmin
+      await supabase
         .from("vistoria_relatorio_jobs")
         .update({
           progresso_atual: i + 1,
@@ -148,17 +150,17 @@ export async function processarRelatoriosJob(jobId?: string) {
     }
 
     const parts: Uint8Array[] = [];
-    const capa = await downloadChunk(job.id, "capa.pdf");
+    const capa = await downloadChunk(supabase, job.id, "capa.pdf");
     if (capa) parts.push(capa);
     for (let i = 0; i < ruasArr.length; i++) {
-      const part = await downloadChunk(job.id, ruaChunkName(i));
+      const part = await downloadChunk(supabase, job.id, ruaChunkName(i));
       if (part) parts.push(part);
     }
     const finalBytes = await concatPDFs(parts);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const finalPath = `relatorios/${job.bairro_id}/${job.tipo}-${timestamp}.pdf`;
-    const { error: upErr } = await supabaseAdmin.storage
+    const { error: upErr } = await supabase.storage
       .from(BUCKET)
       .upload(finalPath, finalBytes, {
         contentType: "application/pdf",
@@ -166,14 +168,14 @@ export async function processarRelatoriosJob(jobId?: string) {
       });
     if (upErr) throw new Error(`upload final: ${upErr.message}`);
 
-    await supabaseAdmin.from("vistoria_relatorios").insert({
+    await supabase.from("vistoria_relatorios").insert({
       contrato_id: job.contrato_id,
       bairro_id: job.bairro_id,
       pdf_path: finalPath,
       gerado_por: job.solicitado_por,
     });
 
-    await supabaseAdmin
+    await supabase
       .from("vistoria_relatorio_jobs")
       .update({
         status: "pronto",
@@ -186,12 +188,12 @@ export async function processarRelatoriosJob(jobId?: string) {
       const toDelete = ["capa.pdf", ...ruasArr.map((_, i) => ruaChunkName(i))].map(
         (n) => `${chunksFolder(job.id)}/${n}`,
       );
-      await supabaseAdmin.storage.from(BUCKET).remove(toDelete);
+      await supabase.storage.from(BUCKET).remove(toDelete);
     } catch {}
 
     return { done: true, jobId: job.id, pdfPath: finalPath };
   } catch (err: any) {
-    await supabaseAdmin
+    await supabase
       .from("vistoria_relatorio_jobs")
       .update({
         status: "erro",
