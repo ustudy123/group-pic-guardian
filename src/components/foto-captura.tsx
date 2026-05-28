@@ -200,7 +200,8 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
     } finally {
       setBusy(false);
       setProgress("");
-      if (inputRef.current) inputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+      if (galleryInputRef.current) galleryInputRef.current.value = "";
     }
   }
 
@@ -214,19 +215,39 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
           <img src={refUrl} alt="referência" className="w-full max-h-72 object-contain bg-black" />
         </div>
       )}
-      <label className={`flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed py-8 cursor-pointer transition ${busy ? "opacity-50 pointer-events-none" : "hover:bg-accent"}`}>
-        {busy ? <Loader2 className="animate-spin" /> : <Camera />}
-        <span className="font-semibold">{busy ? progress || "Processando..." : "Tirar foto"}</span>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={handlePick}
-          disabled={busy}
-        />
-      </label>
+      {busy ? (
+        <div className="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed py-8 opacity-70">
+          <Loader2 className="animate-spin" />
+          <span className="font-semibold">{progress || "Processando..."}</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed py-6 cursor-pointer transition hover:bg-accent">
+            <Camera />
+            <span className="font-semibold text-sm">Abrir câmera</span>
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handlePick}
+            />
+          </label>
+          <label className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed py-6 cursor-pointer transition hover:bg-accent">
+            <ImageIcon />
+            <span className="font-semibold text-sm">Escolher da galeria</span>
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePick}
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
+}
 }
