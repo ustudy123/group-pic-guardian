@@ -90,7 +90,8 @@ function drawStamp(canvas: HTMLCanvasElement, lines: string[]) {
 }
 
 export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, refUrl, onSaved }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const saveFotoFn = useServerFn(saveFoto);
