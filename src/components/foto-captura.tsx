@@ -250,4 +250,3 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
     </div>
   );
 }
-}
