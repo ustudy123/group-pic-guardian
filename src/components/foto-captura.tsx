@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Camera, Loader2, MapPin } from "lucide-react";
+import { Camera, Loader2, MapPin, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { reverseGeocode, saveFoto } from "@/lib/vistorias.functions";
