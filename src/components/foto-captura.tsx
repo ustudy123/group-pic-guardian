@@ -111,7 +111,8 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
         toast.error("Não foi possível obter a localização. Ative o GPS e tente novamente.");
         setBusy(false);
         setProgress("");
-        if (inputRef.current) inputRef.current.value = "";
+        if (cameraInputRef.current) cameraInputRef.current.value = "";
+        if (galleryInputRef.current) galleryInputRef.current.value = "";
         return;
       }
       // Sem confirmação por baixa precisão — o carimbo já registra ±Xm.
