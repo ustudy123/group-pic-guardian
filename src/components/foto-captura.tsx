@@ -222,29 +222,37 @@ export function FotoCaptura({ ruaId, fase, tipo, numeroCasa, lado, parPreId, ref
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <label className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed py-6 cursor-pointer transition hover:bg-accent">
+          <button
+            type="button"
+            onClick={() => cameraInputRef.current?.click()}
+            className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed py-6 cursor-pointer transition hover:bg-accent"
+          >
             <Camera />
             <span className="font-semibold text-sm">Abrir câmera</span>
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handlePick}
-            />
-          </label>
-          <label className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed py-6 cursor-pointer transition hover:bg-accent">
+          </button>
+          <button
+            type="button"
+            onClick={() => galleryInputRef.current?.click()}
+            className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed py-6 cursor-pointer transition hover:bg-accent"
+          >
             <ImageIcon />
             <span className="font-semibold text-sm">Escolher da galeria</span>
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePick}
-            />
-          </label>
+          </button>
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            onChange={handlePick}
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={handlePick}
+          />
         </div>
       )}
     </div>
