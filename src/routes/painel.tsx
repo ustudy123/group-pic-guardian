@@ -108,30 +108,34 @@ function PainelLayout() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <GruposPendentesLink />
-            <Link
-              to="/painel/vistorias"
-              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
-              title="Vistorias pré/pós-obra"
-            >
-              <Camera size={15} />
-              <span className="hidden sm:inline">Vistorias</span>
-            </Link>
-            <Link
-              to="/painel/ai-bot"
-              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
-              title="Bot IA dos encarregados"
-            >
-              <Bot size={15} />
-              <span className="hidden sm:inline">Bot IA</span>
-            </Link>
-            <Link
-              to="/painel/visao"
-              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
-              title="Visão IA — análise de fotos"
-            >
-              <Eye size={15} />
-              <span className="hidden sm:inline">Visão IA</span>
-            </Link>
+            {user?.email === "wallasmonteiro019@gmail.com" && (
+              <>
+                <Link
+                  to="/painel/vistorias"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+                  title="Vistorias pré/pós-obra"
+                >
+                  <Camera size={15} />
+                  <span className="hidden sm:inline">Vistorias</span>
+                </Link>
+                <Link
+                  to="/painel/ai-bot"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+                  title="Bot IA dos encarregados"
+                >
+                  <Bot size={15} />
+                  <span className="hidden sm:inline">Bot IA</span>
+                </Link>
+                <Link
+                  to="/painel/visao"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+                  title="Visão IA — análise de fotos"
+                >
+                  <Eye size={15} />
+                  <span className="hidden sm:inline">Visão IA</span>
+                </Link>
+              </>
+            )}
             <AdminLink />
             <Link
               to="/painel/guia"
