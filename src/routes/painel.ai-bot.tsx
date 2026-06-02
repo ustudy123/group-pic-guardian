@@ -33,6 +33,7 @@ function AiBotPage() {
           ["kb", "Base de conhecimento"],
           ["exemplos", "Exemplos"],
           ["autorizados", "Autorizados"],
+          ["alertas", "Alertas"],
           ["historico", "Histórico"],
         ] as [Aba, string][]).map(([k, label]) => (
           <button
@@ -53,6 +54,7 @@ function AiBotPage() {
       {aba === "kb" && <KbTab />}
       {aba === "exemplos" && <ExemplosTab />}
       {aba === "autorizados" && <AutorizadosTab />}
+      {aba === "alertas" && <AlertasTab />}
       {aba === "historico" && <HistoricoTab />}
 
       {aba === "persona" && <GuiaIntegracao />}
