@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
 import { Route as PainelVistoriasRouteImport } from './routes/painel.vistorias'
+import { Route as PainelVisaoRouteImport } from './routes/painel.visao'
 import { Route as PainelGuiaRouteImport } from './routes/painel.guia'
 import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
 import { Route as PainelAiBotRouteImport } from './routes/painel.ai-bot'
@@ -26,6 +27,7 @@ import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistor
 import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
+import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -56,6 +58,11 @@ const PainelIndexRoute = PainelIndexRouteImport.update({
 const PainelVistoriasRoute = PainelVistoriasRouteImport.update({
   id: '/vistorias',
   path: '/vistorias',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelVisaoRoute = PainelVisaoRouteImport.update({
+  id: '/visao',
+  path: '/visao',
   getParentRoute: () => PainelRoute,
 } as any)
 const PainelGuiaRoute = PainelGuiaRouteImport.update({
@@ -115,6 +122,12 @@ const ApiPublicHooksProcessarRelatoriosRoute =
     path: '/api/public/hooks/processar-relatorios',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksProcessarAnalisesRoute =
+  ApiPublicHooksProcessarAnalisesRouteImport.update({
+    id: '/api/public/hooks/processar-analises',
+    path: '/api/public/hooks/processar-analises',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksAiBotRoute = ApiPublicHooksAiBotRouteImport.update({
   id: '/api/public/hooks/ai-bot',
   path: '/api/public/hooks/ai-bot',
@@ -131,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/painel/ai-bot': typeof PainelAiBotRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
+  '/painel/visao': typeof PainelVisaoRoute
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
@@ -138,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -149,12 +164,14 @@ export interface FileRoutesByTo {
   '/painel/ai-bot': typeof PainelAiBotRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
+  '/painel/visao': typeof PainelVisaoRoute
   '/painel': typeof PainelIndexRoute
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -169,6 +186,7 @@ export interface FileRoutesById {
   '/painel/ai-bot': typeof PainelAiBotRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
+  '/painel/visao': typeof PainelVisaoRoute
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
@@ -176,6 +194,7 @@ export interface FileRoutesById {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -191,6 +210,7 @@ export interface FileRouteTypes {
     | '/painel/ai-bot'
     | '/painel/grupos'
     | '/painel/guia'
+    | '/painel/visao'
     | '/painel/vistorias'
     | '/painel/'
     | '/painel/vistorias/$ruaId'
@@ -198,6 +218,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
@@ -209,12 +230,14 @@ export interface FileRouteTypes {
     | '/painel/ai-bot'
     | '/painel/grupos'
     | '/painel/guia'
+    | '/painel/visao'
     | '/painel'
     | '/painel/vistorias/$ruaId'
     | '/painel/vistorias/admin'
     | '/painel/$encarregado'
     | '/painel/vistorias'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/painel/$encarregado/$anoMes/$dia'
   id:
@@ -228,6 +251,7 @@ export interface FileRouteTypes {
     | '/painel/ai-bot'
     | '/painel/grupos'
     | '/painel/guia'
+    | '/painel/visao'
     | '/painel/vistorias'
     | '/painel/'
     | '/painel/vistorias/$ruaId'
@@ -235,6 +259,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
@@ -245,6 +270,7 @@ export interface RootRouteChildren {
   PainelRoute: typeof PainelRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
+  ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
   ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
 }
 
@@ -290,6 +316,13 @@ declare module '@tanstack/react-router' {
       path: '/vistorias'
       fullPath: '/painel/vistorias'
       preLoaderRoute: typeof PainelVistoriasRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/visao': {
+      id: '/painel/visao'
+      path: '/visao'
+      fullPath: '/painel/visao'
+      preLoaderRoute: typeof PainelVisaoRouteImport
       parentRoute: typeof PainelRoute
     }
     '/painel/guia': {
@@ -369,6 +402,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksProcessarRelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/processar-analises': {
+      id: '/api/public/hooks/processar-analises'
+      path: '/api/public/hooks/processar-analises'
+      fullPath: '/api/public/hooks/processar-analises'
+      preLoaderRoute: typeof ApiPublicHooksProcessarAnalisesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/ai-bot': {
       id: '/api/public/hooks/ai-bot'
       path: '/api/public/hooks/ai-bot'
@@ -414,6 +454,7 @@ interface PainelRouteChildren {
   PainelAiBotRoute: typeof PainelAiBotRoute
   PainelGruposRoute: typeof PainelGruposRoute
   PainelGuiaRoute: typeof PainelGuiaRoute
+  PainelVisaoRoute: typeof PainelVisaoRoute
   PainelVistoriasRoute: typeof PainelVistoriasRouteWithChildren
   PainelIndexRoute: typeof PainelIndexRoute
 }
@@ -424,6 +465,7 @@ const PainelRouteChildren: PainelRouteChildren = {
   PainelAiBotRoute: PainelAiBotRoute,
   PainelGruposRoute: PainelGruposRoute,
   PainelGuiaRoute: PainelGuiaRoute,
+  PainelVisaoRoute: PainelVisaoRoute,
   PainelVistoriasRoute: PainelVistoriasRouteWithChildren,
   PainelIndexRoute: PainelIndexRoute,
 }
@@ -437,6 +479,7 @@ const rootRouteChildren: RootRouteChildren = {
   PainelRoute: PainelRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicHooksAiBotRoute: ApiPublicHooksAiBotRoute,
+  ApiPublicHooksProcessarAnalisesRoute: ApiPublicHooksProcessarAnalisesRoute,
   ApiPublicHooksProcessarRelatoriosRoute:
     ApiPublicHooksProcessarRelatoriosRoute,
 }
