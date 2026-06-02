@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { BotStatusIndicator } from "@/components/bot-status-indicator";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Inbox, BookOpen, ShieldCheck, Camera } from "lucide-react";
+import { Inbox, BookOpen, ShieldCheck, Camera, Bot } from "lucide-react";
 
 function AdminLink() {
   const { data } = useQuery({
@@ -115,6 +115,14 @@ function PainelLayout() {
             >
               <Camera size={15} />
               <span className="hidden sm:inline">Vistorias</span>
+            </Link>
+            <Link
+              to="/painel/ai-bot"
+              className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+              title="Bot IA dos encarregados"
+            >
+              <Bot size={15} />
+              <span className="hidden sm:inline">Bot IA</span>
             </Link>
             <AdminLink />
             <Link
