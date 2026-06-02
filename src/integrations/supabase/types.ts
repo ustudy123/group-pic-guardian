@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_bot_alertas: {
+        Row: {
+          categoria: string
+          created_at: string
+          criticidade: string
+          enviado_coordenador: boolean
+          enviado_em: string | null
+          id: string
+          mensagem_origem: string | null
+          nome: string | null
+          resolvido: boolean
+          resumo: string
+          telefone: string
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          criticidade?: string
+          enviado_coordenador?: boolean
+          enviado_em?: string | null
+          id?: string
+          mensagem_origem?: string | null
+          nome?: string | null
+          resolvido?: boolean
+          resumo: string
+          telefone: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          criticidade?: string
+          enviado_coordenador?: boolean
+          enviado_em?: string | null
+          id?: string
+          mensagem_origem?: string | null
+          nome?: string | null
+          resolvido?: boolean
+          resumo?: string
+          telefone?: string
+        }
+        Relationships: []
+      }
       ai_bot_autorizados: {
         Row: {
           ativo: boolean
@@ -40,7 +82,10 @@ export type Database = {
       }
       ai_bot_config: {
         Row: {
+          alertas_ativos: boolean
           ativo: boolean
+          coordenador_nome: string | null
+          coordenador_telefone: string | null
           created_at: string
           id: string
           max_historico: number
@@ -52,7 +97,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          alertas_ativos?: boolean
           ativo?: boolean
+          coordenador_nome?: string | null
+          coordenador_telefone?: string | null
           created_at?: string
           id?: string
           max_historico?: number
@@ -64,7 +112,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          alertas_ativos?: boolean
           ativo?: boolean
+          coordenador_nome?: string | null
+          coordenador_telefone?: string | null
           created_at?: string
           id?: string
           max_historico?: number
