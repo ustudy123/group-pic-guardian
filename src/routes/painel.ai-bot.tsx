@@ -3,13 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Bot, ArrowLeft, Plus, Trash2, Save, MessageSquare } from "lucide-react";
+import { Bot, ArrowLeft, Plus, Trash2, Save, MessageSquare, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/painel/ai-bot")({
   component: AiBotPage,
 });
 
-type Aba = "persona" | "kb" | "exemplos" | "autorizados" | "historico";
+type Aba = "persona" | "kb" | "exemplos" | "autorizados" | "alertas" | "historico";
 
 function AiBotPage() {
   const [aba, setAba] = useState<Aba>("persona");
