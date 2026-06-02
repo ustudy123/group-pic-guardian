@@ -361,6 +361,96 @@ export type Database = {
         }
         Relationships: []
       }
+      foto_analise_jobs: {
+        Row: {
+          created_at: string
+          erro: string | null
+          foto_id: string
+          id: string
+          iniciado_em: string | null
+          status: string
+          tentativas: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          erro?: string | null
+          foto_id: string
+          id?: string
+          iniciado_em?: string | null
+          status?: string
+          tentativas?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          erro?: string | null
+          foto_id?: string
+          id?: string
+          iniciado_em?: string | null
+          status?: string
+          tentativas?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      foto_analises: {
+        Row: {
+          analisado_em: string
+          conformidade_geral: string
+          created_at: string
+          epi_detectado: Json
+          etapa: string
+          etapa_confianca: number
+          foto_id: string
+          id: string
+          modelo: string | null
+          problemas: Json
+          pv_qualidade: Json
+          resumo: string
+          sinalizacao: Json
+          tokens_in: number | null
+          tokens_out: number | null
+          updated_at: string
+        }
+        Insert: {
+          analisado_em?: string
+          conformidade_geral?: string
+          created_at?: string
+          epi_detectado?: Json
+          etapa?: string
+          etapa_confianca?: number
+          foto_id: string
+          id?: string
+          modelo?: string | null
+          problemas?: Json
+          pv_qualidade?: Json
+          resumo?: string
+          sinalizacao?: Json
+          tokens_in?: number | null
+          tokens_out?: number | null
+          updated_at?: string
+        }
+        Update: {
+          analisado_em?: string
+          conformidade_geral?: string
+          created_at?: string
+          epi_detectado?: Json
+          etapa?: string
+          etapa_confianca?: number
+          foto_id?: string
+          id?: string
+          modelo?: string | null
+          problemas?: Json
+          pv_qualidade?: Json
+          resumo?: string
+          sinalizacao?: Json
+          tokens_in?: number | null
+          tokens_out?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fotos: {
         Row: {
           altura: number | null
