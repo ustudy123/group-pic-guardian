@@ -206,6 +206,45 @@ Regras:
         </div>
       </div>
 
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div className="flex items-center gap-2 font-medium">
+          <AlertTriangle size={16} className="text-orange-500" /> Alertas para o coordenador
+        </div>
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={form.alertas_ativos}
+            onChange={(e) => setForm((f) => ({ ...f, alertas_ativos: e.target.checked }))}
+            className="size-4"
+          />
+          <span className="text-sm">
+            Detectar problemas em obra automaticamente e enviar alerta no WhatsApp do coordenador (via Z-API)
+          </span>
+        </label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">WhatsApp do coordenador</label>
+            <input
+              placeholder="55DDDNUMERO (só números)"
+              value={form.coordenador_telefone}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, coordenador_telefone: e.target.value }))
+              }
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Nome do coordenador</label>
+            <input
+              placeholder="Ex: Marcel"
+              value={form.coordenador_nome}
+              onChange={(e) => setForm((f) => ({ ...f, coordenador_nome: e.target.value }))}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+      </div>
+
       <button
         onClick={() => salvar.mutate()}
         disabled={salvar.isPending}
