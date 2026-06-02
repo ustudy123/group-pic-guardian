@@ -26,6 +26,7 @@ import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistor
 import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
+import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -115,6 +116,12 @@ const ApiPublicHooksProcessarRelatoriosRoute =
     path: '/api/public/hooks/processar-relatorios',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksProcessarAnalisesRoute =
+  ApiPublicHooksProcessarAnalisesRouteImport.update({
+    id: '/api/public/hooks/processar-analises',
+    path: '/api/public/hooks/processar-analises',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksAiBotRoute = ApiPublicHooksAiBotRouteImport.update({
   id: '/api/public/hooks/ai-bot',
   path: '/api/public/hooks/ai-bot',
@@ -138,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -155,6 +163,7 @@ export interface FileRoutesByTo {
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -176,6 +185,7 @@ export interface FileRoutesById {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/vistorias'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/painel/$encarregado/$anoMes/$dia'
   id:
@@ -235,6 +247,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
@@ -245,6 +258,7 @@ export interface RootRouteChildren {
   PainelRoute: typeof PainelRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
+  ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
   ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
 }
 
@@ -369,6 +383,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksProcessarRelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/processar-analises': {
+      id: '/api/public/hooks/processar-analises'
+      path: '/api/public/hooks/processar-analises'
+      fullPath: '/api/public/hooks/processar-analises'
+      preLoaderRoute: typeof ApiPublicHooksProcessarAnalisesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/ai-bot': {
       id: '/api/public/hooks/ai-bot'
       path: '/api/public/hooks/ai-bot'
@@ -437,9 +458,20 @@ const rootRouteChildren: RootRouteChildren = {
   PainelRoute: PainelRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicHooksAiBotRoute: ApiPublicHooksAiBotRoute,
+  ApiPublicHooksProcessarAnalisesRoute: ApiPublicHooksProcessarAnalisesRoute,
   ApiPublicHooksProcessarRelatoriosRoute:
     ApiPublicHooksProcessarRelatoriosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
