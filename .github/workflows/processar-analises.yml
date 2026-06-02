@@ -1,0 +1,41 @@
+name: Processar Análises de Visão IA
+
+on:
+  schedule:
+    - cron: "*/2 * * * *"  # a cada 2 min
+  workflow_dispatch: {}
+
+concurrency:
+  group: processar-analises
+  cancel-in-progress: false
+
+jobs:
+  processar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Drenar fila de análises
+        env:
+          ENDPOINT: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks/processar-analises
+          SECRET: ${{ secrets.VISAO_WORKER_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "VISAO_WORKER_SECRET não configurado nos secrets do repo."
+            exit 1
+          fi
+
+          for i in $(seq 1 20); do
+            echo "Iteração $i..."
+            RESP=$(curl -sS -X POST "$ENDPOINT" \
+              -H "Content-Type: application/json" \
+              -H "x-visao-secret: $SECRET" \
+              -d '{"max":5}')
+            echo "Resp: $RESP"
+
+            IDLE=$(echo "$RESP" | grep -o '"idle":true' || true)
+            if [ -n "$IDLE" ]; then
+              echo "Fila vazia."
+              break
+            fi
+            sleep 2
+          done
