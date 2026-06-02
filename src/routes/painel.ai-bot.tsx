@@ -703,3 +703,124 @@ function GuiaIntegracao() {
     </div>
   );
 }
+
+/* ----------------- ALERTAS ----------------- */
+function AlertasTab() {
+  const qc = useQueryClient();
+  const [filtroCrit, setFiltroCrit] = useState<string>("todas");
+  const [mostrarResolvidos, setMostrarResolvidos] = useState(false);
+
+  const { data: alertas = [] } = useQuery({
+    queryKey: ["ai-bot-alertas", filtroCrit, mostrarResolvidos],
+    queryFn: async () => {
+      let q = supabase
+        .from("ai_bot_alertas")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (filtroCrit !== "todas") q = q.eq("criticidade", filtroCrit);
+      if (!mostrarResolvidos) q = q.eq("resolvido", false);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const resolver = useMutation({
+    mutationFn: async ({ id, resolvido }: { id: string; resolvido: boolean }) => {
+      const { error } = await supabase
+        .from("ai_bot_alertas")
+        .update({ resolvido })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["ai-bot-alertas"] }),
+  });
+
+  const cores: Record<string, string> = {
+    critica: "bg-red-100 text-red-800 border-red-300",
+    alta: "bg-orange-100 text-orange-800 border-orange-300",
+    media: "bg-yellow-100 text-yellow-800 border-yellow-300",
+    baixa: "bg-emerald-100 text-emerald-800 border-emerald-300",
+  };
+
+  return (
+    <div className="space-y-4 max-w-4xl">
+      <div className="flex flex-wrap gap-3 items-center">
+        <select
+          value={filtroCrit}
+          onChange={(e) => setFiltroCrit(e.target.value)}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        >
+          <option value="todas">Todas as criticidades</option>
+          <option value="critica">🔴 Crítica</option>
+          <option value="alta">🟠 Alta</option>
+          <option value="media">🟡 Média</option>
+          <option value="baixa">🟢 Baixa</option>
+        </select>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={mostrarResolvidos}
+            onChange={(e) => setMostrarResolvidos(e.target.checked)}
+          />
+          Mostrar resolvidos
+        </label>
+      </div>
+
+      {alertas.length === 0 && (
+        <p className="text-sm text-muted-foreground">Nenhum alerta no momento. 🎉</p>
+      )}
+
+      <div className="space-y-2">
+        {alertas.map((a) => (
+          <div key={a.id} className="rounded-md border p-3 bg-card">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded border ${
+                      cores[a.criticidade] || "bg-muted"
+                    }`}
+                  >
+                    {a.criticidade.toUpperCase()}
+                  </span>
+                  <span className="text-xs uppercase text-muted-foreground">
+                    {a.categoria}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(a.created_at).toLocaleString("pt-BR")}
+                  </span>
+                  {a.enviado_coordenador && (
+                    <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
+                      <CheckCircle2 size={12} /> enviado
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm font-medium">{a.resumo}</p>
+                <p className="text-xs text-muted-foreground">
+                  De: {a.nome || a.telefone}
+                </p>
+                {a.mensagem_origem && (
+                  <p className="text-xs text-muted-foreground italic mt-1 border-l-2 pl-2">
+                    "{a.mensagem_origem}"
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => resolver.mutate({ id: a.id, resolvido: !a.resolvido })}
+                className={`text-xs px-3 py-1.5 rounded border whitespace-nowrap ${
+                  a.resolvido
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-emerald-600 text-white hover:opacity-90"
+                }`}
+              >
+                {a.resolvido ? "Reabrir" : "Resolver"}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
