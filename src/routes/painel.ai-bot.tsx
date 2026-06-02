@@ -86,6 +86,9 @@ function PersonaTab() {
     max_historico: 20,
     saudacao_inicial: "",
     somente_autorizados: true,
+    coordenador_telefone: "",
+    coordenador_nome: "",
+    alertas_ativos: true,
   });
 
   useEffect(() => {
@@ -98,6 +101,9 @@ function PersonaTab() {
         max_historico: data.max_historico,
         saudacao_inicial: data.saudacao_inicial || "",
         somente_autorizados: data.somente_autorizados,
+        coordenador_telefone: (data as { coordenador_telefone?: string }).coordenador_telefone || "",
+        coordenador_nome: (data as { coordenador_nome?: string }).coordenador_nome || "",
+        alertas_ativos: (data as { alertas_ativos?: boolean }).alertas_ativos ?? true,
       });
     }
   }, [data]);
