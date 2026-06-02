@@ -14,6 +14,153 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_bot_autorizados: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string | null
+          telefone: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string | null
+          telefone: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string | null
+          telefone?: string
+        }
+        Relationships: []
+      }
+      ai_bot_config: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          max_historico: number
+          modelo: string
+          persona: string
+          saudacao_inicial: string | null
+          somente_autorizados: boolean
+          temperatura: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          max_historico?: number
+          modelo?: string
+          persona?: string
+          saudacao_inicial?: string | null
+          somente_autorizados?: boolean
+          temperatura?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          max_historico?: number
+          modelo?: string
+          persona?: string
+          saudacao_inicial?: string | null
+          somente_autorizados?: boolean
+          temperatura?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_bot_conversas: {
+        Row: {
+          conteudo: string
+          created_at: string
+          id: string
+          nome: string | null
+          role: string
+          telefone: string
+        }
+        Insert: {
+          conteudo: string
+          created_at?: string
+          id?: string
+          nome?: string | null
+          role: string
+          telefone: string
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string
+          id?: string
+          nome?: string | null
+          role?: string
+          telefone?: string
+        }
+        Relationships: []
+      }
+      ai_bot_exemplos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          ordem: number
+          pergunta: string
+          resposta: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          pergunta: string
+          resposta: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          ordem?: number
+          pergunta?: string
+          resposta?: string
+        }
+        Relationships: []
+      }
+      ai_bot_kb: {
+        Row: {
+          ativo: boolean
+          conteudo: string
+          created_at: string
+          id: string
+          ordem: number
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          conteudo: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          conteudo?: string
+          created_at?: string
+          id?: string
+          ordem?: number
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bairros: {
         Row: {
           contrato_id: string
