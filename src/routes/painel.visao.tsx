@@ -22,7 +22,9 @@ import {
   reprocessarFoto,
   listarEncarregadosAnalise,
   reprocessarFilaCompleta,
+  processarAgora,
 } from "@/lib/visao.functions";
+
 
 export const Route = createFileRoute("/painel/visao")({
   component: VisaoPage,
