@@ -20,6 +20,7 @@ import {
   getEstatisticas,
   reprocessarFoto,
   listarEncarregadosAnalise,
+  reprocessarFilaCompleta,
 } from "@/lib/visao.functions";
 
 export const Route = createFileRoute("/painel/visao")({
@@ -27,17 +28,37 @@ export const Route = createFileRoute("/painel/visao")({
 });
 
 const ETAPA_LABEL: Record<string, string> = {
+  nota_servico: "Nota de Serviço",
+  localizacao: "Localização",
   dds: "DDS",
   sinalizacao: "Sinalização",
-  vala: "Vala",
-  compactacao: "Compactação",
-  pv: "Poço de Visita",
-  drenagem: "Drenagem",
-  limpeza: "Limpeza",
-  banheiro: "Banheiro",
+  banheiro_longe: "Banheiro (longe)",
+  banheiro_dentro: "Banheiro (dentro)",
   mapa_rede: "Mapa de Rede",
-  checklist: "Checklist",
+  escavacao_vala: "Escavando Vala",
+  assentamento_tubo: "Assentamento de Tubo",
+  compactacao_1a: "Compactação 1ª",
+  compactacao_2a: "Compactação 2ª",
+  compactacao_3a: "Compactação 3ª",
+  vala_25cm_base: "Vala 25cm p/ Base",
+  espalhamento_base: "Espalhamento Base",
+  compactacao_base: "Compactação Base",
+  construcao_pv: "Construção PV",
+  acabamento_pv: "Acabamento PV",
+  vala_finalizada: "Vala Finalizada",
+  limpeza: "Limpeza",
+  passagem_segura: "Passagem Segura",
+  checklist_compactador: "Checklist Compactador",
+  checklist_moto_bomba: "Checklist Motobomba",
+  drenagem_boca_lobo: "Drenagem / Boca de Lobo",
   outros: "Outros",
+  // legacy (análises antigas)
+  vala: "Vala (antigo)",
+  compactacao: "Compactação (antigo)",
+  pv: "PV (antigo)",
+  drenagem: "Drenagem (antigo)",
+  banheiro: "Banheiro (antigo)",
+  checklist: "Checklist (antigo)",
 };
 
 const CONF_META: Record<string, { label: string; cls: string; icon: any }> = {
