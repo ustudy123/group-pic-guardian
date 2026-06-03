@@ -6,18 +6,49 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const MODELO_PADRAO = "google/gemini-2.5-pro";
 
 export const ETAPAS = [
+  "nota_servico",
+  "localizacao",
   "dds",
   "sinalizacao",
-  "vala",
-  "compactacao",
-  "pv",
-  "drenagem",
-  "limpeza",
-  "banheiro",
+  "banheiro_longe",
+  "banheiro_dentro",
   "mapa_rede",
-  "checklist",
+  "escavacao_vala",
+  "assentamento_tubo",
+  "compactacao_1a",
+  "compactacao_2a",
+  "compactacao_3a",
+  "vala_25cm_base",
+  "espalhamento_base",
+  "compactacao_base",
+  "construcao_pv",
+  "acabamento_pv",
+  "vala_finalizada",
+  "limpeza",
+  "passagem_segura",
+  "checklist_compactador",
+  "checklist_moto_bomba",
+  "drenagem_boca_lobo",
   "outros",
 ] as const;
+
+// Etapas que entram no Relatório Fotográfico de Obra (RFO)
+export const ETAPAS_RFO = new Set<string>([
+  "dds",
+  "sinalizacao",
+  "escavacao_vala",
+  "assentamento_tubo",
+  "compactacao_1a",
+  "compactacao_2a",
+  "compactacao_3a",
+  "vala_25cm_base",
+  "espalhamento_base",
+  "compactacao_base",
+  "construcao_pv",
+  "acabamento_pv",
+  "vala_finalizada",
+  "limpeza",
+]);
 
 export const CONFORMIDADES = [
   "conforme",
