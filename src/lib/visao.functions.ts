@@ -164,7 +164,7 @@ export const processarAgora = createServerFn({ method: "POST" })
   .inputValidator((i) =>
     z
       .object({
-        max: z.number().int().min(1).max(10).default(3),
+        max: z.number().int().min(1).max(5).default(3),
         encarregadoId: z.string().uuid().nullable().optional(),
       })
       .parse(i ?? {}),
