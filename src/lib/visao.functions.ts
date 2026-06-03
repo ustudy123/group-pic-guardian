@@ -161,7 +161,14 @@ export const reprocessarFilaCompleta = createServerFn({ method: "POST" })
 // Drena N jobs da fila DIRETO do servidor da app (sem depender de cron externo).
 export const processarAgora = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i) => z.object({ max: z.number().int().min(1).max(10).default(3) }).parse(i ?? {}))
+  .inputValidator((i) =>
+    z
+      .object({
+        max: z.number().int().min(1).max(10).default(3),
+        encarregadoId: z.string().uuid().nullable().optional(),
+      })
+      .parse(i ?? {}),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: roles } = await supabase
@@ -172,6 +179,7 @@ export const processarAgora = createServerFn({ method: "POST" })
     if (!isAdmin) throw new Error("Apenas admin pode processar a fila.");
 
     const { processarFila } = await import("@/lib/visao-analyzer.server");
-    return processarFila(data.max);
+    return processarFila(data.max, { encarregadoId: data.encarregadoId ?? null });
   });
+
 
