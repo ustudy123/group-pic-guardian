@@ -186,13 +186,31 @@ function VisaoPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 border rounded-md px-2 py-1 text-sm bg-card">
+            <label className="text-xs text-muted-foreground">Qtd</label>
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={quantidade}
+              onChange={(e) => setQuantidade(Number(e.target.value) || 1)}
+              className="w-16 bg-transparent outline-none text-sm"
+            />
+          </div>
           <button
             onClick={drenarFila}
             disabled={drenando}
             className="inline-flex items-center gap-1.5 border rounded-md px-3 py-1.5 text-sm bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            title={
+              encarregadoId
+                ? "Processa apenas o encarregado selecionado no filtro"
+                : "Processa fotos de todos os encarregados"
+            }
           >
             {drenando ? <Loader2 className="animate-spin" size={14} /> : <Eye size={14} />}
-            {drenando ? "Processando..." : "Processar agora"}
+            {drenando
+              ? "Processando..."
+              : `Processar ${quantidade}${encarregadoId ? " (encarregado)" : ""}`}
           </button>
           <button
             onClick={() => {
@@ -207,6 +225,7 @@ function VisaoPage() {
             Reprocessar fila
           </button>
         </div>
+
 
       </div>
 
