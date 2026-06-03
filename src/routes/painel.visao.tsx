@@ -84,7 +84,11 @@ function VisaoPage() {
   const encsFn = useServerFn(listarEncarregadosAnalise);
   const reprocessFn = useServerFn(reprocessarFoto);
   const reprocFilaFn = useServerFn(reprocessarFilaCompleta);
+  const processarFn = useServerFn(processarAgora);
   const qc = useQueryClient();
+  const [drenando, setDrenando] = useState(false);
+  const drenandoRef = useRef(false);
+
 
   const stats = useQuery({
     queryKey: ["visao-stats"],
