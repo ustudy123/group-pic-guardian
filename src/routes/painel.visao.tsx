@@ -80,6 +80,7 @@ function VisaoPage() {
   const statsFn = useServerFn(getEstatisticas);
   const encsFn = useServerFn(listarEncarregadosAnalise);
   const reprocessFn = useServerFn(reprocessarFoto);
+  const reprocFilaFn = useServerFn(reprocessarFilaCompleta);
   const qc = useQueryClient();
 
   const stats = useQuery({
@@ -111,6 +112,15 @@ function VisaoPage() {
     mutationFn: (fotoId: string) => reprocessFn({ data: { fotoId } }),
     onSuccess: () => {
       toast.success("Foto enfileirada para reanálise.");
+      qc.invalidateQueries({ queryKey: ["visao-stats"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+  });
+
+  const reprocFila = useMutation({
+    mutationFn: () => reprocFilaFn(),
+    onSuccess: (r: any) => {
+      toast.success(`${r?.reenfileirados ?? 0} fotos reenfileiradas para análise.`);
       qc.invalidateQueries({ queryKey: ["visao-stats"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
