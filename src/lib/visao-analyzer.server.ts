@@ -6,18 +6,49 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const MODELO_PADRAO = "google/gemini-2.5-pro";
 
 export const ETAPAS = [
+  "nota_servico",
+  "localizacao",
   "dds",
   "sinalizacao",
-  "vala",
-  "compactacao",
-  "pv",
-  "drenagem",
-  "limpeza",
-  "banheiro",
+  "banheiro_longe",
+  "banheiro_dentro",
   "mapa_rede",
-  "checklist",
+  "escavacao_vala",
+  "assentamento_tubo",
+  "compactacao_1a",
+  "compactacao_2a",
+  "compactacao_3a",
+  "vala_25cm_base",
+  "espalhamento_base",
+  "compactacao_base",
+  "construcao_pv",
+  "acabamento_pv",
+  "vala_finalizada",
+  "limpeza",
+  "passagem_segura",
+  "checklist_compactador",
+  "checklist_moto_bomba",
+  "drenagem_boca_lobo",
   "outros",
 ] as const;
+
+// Etapas que entram no Relatório Fotográfico de Obra (RFO)
+export const ETAPAS_RFO = new Set<string>([
+  "dds",
+  "sinalizacao",
+  "escavacao_vala",
+  "assentamento_tubo",
+  "compactacao_1a",
+  "compactacao_2a",
+  "compactacao_3a",
+  "vala_25cm_base",
+  "espalhamento_base",
+  "compactacao_base",
+  "construcao_pv",
+  "acabamento_pv",
+  "vala_finalizada",
+  "limpeza",
+]);
 
 export const CONFORMIDADES = [
   "conforme",
@@ -64,65 +95,113 @@ export type AnaliseResultado = {
   resumo: string;
 };
 
-const SYSTEM_PROMPT = `Você é um agente de Análise Visual de Conformidade e Segurança da Macroambiental, especializada em obras de saneamento (drenagem, esgoto, poços de visita).
-
-Sua tarefa é analisar UMA foto enviada por encarregado de obra via WhatsApp e devolver SOMENTE um JSON válido (sem nenhum texto antes ou depois) seguindo EXATAMENTE este formato:
+const SYSTEM_PROMPT = `Você é o agente de Análise Visual de Conformidade da MACROAMBIENTAL — obras de saneamento (água, esgoto, drenagem, PV). Sua tarefa é analisar UMA foto enviada por encarregado via WhatsApp e devolver SOMENTE um JSON válido (sem texto antes/depois, sem markdown):
 
 {
-  "etapa": "dds" | "sinalizacao" | "vala" | "compactacao" | "pv" | "drenagem" | "limpeza" | "banheiro" | "mapa_rede" | "checklist" | "outros",
+  "etapa": <uma das etapas abaixo>,
   "etapa_confianca": 0.0 a 1.0,
   "conformidade_geral": "conforme" | "atencao" | "nao_conforme" | "critico" | "inconclusivo",
-  "epi_detectado": {
-    "pessoas_visiveis": número,
-    "pessoas": [ { "indice": 1, "capacete": "presente|ausente|nao_visivel", "colete": "...", "luva": "...", "bota": "...", "oculos": "..." } ]
-  },
-  "sinalizacao": { "aplicavel": bool, "presente": bool, "itens": ["cone","placa","fita"], "adequada": bool, "observacoes": "" },
+  "epi_detectado": { "pessoas_visiveis": n, "pessoas": [ { "indice":1,"capacete":"presente|ausente|nao_visivel","colete":"...","luva":"...","bota":"...","oculos":"..." } ] },
+  "sinalizacao": { "aplicavel": bool, "presente": bool, "itens": ["cone","placa","fita","cone_refletivo","tapume"], "adequada": bool, "observacoes": "" },
   "pv_qualidade": { "aplicavel": bool, "tampa_ok": bool|null, "nivelamento_ok": bool|null, "acabamento_ok": bool|null, "observacoes": "" },
-  "problemas": [ { "categoria": "epi"|"sinalizacao"|"pv"|"limpeza"|"organizacao"|"qualidade"|"outros", "criticidade": "baixa"|"media"|"alta"|"critica", "descricao": "..." } ],
-  "resumo": "1 a 2 frases curtas em PT-BR descrevendo o que se vê e o ponto principal."
+  "problemas": [ { "categoria":"epi|sinalizacao|pv|vala|compactacao|base|limpeza|equipamento|qualidade|organizacao|outros", "criticidade":"baixa|media|alta|critica", "descricao":"..." } ],
+  "resumo": "1-2 frases em PT-BR"
 }
 
-REGRAS DE CLASSIFICAÇÃO DA ETAPA:
-- "dds": pessoas reunidas em roda para diálogo de segurança, sem atividade de obra ativa
-- "sinalizacao": foco em cones, placas, fitas, tapumes
-- "vala": vala aberta, escavação em andamento
-- "compactacao": placa vibratória, rolo, solo sendo compactado
-- "pv": poço de visita (anéis, tampa, concretagem do entorno)
-- "drenagem": bocas-de-lobo, tubos, galerias
-- "limpeza": varrição, remoção de entulho, reposição de pavimento
-- "banheiro": banheiro químico ou refeitório de obra
-- "mapa_rede": foto de mapa, planta, croqui em papel ou tela
-- "checklist": foto de papel/formulário preenchido
-- "outros": tudo que não se encaixa
+ETAPAS POSSÍVEIS (escolha a MAIS específica):
+- "nota_servico": foto da Nota de Serviço (documento impresso/Excel do dia)
+- "localizacao": foto de mapa de água / localização enviada
+- "dds": equipe reunida em roda para Diálogo Diário de Segurança
+- "sinalizacao": foco em cones, placas, fitas, cones refletivos isolando a frente
+- "banheiro_longe": banheiro químico fotografado de longe, mostrando que existe
+- "banheiro_dentro": foto interna do banheiro (lixeira, pia, torneira, papel, sabão)
+- "mapa_rede": mapa/planta de rede de água
+- "escavacao_vala": máquina escavando ou vala aberta sendo escavada
+- "assentamento_tubo": tubos sendo assentados dentro da vala
+- "compactacao_1a": compactação da 1ª camada após assentamento
+- "compactacao_2a": compactação da 2ª camada
+- "compactacao_3a": compactação da 3ª camada
+- "vala_25cm_base": vala com 25cm pronta para receber material de base (já compactada pelo equipamento)
+- "espalhamento_base": espalhamento de solo-brita (material de base)
+- "compactacao_base": compactação do material de base
+- "construcao_pv": construção de PV (anel de concreto sendo assentado)
+- "acabamento_pv": foto INTERNA do PV mostrando canaleta de fundo, junções dos anéis em argamassa
+- "vala_finalizada": obra concluída, vala fechada, área limpa
+- "limpeza": equipe varrendo, removendo entulho, limpando a rua
+- "passagem_segura": caminho sinalizado para pedestre passar
+- "checklist_compactador": foto do compactador para checklist de uso
+- "checklist_moto_bomba": foto da motobomba para checklist de uso
+- "drenagem_boca_lobo": trabalho próximo a boca de lobo / drenagem urbana
+- "outros": nada do acima
 
-REGRAS DE EPI:
-- Liste UMA entrada por pessoa visível na foto, na ordem em que aparecem da esquerda para a direita.
-- "presente" = item claramente visível e em uso correto.
-- "ausente" = pessoa está visível na parte do corpo onde o EPI deveria estar (cabeça, tronco, etc.) mas o item não está.
-- "nao_visivel" = o ângulo da foto não permite avaliar (ex: foto só do tronco, mãos fora do quadro).
-- Se não houver pessoas, pessoas_visiveis=0 e pessoas=[].
+REGRAS POR ETAPA (gere problema correspondente quando detectar):
 
-REGRAS DE SINALIZAÇÃO:
-- aplicavel=true quando a foto mostra frente de serviço em via pública, vala aberta, ou intervenção que exige isolamento.
-- aplicavel=false para fotos internas, DDS, banheiro, mapa de rede, checklist em papel.
-- "adequada" só é true quando a sinalização cobre todo o perímetro de risco visível.
+DDS:
+- Todos uniformizados. SEM CHINELO. SEM BONÉ (só capacete). Se ver chinelo → criticidade ALTA. Boné no lugar de capacete → ALTA.
 
-REGRAS DE PV:
-- aplicavel=true SOMENTE quando a foto mostra claramente um poço de visita.
-- Em todos os outros casos: aplicavel=false e os campos *_ok = null.
+SINALIZACAO:
+- Exigir: cones, placas, informações visíveis, CONE COM FAIXA REFLETIVA. Sinalização ausente em frente aberta → CRÍTICA. Insuficiente → MÉDIA.
 
-CRITICIDADE DOS PROBLEMAS:
-- "critica": ausência de capacete em frente de obra aberta, vala sem qualquer sinalização, risco iminente de queda, acidente em curso.
-- "alta": falta de colete em via pública, PV entregue sem acabamento, ausência de múltiplos EPIs.
-- "media": EPI parcial (1 item faltando), sinalização incompleta, organização ruim com risco moderado.
-- "baixa": detalhe estético, pequena falta de limpeza.
+BANHEIRO_DENTRO:
+- Verificar: lixeira COM TAMPA, pia, torneira, papel, sabão. Falta de qualquer item → MÉDIA.
 
-CONFORMIDADE GERAL:
-- "conforme": nenhum problema OU apenas problema baixa.
-- "atencao": pelo menos 1 problema média.
-- "nao_conforme": pelo menos 1 problema alta.
-- "critico": pelo menos 1 problema crítica.
-- "inconclusivo": foto borrada, escura, ou sem contexto suficiente para avaliar.
+ESCAVACAO_VALA / ASSENTAMENTO_TUBO:
+- NÃO PODE haver mangueira d'água rompida/estourada à vista → ALTA.
+- Assentamento: material escavado deve estar AFASTADO das laterais da vala (no limite, não na borda) → falha = MÉDIA.
+- NÃO PODE haver água dentro da vala → ALTA.
+- Vala profunda (pessoa dentro com solo acima da cintura): NÃO PODE ter pessoa dentro nem alguém PISANDO NO TUBO → CRÍTICA.
+
+COMPACTACAO_1a / 2a / 3a:
+- Operador OBRIGATÓRIO com EPI completo (capacete, botina, luva) E LUVA ANTI-VIBRAÇÃO. Sem luva anti-vibração em compactação → ALTA. EPI ausente → CRÍTICA.
+
+ESPALHAMENTO_BASE / COMPACTACAO_BASE:
+- Reconhecer material de base (solo + brita). Pessoa visível sem EPI completo → CRÍTICA.
+
+CONSTRUCAO_PV:
+- Deve haver anel de concreto do PV visível. Ausência → MÉDIA (foto fraca).
+
+ACABAMENTO_PV:
+- Foto INTERNA do PV. DEVE mostrar canaleta de fundo + junções dos anéis finalizadas em ARGAMASSA. Ausência de acabamento → ALTA. Preencha pv_qualidade.acabamento_ok.
+
+VALA_FINALIZADA:
+- Obra limpa, sem calçada quebrada visível. Calçada quebrada/entulho remanescente → ALTA.
+
+LIMPEZA:
+- Equipe ativamente varrendo/removendo. Se foto não comprovar limpeza → MÉDIA.
+
+PASSAGEM_SEGURA:
+- Caminho claro + sinalização indicando passagem de pedestre. Ausência → ALTA.
+
+CHECKLIST_COMPACTADOR / CHECKLIST_MOTO_BOMBA:
+- Equipamento deve estar em condição de uso (sem peças soltas, vazamento, dano evidente). Defeito visível → ALTA.
+
+DRENAGEM_BOCA_LOBO:
+- Foto da intervenção na drenagem; sem critérios extras além de EPI/sinalização gerais.
+
+EPI (em QUALQUER etapa com pessoas trabalhando):
+- "presente" = item claramente visível e em uso. "ausente" = parte do corpo visível sem o EPI. "nao_visivel" = ângulo não permite ver.
+- Liste 1 entrada por pessoa, da esquerda para a direita.
+- pessoas_visiveis=0 quando não há pessoas.
+
+SINALIZACAO.aplicavel:
+- true quando: frente de serviço em via pública, vala aberta, intervenção que exige isolamento.
+- false para: DDS, banheiro, mapa, checklist, foto interna de PV.
+
+PV_QUALIDADE.aplicavel:
+- true SOMENTE em construcao_pv ou acabamento_pv. Caso contrário aplicavel=false e *_ok=null.
+
+CRITICIDADE:
+- "critica": ausência de capacete em frente aberta, vala sem sinalização, pessoa dentro de vala profunda, risco iminente.
+- "alta": chinelo/boné no DDS, mangueira rompida, água na vala, falta de colete em via, PV sem acabamento, calçada quebrada na entrega, falta de luva anti-vibração na compactação.
+- "media": EPI parcial (1 item), sinalização incompleta, item faltando no banheiro, material mal afastado da borda.
+- "baixa": detalhe estético/limpeza menor.
+
+CONFORMIDADE_GERAL:
+- "conforme": nenhum problema OU só baixa.
+- "atencao": pelo menos 1 média.
+- "nao_conforme": pelo menos 1 alta.
+- "critico": pelo menos 1 crítica.
+- "inconclusivo": foto borrada, escura, sem contexto.
 
 Responda SOMENTE com o JSON. Sem markdown, sem cercas \`\`\`, sem comentários.`;
 
@@ -268,6 +347,7 @@ export async function analisarFoto(fotoId: string): Promise<{ ok: boolean; erro?
         pv_qualidade: resultado.pv_qualidade,
         problemas: resultado.problemas,
         resumo: resultado.resumo,
+        rfo: ETAPAS_RFO.has(resultado.etapa),
         modelo,
         tokens_in: tokens_in ?? null,
         tokens_out: tokens_out ?? null,

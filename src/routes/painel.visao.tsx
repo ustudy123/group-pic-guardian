@@ -20,6 +20,7 @@ import {
   getEstatisticas,
   reprocessarFoto,
   listarEncarregadosAnalise,
+  reprocessarFilaCompleta,
 } from "@/lib/visao.functions";
 
 export const Route = createFileRoute("/painel/visao")({
@@ -27,17 +28,37 @@ export const Route = createFileRoute("/painel/visao")({
 });
 
 const ETAPA_LABEL: Record<string, string> = {
+  nota_servico: "Nota de Serviço",
+  localizacao: "Localização",
   dds: "DDS",
   sinalizacao: "Sinalização",
-  vala: "Vala",
-  compactacao: "Compactação",
-  pv: "Poço de Visita",
-  drenagem: "Drenagem",
-  limpeza: "Limpeza",
-  banheiro: "Banheiro",
+  banheiro_longe: "Banheiro (longe)",
+  banheiro_dentro: "Banheiro (dentro)",
   mapa_rede: "Mapa de Rede",
-  checklist: "Checklist",
+  escavacao_vala: "Escavando Vala",
+  assentamento_tubo: "Assentamento de Tubo",
+  compactacao_1a: "Compactação 1ª",
+  compactacao_2a: "Compactação 2ª",
+  compactacao_3a: "Compactação 3ª",
+  vala_25cm_base: "Vala 25cm p/ Base",
+  espalhamento_base: "Espalhamento Base",
+  compactacao_base: "Compactação Base",
+  construcao_pv: "Construção PV",
+  acabamento_pv: "Acabamento PV",
+  vala_finalizada: "Vala Finalizada",
+  limpeza: "Limpeza",
+  passagem_segura: "Passagem Segura",
+  checklist_compactador: "Checklist Compactador",
+  checklist_moto_bomba: "Checklist Motobomba",
+  drenagem_boca_lobo: "Drenagem / Boca de Lobo",
   outros: "Outros",
+  // legacy (análises antigas)
+  vala: "Vala (antigo)",
+  compactacao: "Compactação (antigo)",
+  pv: "PV (antigo)",
+  drenagem: "Drenagem (antigo)",
+  banheiro: "Banheiro (antigo)",
+  checklist: "Checklist (antigo)",
 };
 
 const CONF_META: Record<string, { label: string; cls: string; icon: any }> = {
@@ -59,6 +80,7 @@ function VisaoPage() {
   const statsFn = useServerFn(getEstatisticas);
   const encsFn = useServerFn(listarEncarregadosAnalise);
   const reprocessFn = useServerFn(reprocessarFoto);
+  const reprocFilaFn = useServerFn(reprocessarFilaCompleta);
   const qc = useQueryClient();
 
   const stats = useQuery({
@@ -95,6 +117,15 @@ function VisaoPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
+  const reprocFila = useMutation({
+    mutationFn: () => reprocFilaFn(),
+    onSuccess: (r: any) => {
+      toast.success(`${r?.reenfileirados ?? 0} fotos reenfileiradas para análise.`);
+      qc.invalidateQueries({ queryKey: ["visao-stats"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro"),
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -106,6 +137,18 @@ function VisaoPage() {
             <Eye size={22} /> Visão IA — Análise de Fotos
           </h1>
         </div>
+        <button
+          onClick={() => {
+            if (confirm("Reprocessar TODA a fila pendente + erros com o prompt novo?")) {
+              reprocFila.mutate();
+            }
+          }}
+          disabled={reprocFila.isPending}
+          className="inline-flex items-center gap-1.5 border rounded-md px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+        >
+          {reprocFila.isPending ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+          Reprocessar fila
+        </button>
       </div>
 
       {/* KPIs */}

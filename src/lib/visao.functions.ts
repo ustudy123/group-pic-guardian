@@ -137,3 +137,23 @@ export const listarEncarregadosAnalise = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { encarregados: data ?? [] };
   });
+
+export const reprocessarFilaCompleta = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
+    if (!isAdmin) throw new Error("Apenas admin pode reprocessar a fila.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error, count } = await supabaseAdmin
+      .from("foto_analise_jobs")
+      .update({ status: "pendente", tentativas: 0, erro: null }, { count: "exact" })
+      .in("status", ["pendente", "erro", "processando"]);
+    if (error) throw new Error(error.message);
+    return { ok: true, reenfileirados: count ?? 0 };
+  });
