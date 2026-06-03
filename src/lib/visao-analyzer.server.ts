@@ -401,35 +401,40 @@ export async function processarFila(
   let ok = 0;
   let erros = 0;
 
-  for (const job of jobs) {
-    // Marca como processando
-    await supabaseAdmin
-      .from("foto_analise_jobs")
-      .update({
-        status: "processando",
-        tentativas: (job.tentativas ?? 0) + 1,
-        iniciado_em: new Date().toISOString(),
-      })
-      .eq("id", job.id);
-
-    const r = await analisarFoto(job.foto_id);
-    if (r.ok) {
-      ok++;
-      await supabaseAdmin
-        .from("foto_analise_jobs")
-        .update({ status: "ok", erro: null })
-        .eq("id", job.id);
-    } else {
-      erros++;
-      const novasTentativas = (job.tentativas ?? 0) + 1;
+  // Processa em PARALELO para caber dentro do timeout do worker.
+  const resultados = await Promise.all(
+    jobs.map(async (job: any) => {
       await supabaseAdmin
         .from("foto_analise_jobs")
         .update({
-          status: novasTentativas >= 3 ? "erro" : "pendente",
-          erro: (r.erro ?? "").slice(0, 1000),
+          status: "processando",
+          tentativas: (job.tentativas ?? 0) + 1,
+          iniciado_em: new Date().toISOString(),
         })
         .eq("id", job.id);
-    }
+
+      const r = await analisarFoto(job.foto_id);
+      if (r.ok) {
+        await supabaseAdmin
+          .from("foto_analise_jobs")
+          .update({ status: "ok", erro: null })
+          .eq("id", job.id);
+      } else {
+        const novasTentativas = (job.tentativas ?? 0) + 1;
+        await supabaseAdmin
+          .from("foto_analise_jobs")
+          .update({
+            status: novasTentativas >= 3 ? "erro" : "pendente",
+            erro: (r.erro ?? "").slice(0, 1000),
+          })
+          .eq("id", job.id);
+      }
+      return r.ok;
+    }),
+  );
+  for (const ok2 of resultados) {
+    if (ok2) ok++;
+    else erros++;
   }
 
   const { count: pendentes } = await supabaseAdmin

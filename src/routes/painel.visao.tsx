@@ -135,31 +135,44 @@ function VisaoPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
-  // Drena `quantidade` jobs (opcionalmente filtrando por encarregado).
+  // Drena `quantidade` jobs em chamadas PARALELAS (cada chamada processa 3 fotos no servidor em paralelo).
   async function drenarFila() {
     if (drenandoRef.current) return;
     drenandoRef.current = true;
     setDrenando(true);
     try {
       const alvo = Math.max(1, Math.min(200, quantidade));
+      const lote = 3; // servidor processa 3 em paralelo por chamada
+      const paralelas = 3; // dispara 3 chamadas simultâneas (=9 fotos por rodada)
       let processadosTotal = 0;
-      const lote = 3;
-      let voltas = 0;
-      const maxVoltas = Math.ceil(alvo / lote) + 2;
-      while (processadosTotal < alvo && voltas < maxVoltas) {
-        const restante = Math.min(lote, alvo - processadosTotal);
-        const r: any = await processarFn({
-          data: {
-            max: restante,
-            encarregadoId: encarregadoId || null,
-          },
-        });
-        voltas++;
-        const feitos = r?.processados ?? 0;
-        if (!feitos) break;
-        processadosTotal += feitos;
-        await qc.invalidateQueries({ queryKey: ["visao-stats"] });
-        await qc.invalidateQueries({ queryKey: ["visao-lista"] });
+      let semProgresso = 0;
+      while (processadosTotal < alvo && semProgresso < 2) {
+        const restante = alvo - processadosTotal;
+        const chamadasNestaRodada = Math.min(
+          paralelas,
+          Math.ceil(restante / lote),
+        );
+        const promises = Array.from({ length: chamadasNestaRodada }, () =>
+          processarFn({
+            data: {
+              max: Math.min(lote, restante),
+              encarregadoId: encarregadoId || null,
+            },
+          }).catch((e: any) => ({ processados: 0, _erro: e?.message })),
+        );
+        const resultados = await Promise.all(promises);
+        const feitos = resultados.reduce(
+          (s: number, r: any) => s + (r?.processados ?? 0),
+          0,
+        );
+        if (!feitos) {
+          semProgresso++;
+        } else {
+          semProgresso = 0;
+          processadosTotal += feitos;
+          await qc.invalidateQueries({ queryKey: ["visao-stats"] });
+          await qc.invalidateQueries({ queryKey: ["visao-lista"] });
+        }
       }
       toast.success(
         `Processadas ${processadosTotal} foto(s)${encarregadoId ? " do encarregado selecionado" : ""}.`,
