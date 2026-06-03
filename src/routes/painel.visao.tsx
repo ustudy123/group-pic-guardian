@@ -87,7 +87,9 @@ function VisaoPage() {
   const processarFn = useServerFn(processarAgora);
   const qc = useQueryClient();
   const [drenando, setDrenando] = useState(false);
+  const [quantidade, setQuantidade] = useState<number>(10);
   const drenandoRef = useRef(false);
+
 
 
   const stats = useQuery({
