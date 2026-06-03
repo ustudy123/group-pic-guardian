@@ -347,6 +347,7 @@ export async function analisarFoto(fotoId: string): Promise<{ ok: boolean; erro?
         pv_qualidade: resultado.pv_qualidade,
         problemas: resultado.problemas,
         resumo: resultado.resumo,
+        rfo: ETAPAS_RFO.has(resultado.etapa),
         modelo,
         tokens_in: tokens_in ?? null,
         tokens_out: tokens_out ?? null,
