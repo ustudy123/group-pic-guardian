@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+
 import {
   ArrowLeft,
   Eye,
@@ -21,7 +22,9 @@ import {
   reprocessarFoto,
   listarEncarregadosAnalise,
   reprocessarFilaCompleta,
+  processarAgora,
 } from "@/lib/visao.functions";
+
 
 export const Route = createFileRoute("/painel/visao")({
   component: VisaoPage,
@@ -81,7 +84,11 @@ function VisaoPage() {
   const encsFn = useServerFn(listarEncarregadosAnalise);
   const reprocessFn = useServerFn(reprocessarFoto);
   const reprocFilaFn = useServerFn(reprocessarFilaCompleta);
+  const processarFn = useServerFn(processarAgora);
   const qc = useQueryClient();
+  const [drenando, setDrenando] = useState(false);
+  const drenandoRef = useRef(false);
+
 
   const stats = useQuery({
     queryKey: ["visao-stats"],
@@ -126,6 +133,32 @@ function VisaoPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
+  // Drena a fila em background enquanto a página estiver aberta e houver pendentes.
+  async function drenarFila() {
+    if (drenandoRef.current) return;
+    drenandoRef.current = true;
+    setDrenando(true);
+    try {
+      let restantes = stats.data?.fila_pendente ?? 0;
+      let voltas = 0;
+      while (restantes > 0 && voltas < 60) {
+        const r: any = await processarFn({ data: { max: 3 } });
+        voltas++;
+        if (!r || r.processados === 0) break;
+        await qc.invalidateQueries({ queryKey: ["visao-stats"] });
+        await qc.invalidateQueries({ queryKey: ["visao-lista"] });
+        restantes = r.pendentes ?? 0;
+      }
+      toast.success("Lote processado.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao processar.");
+    } finally {
+      drenandoRef.current = false;
+      setDrenando(false);
+    }
+  }
+
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -137,18 +170,29 @@ function VisaoPage() {
             <Eye size={22} /> Visão IA — Análise de Fotos
           </h1>
         </div>
-        <button
-          onClick={() => {
-            if (confirm("Reprocessar TODA a fila pendente + erros com o prompt novo?")) {
-              reprocFila.mutate();
-            }
-          }}
-          disabled={reprocFila.isPending}
-          className="inline-flex items-center gap-1.5 border rounded-md px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
-        >
-          {reprocFila.isPending ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
-          Reprocessar fila
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={drenarFila}
+            disabled={drenando}
+            className="inline-flex items-center gap-1.5 border rounded-md px-3 py-1.5 text-sm bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {drenando ? <Loader2 className="animate-spin" size={14} /> : <Eye size={14} />}
+            {drenando ? "Processando..." : "Processar agora"}
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("Reprocessar TODA a fila pendente + erros com o prompt novo?")) {
+                reprocFila.mutate();
+              }
+            }}
+            disabled={reprocFila.isPending}
+            className="inline-flex items-center gap-1.5 border rounded-md px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+          >
+            {reprocFila.isPending ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+            Reprocessar fila
+          </button>
+        </div>
+
       </div>
 
       {/* KPIs */}
