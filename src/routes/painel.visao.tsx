@@ -135,23 +135,35 @@ function VisaoPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
-  // Drena a fila em background enquanto a página estiver aberta e houver pendentes.
+  // Drena `quantidade` jobs (opcionalmente filtrando por encarregado).
   async function drenarFila() {
     if (drenandoRef.current) return;
     drenandoRef.current = true;
     setDrenando(true);
     try {
-      let restantes = stats.data?.fila_pendente ?? 0;
+      const alvo = Math.max(1, Math.min(200, quantidade));
+      let processadosTotal = 0;
+      const lote = 3;
       let voltas = 0;
-      while (restantes > 0 && voltas < 60) {
-        const r: any = await processarFn({ data: { max: 3 } });
+      const maxVoltas = Math.ceil(alvo / lote) + 2;
+      while (processadosTotal < alvo && voltas < maxVoltas) {
+        const restante = Math.min(lote, alvo - processadosTotal);
+        const r: any = await processarFn({
+          data: {
+            max: restante,
+            encarregadoId: encarregadoId || null,
+          },
+        });
         voltas++;
-        if (!r || r.processados === 0) break;
+        const feitos = r?.processados ?? 0;
+        if (!feitos) break;
+        processadosTotal += feitos;
         await qc.invalidateQueries({ queryKey: ["visao-stats"] });
         await qc.invalidateQueries({ queryKey: ["visao-lista"] });
-        restantes = r.pendentes ?? 0;
       }
-      toast.success("Lote processado.");
+      toast.success(
+        `Processadas ${processadosTotal} foto(s)${encarregadoId ? " do encarregado selecionado" : ""}.`,
+      );
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao processar.");
     } finally {
@@ -159,6 +171,7 @@ function VisaoPage() {
       setDrenando(false);
     }
   }
+
 
 
   return (
