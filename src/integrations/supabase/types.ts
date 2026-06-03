@@ -408,6 +408,7 @@ export type Database = {
           problemas: Json
           pv_qualidade: Json
           resumo: string
+          rfo: boolean
           sinalizacao: Json
           tokens_in: number | null
           tokens_out: number | null
@@ -426,6 +427,7 @@ export type Database = {
           problemas?: Json
           pv_qualidade?: Json
           resumo?: string
+          rfo?: boolean
           sinalizacao?: Json
           tokens_in?: number | null
           tokens_out?: number | null
@@ -444,12 +446,28 @@ export type Database = {
           problemas?: Json
           pv_qualidade?: Json
           resumo?: string
+          rfo?: boolean
           sinalizacao?: Json
           tokens_in?: number | null
           tokens_out?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "foto_analises_foto_id_fkey"
+            columns: ["foto_id"]
+            isOneToOne: true
+            referencedRelation: "fotos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foto_analises_foto_id_fkey"
+            columns: ["foto_id"]
+            isOneToOne: true
+            referencedRelation: "vw_fotos_completas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fotos: {
         Row: {
