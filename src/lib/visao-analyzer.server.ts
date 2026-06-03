@@ -360,24 +360,43 @@ export async function analisarFoto(fotoId: string): Promise<{ ok: boolean; erro?
   return { ok: true };
 }
 
-export async function processarFila(maxJobs = 5): Promise<{
+export async function processarFila(
+  maxJobs = 5,
+  filtros?: { encarregadoId?: string | null },
+): Promise<{
   processados: number;
   ok: number;
   erros: number;
   pendentes: number;
 }> {
-  // Pega jobs pendentes (com tentativas < 3)
-  const { data: jobs } = await supabaseAdmin
+  // Se filtrar por encarregado, pega foto_ids dele primeiro
+  let fotoIdsFiltro: string[] | null = null;
+  if (filtros?.encarregadoId) {
+    const { data: fotos } = await supabaseAdmin
+      .from("fotos")
+      .select("id")
+      .eq("encarregado_id", filtros.encarregadoId)
+      .limit(500);
+    fotoIdsFiltro = (fotos ?? []).map((f: any) => f.id);
+    if (fotoIdsFiltro.length === 0) {
+      return { processados: 0, ok: 0, erros: 0, pendentes: 0 };
+    }
+  }
+
+  let q = supabaseAdmin
     .from("foto_analise_jobs")
     .select("id, foto_id, tentativas")
     .eq("status", "pendente")
     .lt("tentativas", 3)
     .order("created_at", { ascending: true })
     .limit(maxJobs);
+  if (fotoIdsFiltro) q = q.in("foto_id", fotoIdsFiltro);
+  const { data: jobs } = await q;
 
   if (!jobs || jobs.length === 0) {
     return { processados: 0, ok: 0, erros: 0, pendentes: 0 };
   }
+
 
   let ok = 0;
   let erros = 0;
