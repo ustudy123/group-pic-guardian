@@ -137,6 +137,18 @@ function VisaoPage() {
             <Eye size={22} /> Visão IA — Análise de Fotos
           </h1>
         </div>
+        <button
+          onClick={() => {
+            if (confirm("Reprocessar TODA a fila pendente + erros com o prompt novo?")) {
+              reprocFila.mutate();
+            }
+          }}
+          disabled={reprocFila.isPending}
+          className="inline-flex items-center gap-1.5 border rounded-md px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+        >
+          {reprocFila.isPending ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+          Reprocessar fila
+        </button>
       </div>
 
       {/* KPIs */}
