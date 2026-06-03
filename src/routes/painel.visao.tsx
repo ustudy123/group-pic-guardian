@@ -87,7 +87,9 @@ function VisaoPage() {
   const processarFn = useServerFn(processarAgora);
   const qc = useQueryClient();
   const [drenando, setDrenando] = useState(false);
+  const [quantidade, setQuantidade] = useState<number>(10);
   const drenandoRef = useRef(false);
+
 
 
   const stats = useQuery({
@@ -133,23 +135,35 @@ function VisaoPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro"),
   });
 
-  // Drena a fila em background enquanto a página estiver aberta e houver pendentes.
+  // Drena `quantidade` jobs (opcionalmente filtrando por encarregado).
   async function drenarFila() {
     if (drenandoRef.current) return;
     drenandoRef.current = true;
     setDrenando(true);
     try {
-      let restantes = stats.data?.fila_pendente ?? 0;
+      const alvo = Math.max(1, Math.min(200, quantidade));
+      let processadosTotal = 0;
+      const lote = 3;
       let voltas = 0;
-      while (restantes > 0 && voltas < 60) {
-        const r: any = await processarFn({ data: { max: 3 } });
+      const maxVoltas = Math.ceil(alvo / lote) + 2;
+      while (processadosTotal < alvo && voltas < maxVoltas) {
+        const restante = Math.min(lote, alvo - processadosTotal);
+        const r: any = await processarFn({
+          data: {
+            max: restante,
+            encarregadoId: encarregadoId || null,
+          },
+        });
         voltas++;
-        if (!r || r.processados === 0) break;
+        const feitos = r?.processados ?? 0;
+        if (!feitos) break;
+        processadosTotal += feitos;
         await qc.invalidateQueries({ queryKey: ["visao-stats"] });
         await qc.invalidateQueries({ queryKey: ["visao-lista"] });
-        restantes = r.pendentes ?? 0;
       }
-      toast.success("Lote processado.");
+      toast.success(
+        `Processadas ${processadosTotal} foto(s)${encarregadoId ? " do encarregado selecionado" : ""}.`,
+      );
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao processar.");
     } finally {
@@ -157,6 +171,7 @@ function VisaoPage() {
       setDrenando(false);
     }
   }
+
 
 
   return (
@@ -171,13 +186,31 @@ function VisaoPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 border rounded-md px-2 py-1 text-sm bg-card">
+            <label className="text-xs text-muted-foreground">Qtd</label>
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={quantidade}
+              onChange={(e) => setQuantidade(Number(e.target.value) || 1)}
+              className="w-16 bg-transparent outline-none text-sm"
+            />
+          </div>
           <button
             onClick={drenarFila}
             disabled={drenando}
             className="inline-flex items-center gap-1.5 border rounded-md px-3 py-1.5 text-sm bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            title={
+              encarregadoId
+                ? "Processa apenas o encarregado selecionado no filtro"
+                : "Processa fotos de todos os encarregados"
+            }
           >
             {drenando ? <Loader2 className="animate-spin" size={14} /> : <Eye size={14} />}
-            {drenando ? "Processando..." : "Processar agora"}
+            {drenando
+              ? "Processando..."
+              : `Processar ${quantidade}${encarregadoId ? " (encarregado)" : ""}`}
           </button>
           <button
             onClick={() => {
@@ -192,6 +225,7 @@ function VisaoPage() {
             Reprocessar fila
           </button>
         </div>
+
 
       </div>
 
