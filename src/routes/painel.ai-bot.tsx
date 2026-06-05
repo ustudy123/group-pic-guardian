@@ -88,11 +88,18 @@ function PersonaTab() {
     somente_autorizados: true,
     coordenador_telefone: "",
     coordenador_nome: "",
+    coordenador_telefone_2: "",
+    coordenador_nome_2: "",
+    coordenador_telefone_3: "",
+    coordenador_nome_3: "",
+    coordenador_telefone_4: "",
+    coordenador_nome_4: "",
     alertas_ativos: true,
   });
 
   useEffect(() => {
     if (data) {
+      const d = data as Record<string, unknown>;
       setForm({
         ativo: data.ativo,
         persona: data.persona || "",
@@ -101,9 +108,15 @@ function PersonaTab() {
         max_historico: data.max_historico,
         saudacao_inicial: data.saudacao_inicial || "",
         somente_autorizados: data.somente_autorizados,
-        coordenador_telefone: (data as { coordenador_telefone?: string }).coordenador_telefone || "",
-        coordenador_nome: (data as { coordenador_nome?: string }).coordenador_nome || "",
-        alertas_ativos: (data as { alertas_ativos?: boolean }).alertas_ativos ?? true,
+        coordenador_telefone: (d.coordenador_telefone as string) || "",
+        coordenador_nome: (d.coordenador_nome as string) || "",
+        coordenador_telefone_2: (d.coordenador_telefone_2 as string) || "",
+        coordenador_nome_2: (d.coordenador_nome_2 as string) || "",
+        coordenador_telefone_3: (d.coordenador_telefone_3 as string) || "",
+        coordenador_nome_3: (d.coordenador_nome_3 as string) || "",
+        coordenador_telefone_4: (d.coordenador_telefone_4 as string) || "",
+        coordenador_nome_4: (d.coordenador_nome_4 as string) || "",
+        alertas_ativos: (d.alertas_ativos as boolean) ?? true,
       });
     }
   }, [data]);
