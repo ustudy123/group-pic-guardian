@@ -235,26 +235,30 @@ Regras:
           </span>
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium mb-1">WhatsApp do coordenador</label>
-            <input
-              placeholder="55DDDNUMERO (só números)"
-              value={form.coordenador_telefone}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, coordenador_telefone: e.target.value }))
-              }
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Nome do coordenador</label>
-            <input
-              placeholder="Ex: Marcel"
-              value={form.coordenador_nome}
-              onChange={(e) => setForm((f) => ({ ...f, coordenador_nome: e.target.value }))}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-          </div>
+          {([
+            ["coordenador_telefone", "coordenador_nome", "Coordenador 1 (principal)"],
+            ["coordenador_telefone_2", "coordenador_nome_2", "Coordenador 2"],
+            ["coordenador_telefone_3", "coordenador_nome_3", "Coordenador 3"],
+            ["coordenador_telefone_4", "coordenador_nome_4", "Coordenador 4"],
+          ] as const).map(([telKey, nomeKey, label]) => (
+            <div key={telKey} className="rounded-md border bg-background/50 p-3 space-y-2 sm:col-span-2">
+              <div className="text-xs font-semibold text-muted-foreground">{label}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  placeholder="WhatsApp: 55DDDNUMERO (só números)"
+                  value={form[telKey]}
+                  onChange={(e) => setForm((f) => ({ ...f, [telKey]: e.target.value }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+                />
+                <input
+                  placeholder="Nome"
+                  value={form[nomeKey]}
+                  onChange={(e) => setForm((f) => ({ ...f, [nomeKey]: e.target.value }))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
