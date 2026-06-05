@@ -148,12 +148,16 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         try {
           body = (await request.json()) as UazapiPayload;
         } catch {
+          console.log("[uazapi-bot] json invalido");
           return json({ ok: true, ignored: "json_invalido" });
         }
 
+        // Log do payload bruto p/ debug
+        console.log("[uazapi-bot] payload:", JSON.stringify(body).slice(0, 2000));
+
         const evento = String(body.event || body.EventType || "").toLowerCase();
-        // Só nos interessa evento de mensagem
         if (evento && !evento.includes("message")) {
+          console.log(`[uazapi-bot] ignorado evento=${evento}`);
           return json({ ok: true, ignored: `evento_${evento}` });
         }
 
@@ -162,22 +166,29 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         const fromMe = Boolean(d.fromMe);
         const wasSentByApi = Boolean(d.wasSentByApi);
 
-        // Bot só responde em conversas individuais, mensagens recebidas
-        if (isGroup) return json({ ok: true, ignored: "grupo" });
-        if (fromMe || wasSentByApi) return json({ ok: true, ignored: "saida" });
-
-        const messageType = String(d.messageType || "").toLowerCase();
-        if (messageType && !["text", "conversation", "extendedtextmessage", "chat"].some((t) => messageType.includes(t))) {
-          // mídia/áudio/etc — por enquanto ignora
-          return json({ ok: true, ignored: `tipo_${messageType}` });
+        if (isGroup) {
+          console.log("[uazapi-bot] ignorado grupo");
+          return json({ ok: true, ignored: "grupo" });
+        }
+        if (fromMe || wasSentByApi) {
+          console.log(`[uazapi-bot] ignorado saida fromMe=${fromMe} api=${wasSentByApi}`);
+          return json({ ok: true, ignored: "saida" });
         }
 
-        const mensagem = String(d.text || d.content || d.message || "").trim();
+        // Aceita qualquer messageType desde que tenha texto.
+        const messageType = String(d.messageType || "").toLowerCase();
+
+        const mensagem = String(
+          d.text || d.content || d.message || (d as Record<string, unknown>).body || "",
+        ).trim();
         const chatid = String(d.chatid || d.sender || "");
         const telefone = normalizarTelefone(chatid.split("@")[0] || "");
         const nome = (d.senderName || d.pushName || "")?.toString().trim() || null;
 
         if (!telefone || !mensagem) {
+          console.log(
+            `[uazapi-bot] sem_telefone_ou_texto tel=${telefone} tipo=${messageType} keys=${Object.keys(d).join(",")}`,
+          );
           return json({ ok: true, ignored: "sem_telefone_ou_texto" });
         }
 
