@@ -108,7 +108,8 @@ function PainelLayout() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <GruposPendentesLink />
-            {user?.email === "wallasmonteiro019@gmail.com" && (
+            {(user?.email === "wallasmonteiro019@gmail.com" ||
+              user?.email === "arthur.freitas@macroambiental.eng.br") && (
               <>
                 <Link
                   to="/painel/vistorias"
