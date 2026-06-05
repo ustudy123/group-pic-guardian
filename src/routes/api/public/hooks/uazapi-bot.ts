@@ -350,12 +350,23 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
               .select("id")
               .single();
 
-            const coordTel = normalizarTelefone(config.coordenador_telefone || "");
-            if (coordTel) {
+            const cfg = config as Record<string, unknown>;
+            const coordTels = [
+              cfg.coordenador_telefone,
+              cfg.coordenador_telefone_2,
+              cfg.coordenador_telefone_3,
+              cfg.coordenador_telefone_4,
+            ]
+              .map((t) => normalizarTelefone(String(t || "")))
+              .filter((t, i, arr) => t && arr.indexOf(t) === i);
+
+            if (coordTels.length > 0) {
               const emoji = EMOJI_CRIT[alertaInfo.criticidade];
               const msgCoord = `${emoji} *Alerta de obra* (${alertaInfo.criticidade.toUpperCase()})\n*Categoria:* ${alertaInfo.categoria}\n*Encarregado:* ${nome || telefone}\n\n${alertaInfo.resumo}\n\n_Mensagem original:_\n"${mensagem}"`;
-              const ok = await enviarUazapi(coordTel, msgCoord);
-              if (ok && alertRow?.id) {
+              const results = await Promise.all(
+                coordTels.map((t) => enviarUazapi(t, msgCoord)),
+              );
+              if (results.some(Boolean) && alertRow?.id) {
                 await supabaseAdmin
                   .from("ai_bot_alertas")
                   .update({ enviado_coordenador: true, enviado_em: new Date().toISOString() })

@@ -85,7 +85,13 @@ export type Database = {
           alertas_ativos: boolean
           ativo: boolean
           coordenador_nome: string | null
+          coordenador_nome_2: string | null
+          coordenador_nome_3: string | null
+          coordenador_nome_4: string | null
           coordenador_telefone: string | null
+          coordenador_telefone_2: string | null
+          coordenador_telefone_3: string | null
+          coordenador_telefone_4: string | null
           created_at: string
           id: string
           max_historico: number
@@ -100,7 +106,13 @@ export type Database = {
           alertas_ativos?: boolean
           ativo?: boolean
           coordenador_nome?: string | null
+          coordenador_nome_2?: string | null
+          coordenador_nome_3?: string | null
+          coordenador_nome_4?: string | null
           coordenador_telefone?: string | null
+          coordenador_telefone_2?: string | null
+          coordenador_telefone_3?: string | null
+          coordenador_telefone_4?: string | null
           created_at?: string
           id?: string
           max_historico?: number
@@ -115,7 +127,13 @@ export type Database = {
           alertas_ativos?: boolean
           ativo?: boolean
           coordenador_nome?: string | null
+          coordenador_nome_2?: string | null
+          coordenador_nome_3?: string | null
+          coordenador_nome_4?: string | null
           coordenador_telefone?: string | null
+          coordenador_telefone_2?: string | null
+          coordenador_telefone_3?: string | null
+          coordenador_telefone_4?: string | null
           created_at?: string
           id?: string
           max_historico?: number
