@@ -26,6 +26,7 @@ import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$enc
 import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistorias.admin'
 import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
+import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public/hooks/uazapi-bot'
 import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
 import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
@@ -116,6 +117,11 @@ const PainelEncarregadoAnoMesDiaRoute =
     path: '/$anoMes/$dia',
     getParentRoute: () => PainelEncarregadoRoute,
   } as any)
+const ApiPublicHooksUazapiBotRoute = ApiPublicHooksUazapiBotRouteImport.update({
+  id: '/api/public/hooks/uazapi-bot',
+  path: '/api/public/hooks/uazapi-bot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksProcessarRelatoriosRoute =
   ApiPublicHooksProcessarRelatoriosRouteImport.update({
     id: '/api/public/hooks/processar-relatorios',
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
+  '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesByTo {
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
+  '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRoutesById {
@@ -196,6 +204,7 @@ export interface FileRoutesById {
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
+  '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
 export interface FileRouteTypes {
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/ai-bot'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
+    | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/ai-bot'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
+    | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
   id:
     | '__root__'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/ai-bot'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
+    | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
 }
@@ -272,6 +284,7 @@ export interface RootRouteChildren {
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
   ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
   ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
+  ApiPublicHooksUazapiBotRoute: typeof ApiPublicHooksUazapiBotRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -395,6 +408,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelEncarregadoAnoMesDiaRouteImport
       parentRoute: typeof PainelEncarregadoRoute
     }
+    '/api/public/hooks/uazapi-bot': {
+      id: '/api/public/hooks/uazapi-bot'
+      path: '/api/public/hooks/uazapi-bot'
+      fullPath: '/api/public/hooks/uazapi-bot'
+      preLoaderRoute: typeof ApiPublicHooksUazapiBotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/processar-relatorios': {
       id: '/api/public/hooks/processar-relatorios'
       path: '/api/public/hooks/processar-relatorios'
@@ -482,6 +502,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksProcessarAnalisesRoute: ApiPublicHooksProcessarAnalisesRoute,
   ApiPublicHooksProcessarRelatoriosRoute:
     ApiPublicHooksProcessarRelatoriosRoute,
+  ApiPublicHooksUazapiBotRoute: ApiPublicHooksUazapiBotRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
