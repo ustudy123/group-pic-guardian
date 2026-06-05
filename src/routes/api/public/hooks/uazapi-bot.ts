@@ -121,6 +121,23 @@ type UazapiPayload = {
   event?: string;
   EventType?: string;
   instance?: string;
+  chat?: {
+    phone?: string;
+    wa_chatid?: string;
+    wa_isGroup?: boolean;
+    name?: string;
+    wa_name?: string;
+  } & Record<string, unknown>;
+  message?: {
+    chatid?: string;
+    fromMe?: boolean;
+    isGroup?: boolean;
+    content?: string;
+    text?: string;
+    message?: string;
+    senderName?: string;
+    pushName?: string;
+  } & Record<string, unknown>;
   data?: {
     chatid?: string;
     sender?: string;
@@ -161,10 +178,11 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           return json({ ok: true, ignored: `evento_${evento}` });
         }
 
-        const d = body.data || {};
-        const isGroup = Boolean(d.isGroup);
+        const d = body.data || body.message || {};
+        const rootChat = body.chat || {};
+        const isGroup = Boolean(d.isGroup ?? rootChat.wa_isGroup);
         const fromMe = Boolean(d.fromMe);
-        const wasSentByApi = Boolean(d.wasSentByApi);
+        const wasSentByApi = Boolean((body.data || {}).wasSentByApi);
 
         if (isGroup) {
           console.log("[uazapi-bot] ignorado grupo");
@@ -181,9 +199,14 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         const mensagem = String(
           d.text || d.content || d.message || (d as Record<string, unknown>).body || "",
         ).trim();
-        const chatid = String(d.chatid || d.sender || "");
-        const telefone = normalizarTelefone(chatid.split("@")[0] || "");
-        const nome = (d.senderName || d.pushName || "")?.toString().trim() || null;
+        const chatid = String(d.chatid || d.sender || rootChat.wa_chatid || "");
+        const telefone = normalizarTelefone(
+          chatid.split("@")[0] || String(rootChat.phone || ""),
+        );
+        const nome =
+          (d.senderName || d.pushName || rootChat.name || rootChat.wa_name || "")
+            ?.toString()
+            .trim() || null;
 
         if (!telefone || !mensagem) {
           console.log(
@@ -281,8 +304,8 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           { telefone, nome, role: "assistant", conteudo: resposta },
         ]);
 
-        // Envia resposta via uazapi (usa o chatid original quando possível)
-        const destino = chatid || telefone;
+        // Uazapi send/text espera o número limpo, sem @s.whatsapp.net
+        const destino = telefone;
         if (resposta) {
           await enviarUazapi(destino, resposta);
         }
