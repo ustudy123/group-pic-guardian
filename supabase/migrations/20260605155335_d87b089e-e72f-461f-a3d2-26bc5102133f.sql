@@ -1,0 +1,1 @@
+UPDATE public.ai_bot_config SET somente_autorizados = false;
