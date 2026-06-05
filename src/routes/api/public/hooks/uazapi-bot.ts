@@ -226,13 +226,25 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         }
 
         if (config.somente_autorizados) {
+          // Aceita variações com/sem código do país (ex.: 5511... vs 11...)
+          const variantes = new Set<string>([telefone]);
+          if (telefone.startsWith("55") && telefone.length > 11) {
+            variantes.add(telefone.slice(2));
+          } else if (telefone.length <= 11) {
+            variantes.add(`55${telefone}`);
+          }
           const { data: aut } = await supabaseAdmin
             .from("ai_bot_autorizados")
             .select("telefone, ativo")
-            .eq("telefone", telefone)
+            .in("telefone", Array.from(variantes))
             .eq("ativo", true)
             .maybeSingle();
-          if (!aut) return json({ ok: true, ignored: "nao_autorizado" });
+          if (!aut) {
+            console.log(
+              `[uazapi-bot] nao_autorizado tel=${telefone} variantes=${Array.from(variantes).join(",")}`,
+            );
+            return json({ ok: true, ignored: "nao_autorizado" });
+          }
         }
 
         const [{ data: kb }, { data: exemplos }] = await Promise.all([
