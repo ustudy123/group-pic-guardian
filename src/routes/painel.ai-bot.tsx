@@ -177,7 +177,7 @@ Regras:
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 opacity-0 h-0 overflow-hidden pointer-events-none">
         <div>
           <label className="block text-sm font-medium mb-1">Modelo</label>
           <select
@@ -185,11 +185,7 @@ Regras:
             onChange={(e) => setForm((f) => ({ ...f, modelo: e.target.value }))}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           >
-            <option value="google/gemini-2.5-flash">Gemini 2.5 Flash (rápido)</option>
-            <option value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (mais barato)</option>
-            <option value="google/gemini-2.5-pro">Gemini 2.5 Pro (melhor qualidade)</option>
-            <option value="openai/gpt-5-mini">GPT-5 Mini</option>
-            <option value="openai/gpt-5">GPT-5</option>
+            <option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
           </select>
         </div>
         <div>
