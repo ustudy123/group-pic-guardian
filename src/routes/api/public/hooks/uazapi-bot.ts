@@ -188,9 +188,9 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
 
         const d = body.data || body.message || {};
         const rootChat = body.chat || {};
-        const isGroup = Boolean(d.isGroup ?? rootChat.wa_isGroup);
+        const isGroup = Boolean(d.isGroup ?? rootChat.wa_isGroup ?? chatid.includes("@g.us"));
         const fromMe = Boolean(d.fromMe);
-        const wasSentByApi = Boolean((body.data || {}).wasSentByApi);
+        const wasSentByApi = Boolean((body.data || {}).wasSentByApi || (body.message || {}).fromMe);
 
         if (isGroup) {
           console.log("[uazapi-bot] ignorado grupo");
