@@ -54,7 +54,7 @@ async function enviarUazapi(numero: string, mensagem: string): Promise<boolean> 
 }
 
 async function analisarAlerta(
-  lovableKey: string,
+  openaiKey: string,
   modelo: string,
   contexto: string,
   mensagem: string,
@@ -82,11 +82,11 @@ Responda APENAS com JSON válido no formato:
   const user = `Contexto recente:\n${contexto || "(início)"}\n\nMensagem do encarregado:\n${mensagem}\n\nResposta dada pelo assistente:\n${resposta}`;
 
   try {
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${lovableKey}`,
+        Authorization: `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
         model: modelo,
@@ -158,8 +158,8 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
       POST: async ({ request }) => {
-        const lovableKey = process.env.LOVABLE_API_KEY;
-        if (!lovableKey) return json({ error: "LOVABLE_API_KEY ausente" }, 503);
+        const openaiKey = process.env.OPENAI_API_KEY;
+        if (!openaiKey) return json({ error: "OPENAI_API_KEY ausente" }, 503);
 
         let body: UazapiPayload;
         try {
@@ -285,13 +285,13 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         }
         messages.push({ role: "user", content: mensagem });
 
-        const modelo = config.modelo || "google/gemini-2.5-flash";
+        const modelo = config.modelo || "gpt-4o-mini";
 
-        const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${lovableKey}`,
+            Authorization: `Bearer ${openaiKey}`,
           },
           body: JSON.stringify({
             model: modelo,
@@ -329,7 +329,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             .map((m) => `${m.role}: ${m.conteudo}`)
             .join("\n");
           const alertaInfo = await analisarAlerta(
-            lovableKey,
+            openaiKey,
             modelo,
             contextoCurto,
             mensagem,
