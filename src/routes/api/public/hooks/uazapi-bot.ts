@@ -294,7 +294,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         }
         messages.push({ role: "user", content: mensagem });
 
-        const modelo = config.modelo || "gpt-4o-mini";
+        const modelo = "gpt-4o-mini";
 
         const aiResp = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
@@ -305,7 +305,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           body: JSON.stringify({
             model: modelo,
             messages,
-            temperature: Number(config.temperatura ?? 0.7),
+            temperature: 0.7,
           }),
         });
 
