@@ -173,16 +173,26 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         console.log("[uazapi-bot] payload:", JSON.stringify(body));
 
         const evento = String(body.event || body.EventType || "").toLowerCase();
-        if (evento && !evento.includes("message")) {
+        // Se não houver evento, assumimos que é uma mensagem se tiver dados de mensagem
+        const hasMessageData = Boolean(body.data || body.message);
+        
+        if (evento && !evento.includes("message") && evento !== "onmessage") {
           console.log(`[uazapi-bot] ignorado evento=${evento}`);
           return json({ ok: true, ignored: `evento_${evento}` });
+        }
+        
+        if (!evento && !hasMessageData) {
+          console.log("[uazapi-bot] ignorado: sem evento e sem dados de mensagem");
+          return json({ ok: true, ignored: "sem_dados" });
         }
 
         const d = body.data || body.message || {};
         const rootChat = body.chat || {};
-        const isGroup = Boolean(d.isGroup ?? rootChat.wa_isGroup);
+        const chatid = String(d.chatid || d.sender || rootChat.wa_chatid || "");
+        
+        const isGroup = Boolean(d.isGroup ?? rootChat.wa_isGroup ?? chatid.includes("@g.us"));
         const fromMe = Boolean(d.fromMe);
-        const wasSentByApi = Boolean((body.data || {}).wasSentByApi);
+        const wasSentByApi = Boolean((body.data || {}).wasSentByApi || (body.message || {}).fromMe);
 
         if (isGroup) {
           console.log("[uazapi-bot] ignorado grupo");
@@ -199,7 +209,6 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         const mensagem = String(
           d.text || d.content || d.message || (d as Record<string, unknown>).body || "",
         ).trim();
-        const chatid = String(d.chatid || d.sender || rootChat.wa_chatid || "");
         const telefone = normalizarTelefone(
           chatid.split("@")[0] || String(rootChat.phone || ""),
         );
