@@ -89,7 +89,7 @@ Responda APENAS com JSON válido no formato:
         Authorization: `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
-        model: modelo,
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: sys },
           { role: "user", content: user },
