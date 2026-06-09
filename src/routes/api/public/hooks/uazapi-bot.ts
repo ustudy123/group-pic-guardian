@@ -30,8 +30,8 @@ const EMOJI_CRIT: Record<Criticidade, string> = {
 
 // === Envio via uazapi ===
 async function enviarUazapi(numero: string, mensagem: string): Promise<boolean> {
-  const baseUrl = (process.env.UAZAPI_BASE_URL || "").replace(/\/+$/, "");
-  const token = process.env.UAZAPI_INSTANCE_TOKEN;
+  const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
+  const token = process.env.UAZAPI_INSTANCE_TOKEN || "33a062cb-b1a8-4e74-ba11-a0519fb52af4";
   if (!baseUrl || !token || !numero || !mensagem) return false;
   try {
     const r = await fetch(`${baseUrl}/send/text`, {
@@ -170,7 +170,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         }
 
         // Log do payload bruto p/ debug
-        console.log("[uazapi-bot] payload:", JSON.stringify(body).slice(0, 2000));
+        console.log("[uazapi-bot] payload:", JSON.stringify(body));
 
         const evento = String(body.event || body.EventType || "").toLowerCase();
         if (evento && !evento.includes("message")) {
@@ -240,10 +240,19 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             .eq("ativo", true)
             .maybeSingle();
           if (!aut) {
-            console.log(
-              `[uazapi-bot] nao_autorizado tel=${telefone} variantes=${Array.from(variantes).join(",")}`,
-            );
-            return json({ ok: true, ignored: "nao_autorizado" });
+            const { data: aut2 } = await supabaseAdmin
+              .from("ai_bot_autorizados")
+              .select("telefone, ativo")
+              .ilike("telefone", `%${telefone.slice(-8)}%`)
+              .eq("ativo", true)
+              .maybeSingle();
+            
+            if (!aut2) {
+              console.log(
+                `[uazapi-bot] nao_autorizado tel=${telefone} variantes=${Array.from(variantes).join(",")}`,
+              );
+              return json({ ok: true, ignored: "nao_autorizado" });
+            }
           }
         }
 
