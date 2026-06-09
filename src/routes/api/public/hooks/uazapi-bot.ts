@@ -159,6 +159,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
       POST: async ({ request }) => {
         const openaiKey = process.env.OPENAI_API_KEY;
+        console.log("[uazapi-bot] openaiKey exists:", Boolean(openaiKey));
         if (!openaiKey) return json({ error: "OPENAI_API_KEY ausente" }, 503);
 
         let body: UazapiPayload;
@@ -199,7 +200,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           return json({ ok: true, ignored: "grupo" });
         }
         if (fromMe || wasSentByApi) {
-          console.log(`[uazapi-bot] ignorado saida fromMe=${fromMe} api=${wasSentByApi}`);
+          console.log(`[uazapi-bot] ignorado: mensagem enviada pelo bot ou sistema (fromMe=${fromMe}, wasSentByApi=${wasSentByApi})`);
           return json({ ok: true, ignored: "saida" });
         }
 
@@ -282,6 +283,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           .limit(config.max_historico ?? 20);
 
         const historico = (hist ?? []).reverse();
+        console.log(`[uazapi-bot] historico recuperado: ${historico.length} mensagens`);
 
         const kbBlock =
           (kb ?? []).length > 0
@@ -329,15 +331,22 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         };
         const resposta = aiJson.choices?.[0]?.message?.content?.trim() || "";
 
-        await supabaseAdmin.from("ai_bot_conversas").insert([
+        const { error: insertError } = await supabaseAdmin.from("ai_bot_conversas").insert([
           { telefone, nome, role: "user", conteudo: mensagem },
           { telefone, nome, role: "assistant", conteudo: resposta },
         ]);
+        if (insertError) {
+          console.error("[uazapi-bot] erro ao salvar historico:", insertError);
+        }
 
         // Uazapi send/text espera o número limpo, sem @s.whatsapp.net
         const destino = telefone;
         if (resposta) {
-          await enviarUazapi(destino, resposta);
+          console.log(`[uazapi-bot] enviando resposta para ${destino}: ${resposta.slice(0, 50)}...`);
+          const ok = await enviarUazapi(destino, resposta);
+          console.log(`[uazapi-bot] status do envio: ${ok ? "sucesso" : "falha"}`);
+        } else {
+          console.log("[uazapi-bot] nenhuma resposta gerada pela AI");
         }
 
         // Alertas para o coordenador
