@@ -158,8 +158,8 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
       POST: async ({ request }) => {
-        const lovableKey = process.env.LOVABLE_API_KEY;
-        if (!lovableKey) return json({ error: "LOVABLE_API_KEY ausente" }, 503);
+        const openaiKey = process.env.OPENAI_API_KEY;
+        if (!openaiKey) return json({ error: "OPENAI_API_KEY ausente" }, 503);
 
         let body: UazapiPayload;
         try {
