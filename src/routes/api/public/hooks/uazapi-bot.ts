@@ -200,7 +200,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           return json({ ok: true, ignored: "grupo" });
         }
         if (fromMe || wasSentByApi) {
-          console.log(`[uazapi-bot] ignorado saida fromMe=${fromMe} api=${wasSentByApi}`);
+          console.log(`[uazapi-bot] ignorado: mensagem enviada pelo bot ou sistema (fromMe=${fromMe}, wasSentByApi=${wasSentByApi})`);
           return json({ ok: true, ignored: "saida" });
         }
 
@@ -342,7 +342,11 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         // Uazapi send/text espera o número limpo, sem @s.whatsapp.net
         const destino = telefone;
         if (resposta) {
-          await enviarUazapi(destino, resposta);
+          console.log(`[uazapi-bot] enviando resposta para ${destino}: ${resposta.slice(0, 50)}...`);
+          const ok = await enviarUazapi(destino, resposta);
+          console.log(`[uazapi-bot] status do envio: ${ok ? "sucesso" : "falha"}`);
+        } else {
+          console.log("[uazapi-bot] nenhuma resposta gerada pela AI");
         }
 
         // Alertas para o coordenador
