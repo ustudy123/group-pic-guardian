@@ -1,0 +1,55 @@
+name: Mensagens Programadas do Bot
+
+# Janelas (America/Sao_Paulo = UTC-3, sem horário de verão):
+#   manhã 07:15–08:15 BRT  ->  10:15–11:15 UTC
+#   noite 18:00–19:00 BRT  ->  21:00–22:00 UTC
+# Roda a cada 5 min dentro das janelas; o hook envia um lote pequeno
+# por execução, intercalando os encarregados (anti-spam).
+# Dias: segunda a sábado (1-6). O hook também valida a janela no horário
+# de São Paulo, então execuções fora da janela retornam idle.
+
+on:
+  schedule:
+    - cron: "15-59/5 10 * * 1-6" # 07:15–07:55 BRT
+    - cron: "0-15/5 11 * * 1-6"  # 08:00–08:15 BRT
+    - cron: "0-59/5 21 * * 1-6"  # 18:00–18:55 BRT
+    - cron: "0 22 * * 1-6"       # 19:00 BRT (última varredura)
+  workflow_dispatch:
+    inputs:
+      periodo:
+        description: "Forçar período (teste fora da janela)"
+        required: false
+        type: choice
+        options: ["", "manha", "noite"]
+
+concurrency:
+  group: mensagens-programadas
+  cancel-in-progress: false
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Disparar lote de mensagens
+        env:
+          ENDPOINT: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks/mensagens-programadas
+          SECRET: ${{ secrets.AI_BOT_WEBHOOK_SECRET }}
+          PERIODO: ${{ github.event.inputs.periodo }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "AI_BOT_WEBHOOK_SECRET não configurado nos secrets do repo."
+            exit 1
+          fi
+
+          if [ -n "$PERIODO" ]; then
+            BODY="{\"batch\":2,\"periodo\":\"$PERIODO\"}"
+          else
+            BODY='{"batch":2}'
+          fi
+
+          RESP=$(curl -sS -X POST "$ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -H "X-Bot-Secret: $SECRET" \
+            -d "$BODY")
+          echo "Resp: $RESP"
