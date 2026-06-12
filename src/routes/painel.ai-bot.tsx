@@ -9,7 +9,7 @@ export const Route = createFileRoute("/painel/ai-bot")({
   component: AiBotPage,
 });
 
-type Aba = "persona" | "kb" | "exemplos" | "autorizados" | "alertas" | "historico";
+type Aba = "persona" | "programadas" | "kb" | "exemplos" | "autorizados" | "alertas" | "historico";
 
 function AiBotPage() {
   const [aba, setAba] = useState<Aba>("persona");
@@ -30,6 +30,7 @@ function AiBotPage() {
       <div className="flex gap-1 border-b">
         {([
           ["persona", "Persona & Config"],
+          ["programadas", "Mensagens programadas"],
           ["kb", "Base de conhecimento"],
           ["exemplos", "Exemplos"],
           ["autorizados", "Autorizados"],
@@ -51,6 +52,7 @@ function AiBotPage() {
       </div>
 
       {aba === "persona" && <PersonaTab />}
+      {aba === "programadas" && <ProgramadasTab />}
       {aba === "kb" && <KbTab />}
       {aba === "exemplos" && <ExemplosTab />}
       {aba === "autorizados" && <AutorizadosTab />}
@@ -265,6 +267,160 @@ Regras:
       >
         <Save size={15} /> Salvar configuração
       </button>
+    </div>
+  );
+}
+
+/* ----------------- MENSAGENS PROGRAMADAS ----------------- */
+function ProgramadasTab() {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["ai-bot-programadas-config"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_bot_config")
+        .select("msg_programadas_ativas, msg_manha, msg_noite")
+        .eq("id", "default")
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [form, setForm] = useState({
+    msg_programadas_ativas: false,
+    msg_manha: "",
+    msg_noite: "",
+  });
+
+  useEffect(() => {
+    if (data) {
+      const d = data as Record<string, unknown>;
+      setForm({
+        msg_programadas_ativas: (d.msg_programadas_ativas as boolean) ?? false,
+        msg_manha: (d.msg_manha as string) || "",
+        msg_noite: (d.msg_noite as string) || "",
+      });
+    }
+  }, [data]);
+
+  const salvar = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("ai_bot_config")
+        .update({ ...form, updated_at: new Date().toISOString() })
+        .eq("id", "default");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Mensagens programadas salvas");
+      qc.invalidateQueries({ queryKey: ["ai-bot-programadas-config"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const { data: envios = [] } = useQuery({
+    queryKey: ["ai-bot-envios-programados", hoje],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_bot_envios_programados")
+        .select("*")
+        .eq("data_ref", hoje)
+        .order("enviado_em", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 60_000,
+  });
+
+  if (isLoading) return <p className="text-muted-foreground">Carregando…</p>;
+
+  return (
+    <div className="space-y-5 max-w-3xl">
+      <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
+        <p className="font-medium">Como funciona</p>
+        <p className="text-muted-foreground">
+          O bot puxa conversa com cada encarregado autorizado duas vezes por dia, de forma
+          intercalada (anti-spam): <strong>manhã entre 7h15 e 8h15</strong> e{" "}
+          <strong>noite entre 18h e 19h</strong>, de segunda a sábado. Use{" "}
+          <code className="bg-background px-1 rounded">{"{nome}"}</code> no texto para inserir o
+          primeiro nome do encarregado (cadastrado na aba Autorizados).
+        </p>
+      </div>
+
+      <label className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          checked={form.msg_programadas_ativas}
+          onChange={(e) => setForm((f) => ({ ...f, msg_programadas_ativas: e.target.checked }))}
+          className="size-4"
+        />
+        <span className="font-medium">Envio automático ativo</span>
+      </label>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          ☀️ Mensagem da manhã (7h15 – 8h15)
+        </label>
+        <textarea
+          value={form.msg_manha}
+          onChange={(e) => setForm((f) => ({ ...f, msg_manha: e.target.value }))}
+          rows={3}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">🌙 Mensagem da noite (18h – 19h)</label>
+        <textarea
+          value={form.msg_noite}
+          onChange={(e) => setForm((f) => ({ ...f, msg_noite: e.target.value }))}
+          rows={3}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        />
+      </div>
+
+      <button
+        onClick={() => salvar.mutate()}
+        disabled={salvar.isPending}
+        className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+      >
+        <Save size={15} /> Salvar
+      </button>
+
+      <div className="space-y-2">
+        <h3 className="font-medium text-sm">Envios de hoje ({envios.length})</h3>
+        {envios.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nenhum envio registrado hoje.</p>
+        )}
+        {envios.map((e) => (
+          <div
+            key={e.id}
+            className="flex items-center justify-between rounded-md border p-2 bg-card text-sm"
+          >
+            <div>
+              <span className="font-mono">{e.telefone}</span>
+              {e.nome && <span className="text-muted-foreground"> — {e.nome}</span>}
+              <span className="ml-2 text-xs text-muted-foreground">
+                {e.periodo === "manha" ? "☀️ manhã" : "🌙 noite"} ·{" "}
+                {new Date(e.enviado_em).toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: "America/Sao_Paulo",
+                })}
+              </span>
+            </div>
+            {e.sucesso ? (
+              <span className="text-emerald-700 inline-flex items-center gap-1 text-xs">
+                <CheckCircle2 size={13} /> enviado
+              </span>
+            ) : (
+              <span className="text-orange-600 text-xs">pendente/falhou</span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
