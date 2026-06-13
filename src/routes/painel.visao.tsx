@@ -113,6 +113,32 @@ function VisaoPage() {
     onError: (e: any) => toast.error(e?.message ?? "Falha ao trocar modelo."),
   });
 
+  const setTextosFn = useServerFn(setVisaoTextos);
+  const [painelAberto, setPainelAberto] = useState(false);
+  const [aprendizado, setAprendizado] = useState<string>("");
+  const [manual, setManual] = useState<string>("");
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (modeloConfig.data && !dirty) {
+      setAprendizado(modeloConfig.data.aprendizado ?? "");
+      setManual(modeloConfig.data.manual_fotos ?? "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeloConfig.data]);
+
+  const salvarTextos = useMutation({
+    mutationFn: () =>
+      setTextosFn({ data: { aprendizado, manual_fotos: manual } }),
+    onSuccess: () => {
+      toast.success("Configuração da IA salva. Próximas análises já usarão.");
+      setDirty(false);
+      qc.invalidateQueries({ queryKey: ["visao-modelo"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar."),
+  });
+
+
 
 
   const stats = useQuery({
