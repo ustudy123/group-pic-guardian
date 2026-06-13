@@ -3,7 +3,10 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const MODELO_PADRAO = "google/gemini-2.5-pro";
+// Modelo de visão da OpenAI. Configurável por env (VISAO_OPENAI_MODEL):
+//   "gpt-4o"      → melhor qualidade visual (recomendado p/ análise de conformidade)
+//   "gpt-4o-mini" → mais barato, qualidade menor em julgamentos finos
+const MODELO_PADRAO = process.env.VISAO_OPENAI_MODEL || "gpt-4o";
 
 export const ETAPAS = [
   "nota_servico",
@@ -205,16 +208,16 @@ CONFORMIDADE_GERAL:
 
 Responda SOMENTE com o JSON. Sem markdown, sem cercas \`\`\`, sem comentários.`;
 
-async function chamarGemini(
-  lovableKey: string,
+async function chamarOpenAI(
+  openaiKey: string,
   imageUrl: string,
   modelo: string,
 ): Promise<{ raw: string; tokens_in?: number; tokens_out?: number }> {
-  const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${lovableKey}`,
+      Authorization: `Bearer ${openaiKey}`,
     },
     body: JSON.stringify({
       model: modelo,
@@ -229,11 +232,12 @@ async function chamarGemini(
         },
       ],
       temperature: 0.1,
+      response_format: { type: "json_object" },
     }),
   });
   if (!r.ok) {
     const txt = await r.text();
-    throw new Error(`Gateway IA ${r.status}: ${txt.slice(0, 300)}`);
+    throw new Error(`OpenAI ${r.status}: ${txt.slice(0, 300)}`);
   }
   const j = (await r.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
@@ -293,8 +297,8 @@ function normalizar(parsed: any): AnaliseResultado {
 }
 
 export async function analisarFoto(fotoId: string): Promise<{ ok: boolean; erro?: string }> {
-  const lovableKey = process.env.LOVABLE_API_KEY;
-  if (!lovableKey) return { ok: false, erro: "LOVABLE_API_KEY ausente." };
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!openaiKey) return { ok: false, erro: "OPENAI_API_KEY ausente." };
 
   const { data: foto, error: fe } = await supabaseAdmin
     .from("fotos")
@@ -314,7 +318,7 @@ export async function analisarFoto(fotoId: string): Promise<{ ok: boolean; erro?
   let tokens_in: number | undefined;
   let tokens_out: number | undefined;
   try {
-    const r = await chamarGemini(lovableKey, signed.signedUrl, modelo);
+    const r = await chamarOpenAI(openaiKey, signed.signedUrl, modelo);
     raw = r.raw;
     tokens_in = r.tokens_in;
     tokens_out = r.tokens_out;
