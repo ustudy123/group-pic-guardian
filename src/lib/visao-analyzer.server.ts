@@ -310,6 +310,23 @@ async function getModeloConfig(): Promise<string> {
   }
 }
 
+// Lê os textos configuráveis (aprendizado + manual de fotos) editáveis na tela.
+async function getTextosConfig(): Promise<{ aprendizado: string; manual_fotos: string }> {
+  try {
+    const { data } = await supabaseAdmin
+      .from("visao_config" as any)
+      .select("aprendizado, manual_fotos")
+      .eq("id", "default")
+      .maybeSingle();
+    return {
+      aprendizado: ((data as any)?.aprendizado as string) || "",
+      manual_fotos: ((data as any)?.manual_fotos as string) || "",
+    };
+  } catch {
+    return { aprendizado: "", manual_fotos: "" };
+  }
+}
+
 export async function analisarFoto(
   fotoId: string,
   modeloOverride?: string,
