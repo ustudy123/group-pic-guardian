@@ -365,11 +365,12 @@ export async function analisarFoto(
   if (se || !signed?.signedUrl) return { ok: false, erro: se?.message || "Falha ao gerar URL." };
 
   const modelo = modeloOverride || MODELO_PADRAO;
+  const textos = await getTextosConfig();
   let raw = "";
   let tokens_in: number | undefined;
   let tokens_out: number | undefined;
   try {
-    const r = await chamarOpenAI(openaiKey, signed.signedUrl, modelo);
+    const r = await chamarOpenAI(openaiKey, signed.signedUrl, modelo, textos);
     raw = r.raw;
     tokens_in = r.tokens_in;
     tokens_out = r.tokens_out;
