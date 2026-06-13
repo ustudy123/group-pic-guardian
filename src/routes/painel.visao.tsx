@@ -279,6 +279,8 @@ function VisaoPage() {
             {reprocFila.isPending ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
             Reprocessar fila
           </button>
+
+          <VisaoConfigEditor />
         </div>
 
 
@@ -310,8 +312,6 @@ function VisaoPage() {
           tone={stats.data && stats.data.fila_erro > 0 ? "warn" : undefined}
         />
       </div>
-
-      <VisaoConfigEditor />
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-2 items-end p-3 rounded-lg border bg-card">
