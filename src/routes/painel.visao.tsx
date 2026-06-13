@@ -15,6 +15,11 @@ import {
   RefreshCw,
   X,
   Loader2,
+  BookOpen,
+  Brain,
+  Save,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   listarAnalises,
