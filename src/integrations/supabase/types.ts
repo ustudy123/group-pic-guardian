@@ -96,6 +96,9 @@ export type Database = {
           id: string
           max_historico: number
           modelo: string
+          msg_manha: string
+          msg_noite: string
+          msg_programadas_ativas: boolean
           persona: string
           saudacao_inicial: string | null
           somente_autorizados: boolean
@@ -117,6 +120,9 @@ export type Database = {
           id?: string
           max_historico?: number
           modelo?: string
+          msg_manha?: string
+          msg_noite?: string
+          msg_programadas_ativas?: boolean
           persona?: string
           saudacao_inicial?: string | null
           somente_autorizados?: boolean
@@ -138,6 +144,9 @@ export type Database = {
           id?: string
           max_historico?: number
           modelo?: string
+          msg_manha?: string
+          msg_noite?: string
+          msg_programadas_ativas?: boolean
           persona?: string
           saudacao_inicial?: string | null
           somente_autorizados?: boolean
@@ -169,6 +178,39 @@ export type Database = {
           id?: string
           nome?: string | null
           role?: string
+          telefone?: string
+        }
+        Relationships: []
+      }
+      ai_bot_envios_programados: {
+        Row: {
+          data_ref: string
+          enviado_em: string
+          id: string
+          mensagem: string
+          nome: string | null
+          periodo: string
+          sucesso: boolean
+          telefone: string
+        }
+        Insert: {
+          data_ref: string
+          enviado_em?: string
+          id?: string
+          mensagem: string
+          nome?: string | null
+          periodo: string
+          sucesso?: boolean
+          telefone: string
+        }
+        Update: {
+          data_ref?: string
+          enviado_em?: string
+          id?: string
+          mensagem?: string
+          nome?: string | null
+          periodo?: string
+          sucesso?: boolean
           telefone?: string
         }
         Relationships: []
