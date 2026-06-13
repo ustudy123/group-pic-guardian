@@ -112,11 +112,34 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
         if (provided !== expected) return json({ error: "Unauthorized" }, 401);
 
-        let body: { periodo?: Periodo; batch?: number; dryRun?: boolean } = {};
+        let body: {
+          periodo?: Periodo;
+          batch?: number;
+          dryRun?: boolean;
+          testNumero?: string;
+        } = {};
         try {
           body = await request.json();
         } catch {
           /* body vazio é ok */
+        }
+
+        // --- DIAGNÓSTICO: envia 1 mensagem de teste direto para um número e
+        // devolve a resposta crua do uazapi (sem tabela, sem checar autorizados).
+        // Use: { "testNumero": "5544999596898" }
+        if (body.testNumero) {
+          const numero = String(body.testNumero).replace(/\D/g, "");
+          const envio = await enviarUazapi(
+            numero,
+            "🔧 Teste de entrega do bot. Se você recebeu esta mensagem, este número está OK para receber alertas.",
+          );
+          return json({
+            test: true,
+            numero,
+            ok: envio.ok,
+            status: envio.status,
+            detalhe: envio.detail,
+          });
         }
 
         const { hhmm, dataRef } = agoraSaoPaulo();

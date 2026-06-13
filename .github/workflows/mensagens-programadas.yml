@@ -21,6 +21,10 @@ on:
         required: false
         type: choice
         options: ["", "manha", "noite"]
+      numero_teste:
+        description: "Diagnóstico: enviar 1 msg de teste para este número (ex: 5544999596898)"
+        required: false
+        type: string
 
 concurrency:
   group: mensagens-programadas
@@ -36,13 +40,16 @@ jobs:
           ENDPOINT: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks/mensagens-programadas
           SECRET: ${{ secrets.AI_BOT_WEBHOOK_SECRET }}
           PERIODO: ${{ github.event.inputs.periodo }}
+          NUMERO_TESTE: ${{ github.event.inputs.numero_teste }}
         run: |
           if [ -z "$SECRET" ]; then
             echo "AI_BOT_WEBHOOK_SECRET não configurado nos secrets do repo."
             exit 1
           fi
 
-          if [ -n "$PERIODO" ]; then
+          if [ -n "$NUMERO_TESTE" ]; then
+            BODY="{\"testNumero\":\"$NUMERO_TESTE\"}"
+          elif [ -n "$PERIODO" ]; then
             BODY="{\"batch\":2,\"periodo\":\"$PERIODO\"}"
           else
             BODY='{"batch":2}'
