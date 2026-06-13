@@ -168,3 +168,126 @@ export function renderManualParaPrompt(raw: string | null | undefined): string {
 export function serializar(rows: unknown): string {
   return JSON.stringify(rows);
 }
+
+
+// ---- Fotos de referência do Manual (extraídas do PDF, servidas de /public/manual-fotos) ----
+export const FOTOS_MANUAL: Record<string, string[]> = {
+  "ddsreuniaodeequipe": [
+    "/manual-fotos/dds-1.jpg",
+    "/manual-fotos/dds-2.jpg",
+    "/manual-fotos/dds-3.jpg"
+  ],
+  "sinalizacao": [
+    "/manual-fotos/sinalizacao-1.jpg",
+    "/manual-fotos/sinalizacao-2.jpg",
+    "/manual-fotos/sinalizacao-3.jpg"
+  ],
+  "banheirodentro": [
+    "/manual-fotos/banheiro-dentro-1.jpg",
+    "/manual-fotos/banheiro-dentro-2.jpg",
+    "/manual-fotos/banheiro-dentro-3.jpg"
+  ],
+  "banheirolonge": [
+    "/manual-fotos/banheiro-longe-1.jpg",
+    "/manual-fotos/banheiro-longe-2.jpg",
+    "/manual-fotos/banheiro-longe-3.jpg"
+  ],
+  "escavandovalavalaaberta": [
+    "/manual-fotos/escavacao-1.jpg",
+    "/manual-fotos/escavacao-2.jpg",
+    "/manual-fotos/escavacao-3.jpg"
+  ],
+  "assentamentodetubo": [
+    "/manual-fotos/assentamento-1.jpg",
+    "/manual-fotos/assentamento-2.jpg",
+    "/manual-fotos/assentamento-3.jpg"
+  ],
+  "compactacao1ª2ªe3ªcamada": [
+    "/manual-fotos/compactacao-1.jpg",
+    "/manual-fotos/compactacao-2.jpg",
+    "/manual-fotos/compactacao-3.jpg"
+  ],
+  "valade25cmparareceberbase": [
+    "/manual-fotos/vala-25cm-1.jpg",
+    "/manual-fotos/vala-25cm-2.jpg",
+    "/manual-fotos/vala-25cm-3.jpg"
+  ],
+  "espalhamentodematerialparabase": [
+    "/manual-fotos/espalhamento-1.jpg",
+    "/manual-fotos/espalhamento-2.jpg",
+    "/manual-fotos/espalhamento-3.jpg"
+  ],
+  "construcaodepv": [
+    "/manual-fotos/construcao-pv-1.jpg",
+    "/manual-fotos/construcao-pv-2.jpg",
+    "/manual-fotos/construcao-pv-3.jpg"
+  ],
+  "acabamentodepv": [
+    "/manual-fotos/acabamento-pv-1.jpg",
+    "/manual-fotos/acabamento-pv-2.jpg",
+    "/manual-fotos/acabamento-pv-3.jpg"
+  ],
+  "valafinalizadamostrandoopv": [
+    "/manual-fotos/vala-finalizada-pv-1.jpg",
+    "/manual-fotos/vala-finalizada-pv-2.jpg",
+    "/manual-fotos/vala-finalizada-pv-3.jpg"
+  ],
+  "codigodohidrometro": [
+    "/manual-fotos/codigo-hidrometro-1.jpg",
+    "/manual-fotos/codigo-hidrometro-2.jpg",
+    "/manual-fotos/codigo-hidrometro-3.jpg"
+  ],
+  "matriculatalaodeagua": [
+    "/manual-fotos/matricula-1.jpg",
+    "/manual-fotos/matricula-2.jpg",
+    "/manual-fotos/matricula-3.jpg"
+  ],
+  "fachadadoimovel": [
+    "/manual-fotos/fachada-1.jpg",
+    "/manual-fotos/fachada-2.jpg",
+    "/manual-fotos/fachada-3.jpg"
+  ],
+  "valaaberta": [
+    "/manual-fotos/vala-aberta-1.jpg",
+    "/manual-fotos/vala-aberta-2.jpg",
+    "/manual-fotos/vala-aberta-3.jpg"
+  ],
+  "interligacao": [
+    "/manual-fotos/interligacao-1.jpg",
+    "/manual-fotos/interligacao-2.jpg",
+    "/manual-fotos/interligacao-3.jpg"
+  ],
+  "valafechada": [
+    "/manual-fotos/vala-fechada-1.jpg",
+    "/manual-fotos/vala-fechada-2.jpg",
+    "/manual-fotos/vala-fechada-3.jpg"
+  ],
+  "testedecorante": [
+    "/manual-fotos/teste-corante-1.jpg",
+    "/manual-fotos/teste-corante-2.jpg",
+    "/manual-fotos/teste-corante-3.jpg"
+  ],
+  "pipocodeinspecao": [
+    "/manual-fotos/pi-1.jpg",
+    "/manual-fotos/pi-2.jpg",
+    "/manual-fotos/pi-3.jpg"
+  ],
+  "pvpocodevisita": [
+    "/manual-fotos/pv-1.jpg",
+    "/manual-fotos/pv-2.jpg",
+    "/manual-fotos/pv-3.jpg"
+  ]
+};
+
+function normalizarEtapa(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// Retorna as fotos de referência de uma etapa do manual (casa pelo nome, ignorando acentos/maiúsculas).
+export function fotosDoManual(etapa: string): string[] {
+  return FOTOS_MANUAL[normalizarEtapa(etapa)] ?? [];
+}

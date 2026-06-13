@@ -14,6 +14,7 @@ import {
   Loader2,
   Search,
   ChevronRight,
+  Camera,
 } from "lucide-react";
 
 import { getVisaoConfig, setVisaoTextos } from "@/lib/visao.functions";
@@ -24,6 +25,7 @@ import {
   parseManual,
   serializar,
   type AprendizadoRow,
+  fotosDoManual,
   type ManualRow,
 } from "@/lib/visao-config-base";
 
@@ -50,6 +52,7 @@ export function VisaoConfigEditor() {
   const [busca, setBusca] = useState("");
   const [abertoApr, setAbertoApr] = useState<number | null>(null);
   const [abertoMan, setAbertoMan] = useState<number | null>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
 
   useEffect(() => {
     if (cfg.data && !dirty) {
@@ -61,7 +64,11 @@ export function VisaoConfigEditor() {
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (zoom) setZoom(null);
+      else setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -69,7 +76,7 @@ export function VisaoConfigEditor() {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [open, zoom]);
 
   const salvar = useMutation({
     mutationFn: () =>
@@ -131,6 +138,19 @@ export function VisaoConfigEditor() {
           </span>
         )}
       </button>
+
+      {open && zoom && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setZoom(null)}
+        >
+          <img
+            src={zoom}
+            alt="Foto de referência do manual"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+          />
+        </div>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
@@ -232,6 +252,7 @@ export function VisaoConfigEditor() {
                       <div className="space-y-1.5">
                         {g.itens.map(({ r, i }) => {
                           const aberto = abertoMan === i;
+                          const fotos = fotosDoManual(r.etapa);
                           return (
                             <Linha
                               key={i}
@@ -240,6 +261,13 @@ export function VisaoConfigEditor() {
                               onToggle={() => setAbertoMan(aberto ? null : i)}
                               titulo={r.etapa || "Nova orientação"}
                               previa={r.orientacao}
+                              chip={
+                                fotos.length ? (
+                                  <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                    <Camera size={11} /> {fotos.length}
+                                  </span>
+                                ) : undefined
+                              }
                             >
                               <Campo label="Etapa">
                                 <input value={r.etapa} onChange={(e) => manSet(i, { etapa: e.target.value })} className={inputCls} placeholder="Ex.: Teste de Corante" />
@@ -247,6 +275,27 @@ export function VisaoConfigEditor() {
                               <Campo label="Orientação">
                                 <textarea value={r.orientacao} onChange={(e) => manSet(i, { orientacao: e.target.value })} rows={3} className={inputCls} placeholder="Como a foto deve ser tirada" />
                               </Campo>
+                              {fotos.length > 0 && (
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                    Fotos de referência
+                                  </label>
+                                  <div className="flex flex-wrap gap-2">
+                                    {fotos.map((src) => (
+                                      <button
+                                        key={src}
+                                        type="button"
+                                        onClick={() => setZoom(src)}
+                                        style={{ borderColor: COR.man }}
+                                        className="overflow-hidden rounded-md border transition-transform hover:-translate-y-0.5"
+                                        title="Ampliar"
+                                      >
+                                        <img src={src} alt="" loading="lazy" className="h-16 w-16 object-cover" />
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                               <div className="flex items-center justify-between pt-1">
                                 <label className="flex items-center gap-2 text-sm">
                                   Grupo
