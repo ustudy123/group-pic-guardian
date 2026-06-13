@@ -85,19 +85,23 @@ Responda APENAS com JSON válido no formato:
   }
 }
 
-async function enviarZapi(telefone: string, mensagem: string): Promise<boolean> {
-  const inst = process.env.ZAPI_INSTANCE_ID;
-  const tok = process.env.ZAPI_INSTANCE_TOKEN;
-  const client = process.env.ZAPI_CLIENT_TOKEN;
-  if (!inst || !tok || !client) return false;
+async function enviarWhatsapp(telefone: string, mensagem: string): Promise<boolean> {
+  const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
+  const token = process.env.UAZAPI_INSTANCE_TOKEN;
+  if (!token || !telefone || !mensagem) return false;
   try {
-    const r = await fetch(`https://api.z-api.io/instances/${inst}/token/${tok}/send-text`, {
+    const r = await fetch(`${baseUrl}/send/text`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Client-Token": client },
-      body: JSON.stringify({ phone: telefone, message: mensagem }),
+      headers: { "Content-Type": "application/json", token },
+      body: JSON.stringify({ number: telefone, text: mensagem }),
     });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => "");
+      console.error(`[ai-bot] alerta uazapi falhou ${r.status}: ${txt.slice(0, 300)}`);
+    }
     return r.ok;
-  } catch {
+  } catch (e) {
+    console.error("[ai-bot] erro envio alerta uazapi:", e);
     return false;
   }
 }
