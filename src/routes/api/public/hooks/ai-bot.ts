@@ -263,7 +263,7 @@ export const Route = createFileRoute("/api/public/hooks/ai-bot")({
             if (coordTel) {
               const emoji = EMOJI_CRIT[alertaInfo.criticidade];
               const msgCoord = `${emoji} *Alerta de obra* (${alertaInfo.criticidade.toUpperCase()})\n*Categoria:* ${alertaInfo.categoria}\n*Encarregado:* ${nome || telefone}\n\n${alertaInfo.resumo}\n\n_Mensagem original:_\n"${mensagem}"`;
-              const ok = await enviarZapi(coordTel, msgCoord);
+              const ok = await enviarWhatsapp(coordTel, msgCoord);
               if (ok && alertRow?.id) {
                 await supabaseAdmin
                   .from("ai_bot_alertas")
