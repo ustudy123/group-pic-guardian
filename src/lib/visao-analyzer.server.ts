@@ -296,7 +296,24 @@ function normalizar(parsed: any): AnaliseResultado {
   };
 }
 
-export async function analisarFoto(fotoId: string): Promise<{ ok: boolean; erro?: string }> {
+// Lê o modelo escolhido na tela (visao_config); cai no default se não houver.
+async function getModeloConfig(): Promise<string> {
+  try {
+    const { data } = await supabaseAdmin
+      .from("visao_config" as any)
+      .select("modelo")
+      .eq("id", "default")
+      .maybeSingle();
+    return (data?.modelo as string) || MODELO_PADRAO;
+  } catch {
+    return MODELO_PADRAO;
+  }
+}
+
+export async function analisarFoto(
+  fotoId: string,
+  modeloOverride?: string,
+): Promise<{ ok: boolean; erro?: string }> {
   // Chave dedicada da visão (VISAO_OPENAI_KEY) para isolar o billing da análise de fotos;
   // se não houver, cai na OPENAI_API_KEY compartilhada com o bot.
   const openaiKey = process.env.VISAO_OPENAI_KEY || process.env.OPENAI_API_KEY;
@@ -315,7 +332,7 @@ export async function analisarFoto(fotoId: string): Promise<{ ok: boolean; erro?
     .createSignedUrl(foto.storage_path, 600);
   if (se || !signed?.signedUrl) return { ok: false, erro: se?.message || "Falha ao gerar URL." };
 
-  const modelo = MODELO_PADRAO;
+  const modelo = modeloOverride || MODELO_PADRAO;
   let raw = "";
   let tokens_in: number | undefined;
   let tokens_out: number | undefined;
@@ -403,6 +420,8 @@ export async function processarFila(
     return { processados: 0, ok: 0, erros: 0, pendentes: 0 };
   }
 
+  // Modelo escolhido na tela (uma leitura por lote)
+  const modelo = await getModeloConfig();
 
   let ok = 0;
   let erros = 0;
@@ -419,7 +438,7 @@ export async function processarFila(
         })
         .eq("id", job.id);
 
-      const r = await analisarFoto(job.foto_id);
+      const r = await analisarFoto(job.foto_id, modelo);
       if (r.ok) {
         await supabaseAdmin
           .from("foto_analise_jobs")

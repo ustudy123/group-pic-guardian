@@ -23,6 +23,8 @@ import {
   listarEncarregadosAnalise,
   reprocessarFilaCompleta,
   processarAgora,
+  getVisaoConfig,
+  setVisaoModelo,
 } from "@/lib/visao.functions";
 
 
@@ -85,10 +87,25 @@ function VisaoPage() {
   const reprocessFn = useServerFn(reprocessarFoto);
   const reprocFilaFn = useServerFn(reprocessarFilaCompleta);
   const processarFn = useServerFn(processarAgora);
+  const configFn = useServerFn(getVisaoConfig);
+  const setModeloFn = useServerFn(setVisaoModelo);
   const qc = useQueryClient();
   const [drenando, setDrenando] = useState(false);
   const [quantidade, setQuantidade] = useState<number>(10);
   const drenandoRef = useRef(false);
+
+  const modeloConfig = useQuery({
+    queryKey: ["visao-modelo"],
+    queryFn: () => configFn(),
+  });
+  const trocarModelo = useMutation({
+    mutationFn: (modelo: string) => setModeloFn({ data: { modelo } }),
+    onSuccess: (r: any) => {
+      toast.success(`Modelo: ${r.modelo}`);
+      qc.invalidateQueries({ queryKey: ["visao-modelo"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Falha ao trocar modelo."),
+  });
 
 
 
@@ -199,6 +216,19 @@ function VisaoPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 border rounded-md px-2 py-1 text-sm bg-card">
+            <label className="text-xs text-muted-foreground">Modelo</label>
+            <select
+              value={modeloConfig.data?.modelo ?? "gpt-4o"}
+              onChange={(e) => trocarModelo.mutate(e.target.value)}
+              disabled={trocarModelo.isPending}
+              className="bg-transparent outline-none text-sm font-medium"
+              title="Modelo OpenAI usado na análise das próximas fotos"
+            >
+              <option value="gpt-4o">gpt-4o (qualidade)</option>
+              <option value="gpt-4o-mini">gpt-4o-mini (econômico)</option>
+            </select>
+          </div>
           <div className="flex items-center gap-1 border rounded-md px-2 py-1 text-sm bg-card">
             <label className="text-xs text-muted-foreground">Qtd</label>
             <input

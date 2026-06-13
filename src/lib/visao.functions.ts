@@ -138,6 +138,43 @@ export const listarEncarregadosAnalise = createServerFn({ method: "GET" })
     return { encarregados: data ?? [] };
   });
 
+const MODELOS_VISAO = ["gpt-4o", "gpt-4o-mini"] as const;
+
+export const getVisaoConfig = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data } = await supabase
+      .from("visao_config" as any)
+      .select("modelo")
+      .eq("id", "default")
+      .maybeSingle();
+    return { modelo: (data?.modelo as string) || "gpt-4o" };
+  });
+
+export const setVisaoModelo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) => z.object({ modelo: z.enum(MODELOS_VISAO) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
+    if (!isAdmin) throw new Error("Apenas admin pode trocar o modelo.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("visao_config" as any)
+      .upsert(
+        { id: "default", modelo: data.modelo, updated_at: new Date().toISOString() },
+        { onConflict: "id" },
+      );
+    if (error) throw new Error(error.message);
+    return { ok: true, modelo: data.modelo };
+  });
+
 export const reprocessarFilaCompleta = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
