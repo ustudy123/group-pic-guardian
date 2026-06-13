@@ -149,7 +149,7 @@ export const getVisaoConfig = createServerFn({ method: "GET" })
       .select("modelo")
       .eq("id", "default")
       .maybeSingle();
-    return { modelo: (data?.modelo as string) || "gpt-4o" };
+    return { modelo: ((data as any)?.modelo as string) || "gpt-4o" };
   });
 
 export const setVisaoModelo = createServerFn({ method: "POST" })
