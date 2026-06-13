@@ -26,13 +26,13 @@ export const listarAnalises = createServerFn({ method: "POST" })
         id, etapa, etapa_confianca, conformidade_geral,
         epi_detectado, sinalizacao, pv_qualidade, problemas, resumo,
         modelo, analisado_em,
-        foto:foto_id ( id, storage_path, storage_url, data_envio,
+        foto:foto_id!inner ( id, storage_path, storage_url, data_envio,
                        remetente_nome, remetente_telefone, caption,
                        encarregado_id, encarregados ( id, nome, foto_url ) )
       `,
       )
       .gte("foto.data_envio", desde)
-      .order("data_envio", { foreignTable: "foto", ascending: false })
+      .order("data_envio", { referencedTable: "foto", ascending: false })
       .limit(data.limit);
 
     if (data.conformidade !== "todas") q = q.eq("conformidade_geral", data.conformidade);
