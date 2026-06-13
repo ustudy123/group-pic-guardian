@@ -25,6 +25,7 @@ import {
   processarAgora,
   getVisaoConfig,
   setVisaoModelo,
+  setVisaoTextos,
 } from "@/lib/visao.functions";
 
 
