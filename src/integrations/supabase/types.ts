@@ -791,6 +791,24 @@ export type Database = {
         }
         Relationships: []
       }
+      visao_config: {
+        Row: {
+          id: string
+          modelo: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          modelo?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          modelo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       vistoria_atribuicoes: {
         Row: {
           created_at: string

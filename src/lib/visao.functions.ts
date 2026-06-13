@@ -31,8 +31,8 @@ export const listarAnalises = createServerFn({ method: "POST" })
                        encarregado_id, encarregados ( id, nome, foto_url ) )
       `,
       )
-      .gte("analisado_em", desde)
-      .order("analisado_em", { ascending: false })
+      .gte("foto.data_envio", desde)
+      .order("data_envio", { foreignTable: "foto", ascending: false })
       .limit(data.limit);
 
     if (data.conformidade !== "todas") q = q.eq("conformidade_geral", data.conformidade);
@@ -149,7 +149,7 @@ export const getVisaoConfig = createServerFn({ method: "GET" })
       .select("modelo")
       .eq("id", "default")
       .maybeSingle();
-    return { modelo: (data?.modelo as string) || "gpt-4o" };
+    return { modelo: ((data as any)?.modelo as string) || "gpt-4o" };
   });
 
 export const setVisaoModelo = createServerFn({ method: "POST" })
