@@ -304,7 +304,7 @@ async function getModeloConfig(): Promise<string> {
       .select("modelo")
       .eq("id", "default")
       .maybeSingle();
-    return (data?.modelo as string) || MODELO_PADRAO;
+    return ((data as any)?.modelo as string) || MODELO_PADRAO;
   } catch {
     return MODELO_PADRAO;
   }
