@@ -8,16 +8,21 @@ const EMOJI_CRIT: Record<string, string> = {
   critica: "🔴",
 };
 
-async function enviarUazapi(telefone: string, mensagem: string): Promise<boolean> {
+async function enviarUazapi(telefone: string, mensagem: string): Promise<{ ok: boolean; status: number; detail: string }> {
   const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
   const token = process.env.UAZAPI_INSTANCE_TOKEN;
-  if (!token) return false;
-  const r = await fetch(`${baseUrl}/send/text`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", token },
-    body: JSON.stringify({ number: telefone, text: mensagem }),
-  });
-  return r.ok;
+  if (!token) return { ok: false, status: 0, detail: "sem token" };
+  try {
+    const r = await fetch(`${baseUrl}/send/text`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token },
+      body: JSON.stringify({ number: telefone, text: mensagem }),
+    });
+    const txt = await r.text().catch(() => "");
+    return { ok: r.ok, status: r.status, detail: txt.slice(0, 300) };
+  } catch (e) {
+    return { ok: false, status: 0, detail: String(e).slice(0, 300) };
+  }
 }
 
 export const Route = createFileRoute("/api/public/hooks/reenviar-alertas")({
