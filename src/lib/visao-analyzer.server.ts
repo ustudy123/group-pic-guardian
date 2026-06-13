@@ -315,9 +315,13 @@ export async function analisarFoto(
   modeloOverride?: string,
 ): Promise<{ ok: boolean; erro?: string }> {
   // Chave dedicada da visão (VISAO_OPENAI_KEY) para isolar o billing da análise de fotos;
-  // se não houver, cai na OPENAI_API_KEY compartilhada com o bot.
-  const openaiKey = process.env.VISAO_OPENAI_KEY || process.env.OPENAI_API_KEY;
-  if (!openaiKey) return { ok: false, erro: "OPENAI_API_KEY (ou VISAO_OPENAI_KEY) ausente." };
+  // Prioridade: chave dedicada da Visão IA > VISAO_OPENAI_KEY (legado) > OPENAI_API_KEY compartilhada.
+  const openaiKey =
+    process.env.OPENAI_API_KEY_VISAO ||
+    process.env.VISAO_OPENAI_KEY ||
+    process.env.OPENAI_API_KEY;
+  if (!openaiKey)
+    return { ok: false, erro: "OPENAI_API_KEY_VISAO (ou OPENAI_API_KEY) ausente." };
 
   const { data: foto, error: fe } = await supabaseAdmin
     .from("fotos")
