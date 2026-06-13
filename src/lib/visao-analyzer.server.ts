@@ -2,6 +2,10 @@
 // e devolve um JSON estruturado de conformidade visual.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  renderAprendizadoParaPrompt,
+  renderManualParaPrompt,
+} from "@/lib/visao-config-base";
 
 // Modelo de visão da OpenAI. Configurável por env (VISAO_OPENAI_MODEL):
 //   "gpt-4o"      → melhor qualidade visual (recomendado p/ análise de conformidade)
@@ -215,8 +219,8 @@ async function chamarOpenAI(
   extras?: { aprendizado?: string; manual_fotos?: string },
 ): Promise<{ raw: string; tokens_in?: number; tokens_out?: number }> {
   let systemPrompt = SYSTEM_PROMPT;
-  const apr = (extras?.aprendizado ?? "").trim();
-  const man = (extras?.manual_fotos ?? "").trim();
+  const apr = renderAprendizadoParaPrompt(extras?.aprendizado).trim();
+  const man = renderManualParaPrompt(extras?.manual_fotos).trim();
   if (apr) {
     systemPrompt += `\n\n# APRENDIZADO ADICIONAL (configurado pelo admin)\nUse as regras/exemplos abaixo como fonte de verdade adicional. Em caso de conflito com as regras gerais, PREFIRA o aprendizado abaixo:\n\n${apr}`;
   }

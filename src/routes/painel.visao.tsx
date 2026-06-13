@@ -32,6 +32,7 @@ import {
   setVisaoModelo,
   setVisaoTextos,
 } from "@/lib/visao.functions";
+import { VisaoConfigEditor } from "@/components/visao-config-editor";
 
 
 export const Route = createFileRoute("/painel/visao")({
@@ -114,29 +115,8 @@ function VisaoPage() {
   });
 
   const setTextosFn = useServerFn(setVisaoTextos);
-  const [painelAberto, setPainelAberto] = useState(false);
-  const [aprendizado, setAprendizado] = useState<string>("");
-  const [manual, setManual] = useState<string>("");
-  const [dirty, setDirty] = useState(false);
+  void setTextosFn; // (a config de textos agora vive em <VisaoConfigEditor />)
 
-  useEffect(() => {
-    if (modeloConfig.data && !dirty) {
-      setAprendizado(modeloConfig.data.aprendizado ?? "");
-      setManual(modeloConfig.data.manual_fotos ?? "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modeloConfig.data]);
-
-  const salvarTextos = useMutation({
-    mutationFn: () =>
-      setTextosFn({ data: { aprendizado, manual_fotos: manual } }),
-    onSuccess: () => {
-      toast.success("Configuração da IA salva. Próximas análises já usarão.");
-      setDirty(false);
-      qc.invalidateQueries({ queryKey: ["visao-modelo"] });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Falha ao salvar."),
-  });
 
 
 
@@ -331,103 +311,7 @@ function VisaoPage() {
         />
       </div>
 
-      {/* Configuração da IA (Aprendizado + Manual de Fotos) */}
-      <div className="rounded-lg border bg-card">
-        <button
-          type="button"
-          onClick={() => setPainelAberto((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 text-left"
-        >
-          <div className="flex items-center gap-2">
-            <Brain size={16} className="text-primary" />
-            <span className="font-semibold text-sm">Configuração da IA</span>
-            <span className="text-xs text-muted-foreground">
-              Aprendizado + Manual de Fotos usados nas próximas análises
-            </span>
-            {dirty && (
-              <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-800 border border-yellow-500/40">
-                não salvo
-              </span>
-            )}
-          </div>
-          {painelAberto ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-        {painelAberto && (
-          <div className="px-4 pb-4 space-y-4 border-t pt-4">
-            <div>
-              <label className="flex items-center gap-2 text-sm font-semibold mb-1">
-                <Brain size={14} /> Aprendizado I.A
-              </label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Regras, exemplos e critérios que a IA deve aprender (uma linha
-                ou tabela por etapa). Pode colar conteúdo de planilhas.
-              </p>
-              <textarea
-                value={aprendizado}
-                onChange={(e) => {
-                  setAprendizado(e.target.value);
-                  setDirty(true);
-                }}
-                placeholder="Ex.: DDS — todos uniformizados, SEM CHINELO, SEM BONÉ..."
-                className="w-full min-h-56 border rounded-md p-3 text-sm bg-background font-mono"
-              />
-              <div className="text-[11px] text-muted-foreground mt-1">
-                {aprendizado.length.toLocaleString("pt-BR")} caracteres
-              </div>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-semibold mb-1">
-                <BookOpen size={14} /> Manual de Fotos
-              </label>
-              <p className="text-xs text-muted-foreground mb-2">
-                Texto do manual oficial de como cada foto deve ser tirada
-                (cole o conteúdo do PDF do manual aqui).
-              </p>
-              <textarea
-                value={manual}
-                onChange={(e) => {
-                  setManual(e.target.value);
-                  setDirty(true);
-                }}
-                placeholder="Ex.: ACABAMENTO DE PV — não utilizar barro no acabamento..."
-                className="w-full min-h-56 border rounded-md p-3 text-sm bg-background font-mono"
-              />
-              <div className="text-[11px] text-muted-foreground mt-1">
-                {manual.length.toLocaleString("pt-BR")} caracteres
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setAprendizado(modeloConfig.data?.aprendizado ?? "");
-                  setManual(modeloConfig.data?.manual_fotos ?? "");
-                  setDirty(false);
-                }}
-                disabled={!dirty || salvarTextos.isPending}
-                className="inline-flex items-center gap-1.5 border rounded-md px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
-              >
-                Descartar
-              </button>
-              <button
-                type="button"
-                onClick={() => salvarTextos.mutate()}
-                disabled={!dirty || salvarTextos.isPending}
-                className="inline-flex items-center gap-1.5 border rounded-md px-3 py-1.5 text-sm bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
-              >
-                {salvarTextos.isPending ? (
-                  <Loader2 className="animate-spin" size={14} />
-                ) : (
-                  <Save size={14} />
-                )}
-                Salvar configuração
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      <VisaoConfigEditor />
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-2 items-end p-3 rounded-lg border bg-card">
