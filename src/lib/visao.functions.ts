@@ -146,10 +146,14 @@ export const getVisaoConfig = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data } = await supabase
       .from("visao_config" as any)
-      .select("modelo")
+      .select("modelo, aprendizado, manual_fotos")
       .eq("id", "default")
       .maybeSingle();
-    return { modelo: ((data as any)?.modelo as string) || "gpt-4o" };
+    return {
+      modelo: ((data as any)?.modelo as string) || "gpt-4o",
+      aprendizado: ((data as any)?.aprendizado as string) || "",
+      manual_fotos: ((data as any)?.manual_fotos as string) || "",
+    };
   });
 
 export const setVisaoModelo = createServerFn({ method: "POST" })
@@ -173,6 +177,40 @@ export const setVisaoModelo = createServerFn({ method: "POST" })
       );
     if (error) throw new Error(error.message);
     return { ok: true, modelo: data.modelo };
+  });
+
+export const setVisaoTextos = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i) =>
+    z
+      .object({
+        aprendizado: z.string().max(50_000).optional(),
+        manual_fotos: z.string().max(50_000).optional(),
+      })
+      .parse(i ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    const isAdmin = (roles ?? []).some((r: any) => r.role === "admin");
+    if (!isAdmin) throw new Error("Apenas admin pode editar os textos da IA.");
+
+    const patch: Record<string, any> = {
+      id: "default",
+      updated_at: new Date().toISOString(),
+    };
+    if (typeof data.aprendizado === "string") patch.aprendizado = data.aprendizado;
+    if (typeof data.manual_fotos === "string") patch.manual_fotos = data.manual_fotos;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("visao_config" as any)
+      .upsert(patch, { onConflict: "id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const reprocessarFilaCompleta = createServerFn({ method: "POST" })

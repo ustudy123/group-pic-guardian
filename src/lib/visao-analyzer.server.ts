@@ -212,7 +212,18 @@ async function chamarOpenAI(
   openaiKey: string,
   imageUrl: string,
   modelo: string,
+  extras?: { aprendizado?: string; manual_fotos?: string },
 ): Promise<{ raw: string; tokens_in?: number; tokens_out?: number }> {
+  let systemPrompt = SYSTEM_PROMPT;
+  const apr = (extras?.aprendizado ?? "").trim();
+  const man = (extras?.manual_fotos ?? "").trim();
+  if (apr) {
+    systemPrompt += `\n\n# APRENDIZADO ADICIONAL (configurado pelo admin)\nUse as regras/exemplos abaixo como fonte de verdade adicional. Em caso de conflito com as regras gerais, PREFIRA o aprendizado abaixo:\n\n${apr}`;
+  }
+  if (man) {
+    systemPrompt += `\n\n# MANUAL DE FOTOS (configurado pelo admin)\nReferência oficial de como cada tipo de foto deve ser tirada. Use para classificar a etapa e validar requisitos:\n\n${man}`;
+  }
+
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -222,7 +233,7 @@ async function chamarOpenAI(
     body: JSON.stringify({
       model: modelo,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         {
           role: "user",
           content: [
@@ -310,6 +321,23 @@ async function getModeloConfig(): Promise<string> {
   }
 }
 
+// Lê os textos configuráveis (aprendizado + manual de fotos) editáveis na tela.
+async function getTextosConfig(): Promise<{ aprendizado: string; manual_fotos: string }> {
+  try {
+    const { data } = await supabaseAdmin
+      .from("visao_config" as any)
+      .select("aprendizado, manual_fotos")
+      .eq("id", "default")
+      .maybeSingle();
+    return {
+      aprendizado: ((data as any)?.aprendizado as string) || "",
+      manual_fotos: ((data as any)?.manual_fotos as string) || "",
+    };
+  } catch {
+    return { aprendizado: "", manual_fotos: "" };
+  }
+}
+
 export async function analisarFoto(
   fotoId: string,
   modeloOverride?: string,
@@ -337,11 +365,12 @@ export async function analisarFoto(
   if (se || !signed?.signedUrl) return { ok: false, erro: se?.message || "Falha ao gerar URL." };
 
   const modelo = modeloOverride || MODELO_PADRAO;
+  const textos = await getTextosConfig();
   let raw = "";
   let tokens_in: number | undefined;
   let tokens_out: number | undefined;
   try {
-    const r = await chamarOpenAI(openaiKey, signed.signedUrl, modelo);
+    const r = await chamarOpenAI(openaiKey, signed.signedUrl, modelo, textos);
     raw = r.raw;
     tokens_in = r.tokens_in;
     tokens_out = r.tokens_out;
