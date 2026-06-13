@@ -29,6 +29,7 @@ import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.
 import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public/hooks/uazapi-bot'
 import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
 import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
+import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes/api/public/hooks/mensagens-programadas'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -134,6 +135,12 @@ const ApiPublicHooksProcessarAnalisesRoute =
     path: '/api/public/hooks/processar-analises',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksMensagensProgramadasRoute =
+  ApiPublicHooksMensagensProgramadasRouteImport.update({
+    id: '/api/public/hooks/mensagens-programadas',
+    path: '/api/public/hooks/mensagens-programadas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksAiBotRoute = ApiPublicHooksAiBotRouteImport.update({
   id: '/api/public/hooks/ai-bot',
   path: '/api/public/hooks/ai-bot',
@@ -158,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
@@ -178,6 +186,7 @@ export interface FileRoutesByTo {
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
@@ -202,6 +211,7 @@ export interface FileRoutesById {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/api/public/hooks/uazapi-bot'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/vistorias'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/api/public/hooks/uazapi-bot'
@@ -270,6 +282,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/api/public/hooks/uazapi-bot'
@@ -282,6 +295,7 @@ export interface RootRouteChildren {
   PainelRoute: typeof PainelRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
+  ApiPublicHooksMensagensProgramadasRoute: typeof ApiPublicHooksMensagensProgramadasRoute
   ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
   ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
   ApiPublicHooksUazapiBotRoute: typeof ApiPublicHooksUazapiBotRoute
@@ -429,6 +443,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksProcessarAnalisesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/mensagens-programadas': {
+      id: '/api/public/hooks/mensagens-programadas'
+      path: '/api/public/hooks/mensagens-programadas'
+      fullPath: '/api/public/hooks/mensagens-programadas'
+      preLoaderRoute: typeof ApiPublicHooksMensagensProgramadasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/ai-bot': {
       id: '/api/public/hooks/ai-bot'
       path: '/api/public/hooks/ai-bot'
@@ -499,6 +520,8 @@ const rootRouteChildren: RootRouteChildren = {
   PainelRoute: PainelRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicHooksAiBotRoute: ApiPublicHooksAiBotRoute,
+  ApiPublicHooksMensagensProgramadasRoute:
+    ApiPublicHooksMensagensProgramadasRoute,
   ApiPublicHooksProcessarAnalisesRoute: ApiPublicHooksProcessarAnalisesRoute,
   ApiPublicHooksProcessarRelatoriosRoute:
     ApiPublicHooksProcessarRelatoriosRoute,
