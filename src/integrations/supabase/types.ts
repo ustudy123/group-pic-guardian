@@ -793,17 +793,23 @@ export type Database = {
       }
       visao_config: {
         Row: {
+          aprendizado: string
           id: string
+          manual_fotos: string
           modelo: string
           updated_at: string
         }
         Insert: {
+          aprendizado?: string
           id?: string
+          manual_fotos?: string
           modelo?: string
           updated_at?: string
         }
         Update: {
+          aprendizado?: string
           id?: string
+          manual_fotos?: string
           modelo?: string
           updated_at?: string
         }
