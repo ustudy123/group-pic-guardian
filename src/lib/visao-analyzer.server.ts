@@ -212,7 +212,18 @@ async function chamarOpenAI(
   openaiKey: string,
   imageUrl: string,
   modelo: string,
+  extras?: { aprendizado?: string; manual_fotos?: string },
 ): Promise<{ raw: string; tokens_in?: number; tokens_out?: number }> {
+  let systemPrompt = SYSTEM_PROMPT;
+  const apr = (extras?.aprendizado ?? "").trim();
+  const man = (extras?.manual_fotos ?? "").trim();
+  if (apr) {
+    systemPrompt += `\n\n# APRENDIZADO ADICIONAL (configurado pelo admin)\nUse as regras/exemplos abaixo como fonte de verdade adicional. Em caso de conflito com as regras gerais, PREFIRA o aprendizado abaixo:\n\n${apr}`;
+  }
+  if (man) {
+    systemPrompt += `\n\n# MANUAL DE FOTOS (configurado pelo admin)\nReferência oficial de como cada tipo de foto deve ser tirada. Use para classificar a etapa e validar requisitos:\n\n${man}`;
+  }
+
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -222,7 +233,7 @@ async function chamarOpenAI(
     body: JSON.stringify({
       model: modelo,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         {
           role: "user",
           content: [
