@@ -52,18 +52,18 @@ export const Route = createFileRoute("/api/public/hooks/reenviar-alertas")({
           .eq("enviado_coordenador", false)
           .order("created_at", { ascending: true });
 
-        const resultados: Array<{ id: string; ok: boolean }> = [];
+        const resultados: Array<{ id: string; ok: boolean; status: number; detail: string }> = [];
         for (const a of pendentes ?? []) {
           const emoji = EMOJI_CRIT[a.criticidade] || "⚠️";
           const msg = `${emoji} *Alerta de obra* (${String(a.criticidade).toUpperCase()})\n*Categoria:* ${a.categoria}\n*Encarregado:* ${a.nome || a.telefone}\n\n${a.resumo}\n\n_Mensagem original:_\n"${a.mensagem_origem}"`;
-          const ok = await enviarUazapi(coord, msg);
-          if (ok) {
+          const res = await enviarUazapi(coord, msg);
+          if (res.ok) {
             await supabaseAdmin
               .from("ai_bot_alertas")
               .update({ enviado_coordenador: true, enviado_em: new Date().toISOString() })
               .eq("id", a.id);
           }
-          resultados.push({ id: a.id, ok });
+          resultados.push({ id: a.id, ...res });
           await new Promise((r) => setTimeout(r, 800));
         }
 
