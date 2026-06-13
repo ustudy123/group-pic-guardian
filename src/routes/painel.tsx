@@ -122,10 +122,10 @@ function PainelLayout() {
                 <Link
                   to="/painel/ai-bot"
                   className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
-                  title="Bot IA dos encarregados"
+                  title="Macro I.A"
                 >
                   <Bot size={15} />
-                  <span className="hidden sm:inline">Bot IA</span>
+                  <span className="hidden sm:inline">Macro I.A</span>
                 </Link>
                 <Link
                   to="/painel/visao"

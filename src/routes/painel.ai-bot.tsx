@@ -22,7 +22,7 @@ function AiBotPage() {
             <ArrowLeft size={14} /> Voltar
           </Link>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Bot size={22} /> Bot IA dos Encarregados
+            <Bot size={22} /> Macro I.A
           </h1>
         </div>
       </div>
