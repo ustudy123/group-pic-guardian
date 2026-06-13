@@ -27,6 +27,7 @@ import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistor
 import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public/hooks/uazapi-bot'
+import { Route as ApiPublicHooksReenviarAlertasRouteImport } from './routes/api/public/hooks/reenviar-alertas'
 import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
 import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
 import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes/api/public/hooks/mensagens-programadas'
@@ -123,6 +124,12 @@ const ApiPublicHooksUazapiBotRoute = ApiPublicHooksUazapiBotRouteImport.update({
   path: '/api/public/hooks/uazapi-bot',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksReenviarAlertasRoute =
+  ApiPublicHooksReenviarAlertasRouteImport.update({
+    id: '/api/public/hooks/reenviar-alertas',
+    path: '/api/public/hooks/reenviar-alertas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksProcessarRelatoriosRoute =
   ApiPublicHooksProcessarRelatoriosRouteImport.update({
     id: '/api/public/hooks/processar-relatorios',
@@ -168,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
+  '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -189,6 +197,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
+  '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -214,6 +223,7 @@ export interface FileRoutesById {
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
+  '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
 }
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
+    | '/api/public/hooks/reenviar-alertas'
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesByTo: FileRoutesByTo
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
+    | '/api/public/hooks/reenviar-alertas'
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
   id:
@@ -285,6 +297,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
+    | '/api/public/hooks/reenviar-alertas'
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
   fileRoutesById: FileRoutesById
@@ -298,6 +311,7 @@ export interface RootRouteChildren {
   ApiPublicHooksMensagensProgramadasRoute: typeof ApiPublicHooksMensagensProgramadasRoute
   ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
   ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
+  ApiPublicHooksReenviarAlertasRoute: typeof ApiPublicHooksReenviarAlertasRoute
   ApiPublicHooksUazapiBotRoute: typeof ApiPublicHooksUazapiBotRoute
 }
 
@@ -429,6 +443,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksUazapiBotRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/reenviar-alertas': {
+      id: '/api/public/hooks/reenviar-alertas'
+      path: '/api/public/hooks/reenviar-alertas'
+      fullPath: '/api/public/hooks/reenviar-alertas'
+      preLoaderRoute: typeof ApiPublicHooksReenviarAlertasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/processar-relatorios': {
       id: '/api/public/hooks/processar-relatorios'
       path: '/api/public/hooks/processar-relatorios'
@@ -525,6 +546,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksProcessarAnalisesRoute: ApiPublicHooksProcessarAnalisesRoute,
   ApiPublicHooksProcessarRelatoriosRoute:
     ApiPublicHooksProcessarRelatoriosRoute,
+  ApiPublicHooksReenviarAlertasRoute: ApiPublicHooksReenviarAlertasRoute,
   ApiPublicHooksUazapiBotRoute: ApiPublicHooksUazapiBotRoute,
 }
 export const routeTree = rootRouteImport
