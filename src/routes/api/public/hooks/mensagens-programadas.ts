@@ -63,24 +63,29 @@ function personalizar(template: string, nome: string | null): string {
   return template.replace(/\s*(\{nome\}|FULANO)\s*([,!]?)/gi, "$2");
 }
 
-async function enviarUazapi(numero: string, mensagem: string): Promise<boolean> {
+async function enviarUazapi(
+  numero: string,
+  mensagem: string,
+): Promise<{ ok: boolean; status: number; detail: string }> {
   const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
   const token = process.env.UAZAPI_INSTANCE_TOKEN;
-  if (!token || !numero || !mensagem) return false;
+  if (!token || !numero || !mensagem) {
+    return { ok: false, status: 0, detail: "token/numero/mensagem ausente" };
+  }
   try {
     const r = await fetch(`${baseUrl}/send/text`, {
       method: "POST",
       headers: { "Content-Type": "application/json", token },
       body: JSON.stringify({ number: numero, text: mensagem }),
     });
+    const txt = await r.text().catch(() => "");
     if (!r.ok) {
-      const txt = await r.text().catch(() => "");
       console.error(`[msg-programadas] send/text falhou ${r.status}: ${txt.slice(0, 300)}`);
     }
-    return r.ok;
+    return { ok: r.ok, status: r.status, detail: txt.slice(0, 400) };
   } catch (e) {
     console.error("[msg-programadas] erro send/text:", e);
-    return false;
+    return { ok: false, status: 0, detail: String(e).slice(0, 400) };
   }
 }
 
@@ -175,7 +180,12 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           });
         }
 
-        const resultados: Array<{ telefone: string; sucesso: boolean }> = [];
+        const resultados: Array<{
+          telefone: string;
+          sucesso: boolean;
+          status?: number;
+          detalhe?: string;
+        }> = [];
 
         for (const contato of lote) {
           const mensagem = personalizar(template, contato.nome);
@@ -198,9 +208,9 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
             continue;
           }
 
-          const ok = await enviarUazapi(contato.telefone, mensagem);
+          const envio = await enviarUazapi(contato.telefone, mensagem);
 
-          if (ok) {
+          if (envio.ok) {
             await supabaseAdmin
               .from("ai_bot_envios_programados")
               .update({ sucesso: true, enviado_em: new Date().toISOString() })
@@ -226,7 +236,12 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
               .eq("sucesso", false);
           }
 
-          resultados.push({ telefone: contato.telefone, sucesso: ok });
+          resultados.push({
+            telefone: contato.telefone,
+            sucesso: envio.ok,
+            status: envio.status,
+            detalhe: envio.ok ? undefined : envio.detail,
+          });
         }
 
         return json({
