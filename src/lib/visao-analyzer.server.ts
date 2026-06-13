@@ -297,8 +297,10 @@ function normalizar(parsed: any): AnaliseResultado {
 }
 
 export async function analisarFoto(fotoId: string): Promise<{ ok: boolean; erro?: string }> {
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey) return { ok: false, erro: "OPENAI_API_KEY ausente." };
+  // Chave dedicada da visão (VISAO_OPENAI_KEY) para isolar o billing da análise de fotos;
+  // se não houver, cai na OPENAI_API_KEY compartilhada com o bot.
+  const openaiKey = process.env.VISAO_OPENAI_KEY || process.env.OPENAI_API_KEY;
+  if (!openaiKey) return { ok: false, erro: "OPENAI_API_KEY (ou VISAO_OPENAI_KEY) ausente." };
 
   const { data: foto, error: fe } = await supabaseAdmin
     .from("fotos")
