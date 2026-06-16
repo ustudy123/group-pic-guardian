@@ -47,9 +47,12 @@ function agoraSaoPaulo(): { hhmm: number; dataRef: string } {
   };
 }
 
-function periodoAtual(hhmm: number): Periodo | null {
-  if (hhmm >= 715 && hhmm <= 815) return "manha";
-  if (hhmm >= 1800 && hhmm <= 1900) return "noite";
+function periodoAtual(
+  hhmm: number,
+  j: { mIni: number; mFim: number; nIni: number; nFim: number },
+): Periodo | null {
+  if (hhmm >= j.mIni && hhmm <= j.mFim) return "manha";
+  if (hhmm >= j.nIni && hhmm <= j.nFim) return "noite";
   return null;
 }
 
@@ -143,18 +146,13 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         }
 
         const { hhmm, dataRef } = agoraSaoPaulo();
-        const periodo: Periodo | null =
-          body.periodo === "manha" || body.periodo === "noite"
-            ? body.periodo
-            : periodoAtual(hhmm);
 
-        if (!periodo) {
-          return json({ idle: true, motivo: "fora_da_janela", hhmm });
-        }
 
         const { data: config } = await supabaseAdmin
           .from("ai_bot_config")
-          .select("ativo, msg_programadas_ativas, msg_manha, msg_noite")
+          .select(
+            "ativo, msg_programadas_ativas, msg_manha, msg_noite, msg_manha_variacoes, msg_noite_variacoes, janela_manha_inicio, janela_manha_fim, janela_noite_inicio, janela_noite_fim",
+          )
           .eq("id", "default")
           .maybeSingle();
 
@@ -163,8 +161,34 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           return json({ idle: true, motivo: "programadas_desativadas" });
         }
 
-        const template = (periodo === "manha" ? config.msg_manha : config.msg_noite)?.trim();
-        if (!template) return json({ idle: true, motivo: "template_vazio" });
+        const janelas = {
+          mIni: (config.janela_manha_inicio as number) ?? 715,
+          mFim: (config.janela_manha_fim as number) ?? 815,
+          nIni: (config.janela_noite_inicio as number) ?? 1800,
+          nFim: (config.janela_noite_fim as number) ?? 1900,
+        };
+        const periodo: Periodo | null =
+          body.periodo === "manha" || body.periodo === "noite"
+            ? body.periodo
+            : periodoAtual(hhmm, janelas);
+
+        if (!periodo) {
+          return json({ idle: true, motivo: "fora_da_janela", hhmm, janelas });
+        }
+
+        const variacoes = (
+          periodo === "manha"
+            ? (config.msg_manha_variacoes as string[] | null)
+            : (config.msg_noite_variacoes as string[] | null)
+        )?.filter((v) => v && v.trim().length > 0) ?? [];
+        const fallback = (periodo === "manha" ? config.msg_manha : config.msg_noite)?.trim() || "";
+        if (variacoes.length === 0 && !fallback) {
+          return json({ idle: true, motivo: "template_vazio" });
+        }
+        const escolherTemplate = () =>
+          variacoes.length > 0
+            ? variacoes[Math.floor(Math.random() * variacoes.length)]
+            : fallback;
 
         // Encarregados autorizados e ativos
         const { data: autorizados, error: errAut } = await supabaseAdmin
@@ -197,7 +221,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
             dataRef,
             lote: lote.map((c) => ({
               telefone: c.telefone,
-              mensagem: personalizar(template, c.nome),
+              mensagem: personalizar(escolherTemplate(), c.nome),
             })),
             restantes: pendentes.length,
           });
@@ -211,7 +235,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         }> = [];
 
         for (const contato of lote) {
-          const mensagem = personalizar(template, contato.nome);
+          const mensagem = personalizar(escolherTemplate(), contato.nome);
 
           // Reserva a vaga ANTES de enviar (unique constraint evita duplicado
           // se duas execuções do cron rodarem ao mesmo tempo)
