@@ -878,9 +878,10 @@ function AlertasTab() {
   const qc = useQueryClient();
   const [filtroCrit, setFiltroCrit] = useState<string>("todas");
   const [mostrarResolvidos, setMostrarResolvidos] = useState(false);
+  const [view, setView] = useState<"lista" | "kanban">("lista");
 
   const { data: alertas = [] } = useQuery({
-    queryKey: ["ai-bot-alertas", filtroCrit, mostrarResolvidos],
+    queryKey: ["ai-bot-alertas", filtroCrit, mostrarResolvidos, view],
     queryFn: async () => {
       let q = supabase
         .from("ai_bot_alertas")
@@ -888,7 +889,8 @@ function AlertasTab() {
         .order("created_at", { ascending: false })
         .limit(200);
       if (filtroCrit !== "todas") q = q.eq("criticidade", filtroCrit);
-      if (!mostrarResolvidos) q = q.eq("resolvido", false);
+      // No kanban sempre mostra resolvidos (coluna dedicada)
+      if (view === "lista" && !mostrarResolvidos) q = q.eq("resolvido", false);
       const { data, error } = await q;
       if (error) throw error;
       return data;
@@ -913,9 +915,88 @@ function AlertasTab() {
     baixa: "bg-emerald-100 text-emerald-800 border-emerald-300",
   };
 
+  const Cartao = ({ a, compact = false }: { a: any; compact?: boolean }) => (
+    <div className="rounded-md border p-3 bg-card">
+      <div className={compact ? "space-y-2" : "flex items-start justify-between gap-3"}>
+        <div className="flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`text-xs font-medium px-2 py-0.5 rounded border ${
+                cores[a.criticidade] || "bg-muted"
+              }`}
+            >
+              {a.criticidade.toUpperCase()}
+            </span>
+            <span className="text-xs uppercase text-muted-foreground">{a.categoria}</span>
+            <span className="text-xs text-muted-foreground">
+              {new Date(a.created_at).toLocaleString("pt-BR")}
+            </span>
+            {a.enviado_coordenador && (
+              <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
+                <CheckCircle2 size={12} /> enviado
+              </span>
+            )}
+          </div>
+          <p className="text-sm font-medium">{a.resumo}</p>
+          <p className="text-xs text-muted-foreground">De: {a.nome || a.telefone}</p>
+          {a.mensagem_origem && (
+            <p className="text-xs text-muted-foreground italic mt-1 border-l-2 pl-2">
+              "{a.mensagem_origem}"
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => resolver.mutate({ id: a.id, resolvido: !a.resolvido })}
+          className={`text-xs px-3 py-1.5 rounded border whitespace-nowrap ${
+            a.resolvido
+              ? "bg-muted text-muted-foreground"
+              : "bg-emerald-600 text-white hover:opacity-90"
+          } ${compact ? "w-full" : ""}`}
+        >
+          {a.resolvido ? "Reabrir" : "Resolver"}
+        </button>
+      </div>
+    </div>
+  );
+
+  const colunas = [
+    {
+      key: "novos",
+      titulo: "🆕 Novos",
+      desc: "Ainda não enviados ao coordenador",
+      items: alertas.filter((a: any) => !a.resolvido && !a.enviado_coordenador),
+    },
+    {
+      key: "andamento",
+      titulo: "⏳ Em acompanhamento",
+      desc: "Enviados ao coordenador, aguardando solução",
+      items: alertas.filter((a: any) => !a.resolvido && a.enviado_coordenador),
+    },
+    {
+      key: "resolvidos",
+      titulo: "✅ Resolvidos",
+      desc: "Já tratados",
+      items: alertas.filter((a: any) => a.resolvido),
+    },
+  ];
+
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center">
+        <div className="inline-flex rounded-md border overflow-hidden">
+          <button
+            onClick={() => setView("lista")}
+            className={`text-xs px-3 py-1.5 ${view === "lista" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+          >
+            Lista
+          </button>
+          <button
+            onClick={() => setView("kanban")}
+            className={`text-xs px-3 py-1.5 ${view === "kanban" ? "bg-primary text-primary-foreground" : "bg-background"}`}
+          >
+            Kanban
+          </button>
+        </div>
         <select
           value={filtroCrit}
           onChange={(e) => setFiltroCrit(e.target.value)}
@@ -927,69 +1008,54 @@ function AlertasTab() {
           <option value="media">🟡 Média</option>
           <option value="baixa">🟢 Baixa</option>
         </select>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={mostrarResolvidos}
-            onChange={(e) => setMostrarResolvidos(e.target.checked)}
-          />
-          Mostrar resolvidos
-        </label>
+        {view === "lista" && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={mostrarResolvidos}
+              onChange={(e) => setMostrarResolvidos(e.target.checked)}
+            />
+            Mostrar resolvidos
+          </label>
+        )}
       </div>
 
       {alertas.length === 0 && (
         <p className="text-sm text-muted-foreground">Nenhum alerta no momento. 🎉</p>
       )}
 
-      <div className="space-y-2">
-        {alertas.map((a) => (
-          <div key={a.id} className="rounded-md border p-3 bg-card">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`text-xs font-medium px-2 py-0.5 rounded border ${
-                      cores[a.criticidade] || "bg-muted"
-                    }`}
-                  >
-                    {a.criticidade.toUpperCase()}
+      {view === "lista" ? (
+        <div className="space-y-2 max-w-4xl">
+          {alertas.map((a: any) => (
+            <Cartao key={a.id} a={a} />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {colunas.map((col) => (
+            <div key={col.key} className="rounded-lg border bg-muted/30 p-3 flex flex-col min-h-[200px]">
+              <div className="mb-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-sm">{col.titulo}</h3>
+                  <span className="text-xs bg-background border rounded-full px-2 py-0.5">
+                    {col.items.length}
                   </span>
-                  <span className="text-xs uppercase text-muted-foreground">
-                    {a.categoria}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(a.created_at).toLocaleString("pt-BR")}
-                  </span>
-                  {a.enviado_coordenador && (
-                    <span className="text-xs text-emerald-700 inline-flex items-center gap-1">
-                      <CheckCircle2 size={12} /> enviado
-                    </span>
-                  )}
                 </div>
-                <p className="text-sm font-medium">{a.resumo}</p>
-                <p className="text-xs text-muted-foreground">
-                  De: {a.nome || a.telefone}
-                </p>
-                {a.mensagem_origem && (
-                  <p className="text-xs text-muted-foreground italic mt-1 border-l-2 pl-2">
-                    "{a.mensagem_origem}"
+                <p className="text-[11px] text-muted-foreground">{col.desc}</p>
+              </div>
+              <div className="space-y-2 flex-1">
+                {col.items.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic text-center py-6">
+                    Vazio
                   </p>
+                ) : (
+                  col.items.map((a: any) => <Cartao key={a.id} a={a} compact />)
                 )}
               </div>
-              <button
-                onClick={() => resolver.mutate({ id: a.id, resolvido: !a.resolvido })}
-                className={`text-xs px-3 py-1.5 rounded border whitespace-nowrap ${
-                  a.resolvido
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-emerald-600 text-white hover:opacity-90"
-                }`}
-              >
-                {a.resolvido ? "Reabrir" : "Resolver"}
-              </button>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
