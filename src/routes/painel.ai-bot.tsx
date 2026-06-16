@@ -272,6 +272,15 @@ Regras:
 }
 
 /* ----------------- MENSAGENS PROGRAMADAS ----------------- */
+function hhmmToStr(n: number): string {
+  const s = String(n).padStart(4, "0");
+  return `${s.slice(0, 2)}:${s.slice(2)}`;
+}
+function strToHhmm(s: string): number {
+  const [h, m] = s.split(":");
+  return Number(h) * 100 + Number(m || "0");
+}
+
 function ProgramadasTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -279,7 +288,9 @@ function ProgramadasTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ai_bot_config")
-        .select("msg_programadas_ativas, msg_manha, msg_noite")
+        .select(
+          "msg_programadas_ativas, msg_manha, msg_noite, msg_manha_variacoes, msg_noite_variacoes, janela_manha_inicio, janela_manha_fim, janela_noite_inicio, janela_noite_fim",
+        )
         .eq("id", "default")
         .maybeSingle();
       if (error) throw error;
@@ -291,6 +302,12 @@ function ProgramadasTab() {
     msg_programadas_ativas: false,
     msg_manha: "",
     msg_noite: "",
+    msg_manha_variacoes: [] as string[],
+    msg_noite_variacoes: [] as string[],
+    janela_manha_inicio: 715,
+    janela_manha_fim: 815,
+    janela_noite_inicio: 1800,
+    janela_noite_fim: 1900,
   });
 
   useEffect(() => {
@@ -300,15 +317,27 @@ function ProgramadasTab() {
         msg_programadas_ativas: (d.msg_programadas_ativas as boolean) ?? false,
         msg_manha: (d.msg_manha as string) || "",
         msg_noite: (d.msg_noite as string) || "",
+        msg_manha_variacoes: (d.msg_manha_variacoes as string[]) ?? [],
+        msg_noite_variacoes: (d.msg_noite_variacoes as string[]) ?? [],
+        janela_manha_inicio: (d.janela_manha_inicio as number) ?? 715,
+        janela_manha_fim: (d.janela_manha_fim as number) ?? 815,
+        janela_noite_inicio: (d.janela_noite_inicio as number) ?? 1800,
+        janela_noite_fim: (d.janela_noite_fim as number) ?? 1900,
       });
     }
   }, [data]);
 
   const salvar = useMutation({
     mutationFn: async () => {
+      const payload = {
+        ...form,
+        msg_manha_variacoes: form.msg_manha_variacoes.filter((v) => v.trim().length > 0),
+        msg_noite_variacoes: form.msg_noite_variacoes.filter((v) => v.trim().length > 0),
+        updated_at: new Date().toISOString(),
+      };
       const { error } = await supabase
         .from("ai_bot_config")
-        .update({ ...form, updated_at: new Date().toISOString() })
+        .update(payload)
         .eq("id", "default");
       if (error) throw error;
     },
@@ -336,16 +365,90 @@ function ProgramadasTab() {
 
   if (isLoading) return <p className="text-muted-foreground">Carregando…</p>;
 
+  const renderVariacoes = (
+    key: "msg_manha_variacoes" | "msg_noite_variacoes",
+    label: string,
+  ) => (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium">{label}</label>
+        <button
+          type="button"
+          onClick={() =>
+            setForm((f) => ({ ...f, [key]: [...f[key], ""] }))
+          }
+          className="text-xs inline-flex items-center gap-1 rounded border px-2 py-1 hover:bg-muted"
+        >
+          <Plus size={12} /> Adicionar variação
+        </button>
+      </div>
+      {form[key].length === 0 && (
+        <p className="text-xs text-muted-foreground italic">
+          Nenhuma variação. Se vazio, a mensagem fixa acima será usada sempre.
+        </p>
+      )}
+      {form[key].map((v, i) => (
+        <div key={i} className="flex gap-2 items-start">
+          <textarea
+            value={v}
+            onChange={(e) =>
+              setForm((f) => {
+                const arr = [...f[key]];
+                arr[i] = e.target.value;
+                return { ...f, [key]: arr };
+              })
+            }
+            rows={2}
+            placeholder={`Variação ${i + 1}`}
+            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              setForm((f) => ({ ...f, [key]: f[key].filter((_, idx) => idx !== i) }))
+            }
+            className="text-destructive hover:bg-destructive/10 rounded p-2"
+            aria-label="Remover variação"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+
+  const janelaPicker = (
+    inicioKey: "janela_manha_inicio" | "janela_noite_inicio",
+    fimKey: "janela_manha_fim" | "janela_noite_fim",
+  ) => (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="text-muted-foreground">Janela:</span>
+      <input
+        type="time"
+        value={hhmmToStr(form[inicioKey])}
+        onChange={(e) => setForm((f) => ({ ...f, [inicioKey]: strToHhmm(e.target.value) }))}
+        className="rounded-md border border-input bg-background px-2 py-1"
+      />
+      <span>até</span>
+      <input
+        type="time"
+        value={hhmmToStr(form[fimKey])}
+        onChange={(e) => setForm((f) => ({ ...f, [fimKey]: strToHhmm(e.target.value) }))}
+        className="rounded-md border border-input bg-background px-2 py-1"
+      />
+    </div>
+  );
+
   return (
     <div className="space-y-5 max-w-3xl">
       <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
         <p className="font-medium">Como funciona</p>
         <p className="text-muted-foreground">
           O bot puxa conversa com cada encarregado autorizado duas vezes por dia, de forma
-          intercalada (anti-spam): <strong>manhã entre 7h15 e 8h15</strong> e{" "}
-          <strong>noite entre 18h e 19h</strong>, de segunda a sábado. Use{" "}
+          intercalada (anti-spam), dentro das janelas configuradas abaixo. Use{" "}
           <code className="bg-background px-1 rounded">{"{nome}"}</code> no texto para inserir o
-          primeiro nome do encarregado (cadastrado na aba Autorizados).
+          primeiro nome. Se você cadastrar <strong>variações</strong>, a cada envio o bot escolhe
+          uma aleatória — deixa o tom mais natural e evita parecer mensagem automática.
         </p>
       </div>
 
@@ -359,26 +462,42 @@ function ProgramadasTab() {
         <span className="font-medium">Envio automático ativo</span>
       </label>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">
-          ☀️ Mensagem da manhã (7h15 – 8h15)
-        </label>
-        <textarea
-          value={form.msg_manha}
-          onChange={(e) => setForm((f) => ({ ...f, msg_manha: e.target.value }))}
-          rows={3}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
+      <div className="rounded-lg border p-4 space-y-3 bg-card">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="font-medium text-sm">☀️ Período da manhã</h3>
+          {janelaPicker("janela_manha_inicio", "janela_manha_fim")}
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1 text-muted-foreground">
+            Mensagem padrão (usada quando não há variações)
+          </label>
+          <textarea
+            value={form.msg_manha}
+            onChange={(e) => setForm((f) => ({ ...f, msg_manha: e.target.value }))}
+            rows={3}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        {renderVariacoes("msg_manha_variacoes", "Variações automáticas")}
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">🌙 Mensagem da noite (18h – 19h)</label>
-        <textarea
-          value={form.msg_noite}
-          onChange={(e) => setForm((f) => ({ ...f, msg_noite: e.target.value }))}
-          rows={3}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
+      <div className="rounded-lg border p-4 space-y-3 bg-card">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="font-medium text-sm">🌙 Período da noite</h3>
+          {janelaPicker("janela_noite_inicio", "janela_noite_fim")}
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1 text-muted-foreground">
+            Mensagem padrão (usada quando não há variações)
+          </label>
+          <textarea
+            value={form.msg_noite}
+            onChange={(e) => setForm((f) => ({ ...f, msg_noite: e.target.value }))}
+            rows={3}
+            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        {renderVariacoes("msg_noite_variacoes", "Variações automáticas")}
       </div>
 
       <button
