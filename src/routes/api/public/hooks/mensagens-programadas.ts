@@ -146,14 +146,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         }
 
         const { hhmm, dataRef } = agoraSaoPaulo();
-        const periodo: Periodo | null =
-          body.periodo === "manha" || body.periodo === "noite"
-            ? body.periodo
-            : periodoAtual(hhmm);
 
-        if (!periodo) {
-          return json({ idle: true, motivo: "fora_da_janela", hhmm });
-        }
 
         const { data: config } = await supabaseAdmin
           .from("ai_bot_config")
