@@ -47,9 +47,12 @@ function agoraSaoPaulo(): { hhmm: number; dataRef: string } {
   };
 }
 
-function periodoAtual(hhmm: number): Periodo | null {
-  if (hhmm >= 715 && hhmm <= 815) return "manha";
-  if (hhmm >= 1800 && hhmm <= 1900) return "noite";
+function periodoAtual(
+  hhmm: number,
+  j: { mIni: number; mFim: number; nIni: number; nFim: number },
+): Periodo | null {
+  if (hhmm >= j.mIni && hhmm <= j.mFim) return "manha";
+  if (hhmm >= j.nIni && hhmm <= j.nFim) return "noite";
   return null;
 }
 
