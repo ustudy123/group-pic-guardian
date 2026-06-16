@@ -94,10 +94,16 @@ export type Database = {
           coordenador_telefone_4: string | null
           created_at: string
           id: string
+          janela_manha_fim: number
+          janela_manha_inicio: number
+          janela_noite_fim: number
+          janela_noite_inicio: number
           max_historico: number
           modelo: string
           msg_manha: string
+          msg_manha_variacoes: string[]
           msg_noite: string
+          msg_noite_variacoes: string[]
           msg_programadas_ativas: boolean
           persona: string
           saudacao_inicial: string | null
@@ -118,10 +124,16 @@ export type Database = {
           coordenador_telefone_4?: string | null
           created_at?: string
           id?: string
+          janela_manha_fim?: number
+          janela_manha_inicio?: number
+          janela_noite_fim?: number
+          janela_noite_inicio?: number
           max_historico?: number
           modelo?: string
           msg_manha?: string
+          msg_manha_variacoes?: string[]
           msg_noite?: string
+          msg_noite_variacoes?: string[]
           msg_programadas_ativas?: boolean
           persona?: string
           saudacao_inicial?: string | null
@@ -142,10 +154,16 @@ export type Database = {
           coordenador_telefone_4?: string | null
           created_at?: string
           id?: string
+          janela_manha_fim?: number
+          janela_manha_inicio?: number
+          janela_noite_fim?: number
+          janela_noite_inicio?: number
           max_historico?: number
           modelo?: string
           msg_manha?: string
+          msg_manha_variacoes?: string[]
           msg_noite?: string
+          msg_noite_variacoes?: string[]
           msg_programadas_ativas?: boolean
           persona?: string
           saudacao_inicial?: string | null
