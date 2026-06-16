@@ -221,7 +221,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
             dataRef,
             lote: lote.map((c) => ({
               telefone: c.telefone,
-              mensagem: personalizar(template, c.nome),
+              mensagem: personalizar(escolherTemplate(), c.nome),
             })),
             restantes: pendentes.length,
           });
@@ -235,7 +235,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         }> = [];
 
         for (const contato of lote) {
-          const mensagem = personalizar(template, contato.nome);
+          const mensagem = personalizar(escolherTemplate(), contato.nome);
 
           // Reserva a vaga ANTES de enviar (unique constraint evita duplicado
           // se duas execuções do cron rodarem ao mesmo tempo)
