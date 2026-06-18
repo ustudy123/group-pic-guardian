@@ -62,10 +62,28 @@ type Form = {
   updated_at: string;
 };
 
+type PromptState = {
+  title: string;
+  label?: string;
+  initial?: string;
+  confirmLabel?: string;
+  onConfirm: (value: string) => void;
+} | null;
+
+type ConfirmState = {
+  title: string;
+  message?: string;
+  destructive?: boolean;
+  confirmLabel?: string;
+  onConfirm: () => void;
+} | null;
+
 function ListaFormularios() {
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const [pastaAberta, setPastaAberta] = useState<Record<string, boolean>>({});
+  const [promptDlg, setPromptDlg] = useState<PromptState>(null);
+  const [confirmDlg, setConfirmDlg] = useState<ConfirmState>(null);
 
   const { data: pastas = [] } = useQuery({
     queryKey: ["form-pastas"],
@@ -91,53 +109,41 @@ function ListaFormularios() {
     },
   });
 
-  const criarPasta = useMutation({
-    mutationFn: async () => {
-      const nome = prompt("Nome da pasta:");
-      if (!nome) return null;
+  const criarPastaMut = useMutation({
+    mutationFn: async (nome: string) => {
       const { error } = await supabase.from("form_pastas").insert({ nome });
       if (error) throw error;
-      return true;
     },
-    onSuccess: (r) => {
-      if (r) {
-        qc.invalidateQueries({ queryKey: ["form-pastas"] });
-        toast.success("Pasta criada");
-      }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["form-pastas"] });
+      toast.success("Pasta criada");
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const renomearPasta = useMutation({
-    mutationFn: async (p: Pasta) => {
-      const nome = prompt("Renomear pasta:", p.nome);
-      if (!nome) return null;
-      const { error } = await supabase.from("form_pastas").update({ nome }).eq("id", p.id);
+  const renomearPastaMut = useMutation({
+    mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
+      const { error } = await supabase.from("form_pastas").update({ nome }).eq("id", id);
       if (error) throw error;
-      return true;
     },
-    onSuccess: (r) => r && qc.invalidateQueries({ queryKey: ["form-pastas"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["form-pastas"] }),
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const excluirPasta = useMutation({
+  const excluirPastaMut = useMutation({
     mutationFn: async (id: string) => {
-      if (!confirm("Excluir pasta? Os formulários ficarão sem pasta.")) return null;
       const { error } = await supabase.from("form_pastas").delete().eq("id", id);
       if (error) throw error;
-      return true;
     },
-    onSuccess: (r) => {
-      if (r) {
-        qc.invalidateQueries({ queryKey: ["form-pastas"] });
-        qc.invalidateQueries({ queryKey: ["formularios"] });
-      }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["form-pastas"] });
+      qc.invalidateQueries({ queryKey: ["formularios"] });
     },
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const criarForm = useMutation({
-    mutationFn: async (pasta_id: string | null) => {
-      const titulo = prompt("Nome do formulário:");
-      if (!titulo) return null;
+  const criarFormMut = useMutation({
+    mutationFn: async ({ titulo, pasta_id }: { titulo: string; pasta_id: string | null }) => {
       const { data, error } = await supabase
         .from("formularios")
         .insert({ titulo, pasta_id })
@@ -147,13 +153,42 @@ function ListaFormularios() {
       return data.id as string;
     },
     onSuccess: (id) => {
-      if (id) {
-        qc.invalidateQueries({ queryKey: ["formularios"] });
-        window.location.href = `/painel/formularios/${id}`;
-      }
+      qc.invalidateQueries({ queryKey: ["formularios"] });
+      window.location.href = `/painel/formularios/${id}`;
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const abrirCriarPasta = () =>
+    setPromptDlg({
+      title: "Nova pasta",
+      label: "Nome da pasta",
+      confirmLabel: "Criar",
+      onConfirm: (v) => criarPastaMut.mutate(v),
+    });
+  const abrirRenomearPasta = (p: Pasta) =>
+    setPromptDlg({
+      title: "Renomear pasta",
+      label: "Nome da pasta",
+      initial: p.nome,
+      confirmLabel: "Salvar",
+      onConfirm: (v) => renomearPastaMut.mutate({ id: p.id, nome: v }),
+    });
+  const abrirExcluirPasta = (id: string) =>
+    setConfirmDlg({
+      title: "Excluir pasta?",
+      message: "Os formulários ficarão sem pasta.",
+      destructive: true,
+      confirmLabel: "Excluir",
+      onConfirm: () => excluirPastaMut.mutate(id),
+    });
+  const abrirNovoForm = (pasta_id: string | null) =>
+    setPromptDlg({
+      title: "Novo formulário",
+      label: "Nome do formulário",
+      confirmLabel: "Criar",
+      onConfirm: (v) => criarFormMut.mutate({ titulo: v, pasta_id }),
+    });
 
   const moverForm = useMutation({
     mutationFn: async ({ id, pasta_id }: { id: string; pasta_id: string | null }) => {
@@ -193,15 +228,22 @@ function ListaFormularios() {
     },
   });
 
-  const excluirForm = useMutation({
+  const excluirFormMut = useMutation({
     mutationFn: async (id: string) => {
-      if (!confirm("Excluir formulário e todas as respostas?")) return null;
       const { error } = await supabase.from("formularios").delete().eq("id", id);
       if (error) throw error;
-      return true;
     },
-    onSuccess: (r) => r && qc.invalidateQueries({ queryKey: ["formularios"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["formularios"] }),
+    onError: (e: any) => toast.error(e.message),
   });
+  const abrirExcluirForm = (id: string) =>
+    setConfirmDlg({
+      title: "Excluir formulário?",
+      message: "Todas as respostas também serão removidas.",
+      destructive: true,
+      confirmLabel: "Excluir",
+      onConfirm: () => excluirFormMut.mutate(id),
+    });
 
   const formsFiltrados = forms.filter(
     (f) => !busca || f.titulo.toLowerCase().includes(busca.toLowerCase()),
@@ -211,6 +253,8 @@ function ListaFormularios() {
 
   return (
     <div className="space-y-6">
+      <PromptDialog state={promptDlg} onClose={() => setPromptDlg(null)} />
+      <ConfirmDialog state={confirmDlg} onClose={() => setConfirmDlg(null)} />
       <div className="flex flex-wrap items-center gap-3">
         <input
           value={busca}
@@ -219,13 +263,13 @@ function ListaFormularios() {
           className="flex-1 min-w-[200px] rounded-lg border bg-background px-3 py-2 text-sm"
         />
         <button
-          onClick={() => criarPasta.mutate()}
+          onClick={abrirCriarPasta}
           className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-3 py-2 text-sm font-medium hover:bg-accent"
         >
           <FolderPlus size={15} /> Nova pasta
         </button>
         <button
-          onClick={() => criarForm.mutate(null)}
+          onClick={() => abrirNovoForm(null)}
           className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-semibold hover:opacity-90"
         >
           <FilePlus size={15} /> Novo formulário
