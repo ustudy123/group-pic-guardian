@@ -18,13 +18,17 @@ import { Route as PainelVistoriasRouteImport } from './routes/painel.vistorias'
 import { Route as PainelVisaoRouteImport } from './routes/painel.visao'
 import { Route as PainelGuiaRouteImport } from './routes/painel.guia'
 import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
+import { Route as PainelFormulariosRouteImport } from './routes/painel.formularios'
 import { Route as PainelAiBotRouteImport } from './routes/painel.ai-bot'
 import { Route as PainelAdminRouteImport } from './routes/painel.admin'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
+import { Route as FSlugRouteImport } from './routes/f.$slug'
 import { Route as PainelVistoriasIndexRouteImport } from './routes/painel.vistorias.index'
 import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
 import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistorias.admin'
 import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
+import { Route as PainelFormulariosIdRouteImport } from './routes/painel.formularios.$id'
+import { Route as PainelFormulariosIdRespostasRouteImport } from './routes/painel.formularios.$id.respostas'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public/hooks/uazapi-bot'
 import { Route as ApiPublicHooksReenviarAlertasRouteImport } from './routes/api/public/hooks/reenviar-alertas'
@@ -78,6 +82,11 @@ const PainelGruposRoute = PainelGruposRouteImport.update({
   path: '/grupos',
   getParentRoute: () => PainelRoute,
 } as any)
+const PainelFormulariosRoute = PainelFormulariosRouteImport.update({
+  id: '/formularios',
+  path: '/formularios',
+  getParentRoute: () => PainelRoute,
+} as any)
 const PainelAiBotRoute = PainelAiBotRouteImport.update({
   id: '/ai-bot',
   path: '/ai-bot',
@@ -92,6 +101,11 @@ const PainelEncarregadoRoute = PainelEncarregadoRouteImport.update({
   id: '/$encarregado',
   path: '/$encarregado',
   getParentRoute: () => PainelRoute,
+} as any)
+const FSlugRoute = FSlugRouteImport.update({
+  id: '/f/$slug',
+  path: '/f/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PainelVistoriasIndexRoute = PainelVistoriasIndexRouteImport.update({
   id: '/',
@@ -113,6 +127,17 @@ const PainelVistoriasRuaIdRoute = PainelVistoriasRuaIdRouteImport.update({
   path: '/$ruaId',
   getParentRoute: () => PainelVistoriasRoute,
 } as any)
+const PainelFormulariosIdRoute = PainelFormulariosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => PainelFormulariosRoute,
+} as any)
+const PainelFormulariosIdRespostasRoute =
+  PainelFormulariosIdRespostasRouteImport.update({
+    id: '/respostas',
+    path: '/respostas',
+    getParentRoute: () => PainelFormulariosIdRoute,
+  } as any)
 const PainelEncarregadoAnoMesDiaRoute =
   PainelEncarregadoAnoMesDiaRouteImport.update({
     id: '/$anoMes/$dia',
@@ -159,14 +184,17 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/f/$slug': typeof FSlugRoute
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
+  '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/visao': typeof PainelVisaoRoute
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/formularios/$id': typeof PainelFormulariosIdRouteWithChildren
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
@@ -178,17 +206,21 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
+  '/painel/formularios/$id/respostas': typeof PainelFormulariosIdRespostasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/f/$slug': typeof FSlugRoute
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
+  '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/visao': typeof PainelVisaoRoute
   '/painel': typeof PainelIndexRoute
+  '/painel/formularios/$id': typeof PainelFormulariosIdRouteWithChildren
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
@@ -200,6 +232,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
+  '/painel/formularios/$id/respostas': typeof PainelFormulariosIdRespostasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -207,14 +240,17 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/f/$slug': typeof FSlugRoute
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
+  '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/visao': typeof PainelVisaoRoute
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/formularios/$id': typeof PainelFormulariosIdRouteWithChildren
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
@@ -226,6 +262,7 @@ export interface FileRoutesById {
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
+  '/painel/formularios/$id/respostas': typeof PainelFormulariosIdRespostasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -234,14 +271,17 @@ export interface FileRouteTypes {
     | '/login'
     | '/painel'
     | '/reset-password'
+    | '/f/$slug'
     | '/painel/$encarregado'
     | '/painel/admin'
     | '/painel/ai-bot'
+    | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/visao'
     | '/painel/vistorias'
     | '/painel/'
+    | '/painel/formularios/$id'
     | '/painel/vistorias/$ruaId'
     | '/painel/vistorias/admin'
     | '/painel/$encarregado/'
@@ -253,17 +293,21 @@ export interface FileRouteTypes {
     | '/api/public/hooks/reenviar-alertas'
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
+    | '/painel/formularios/$id/respostas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/reset-password'
+    | '/f/$slug'
     | '/painel/admin'
     | '/painel/ai-bot'
+    | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/visao'
     | '/painel'
+    | '/painel/formularios/$id'
     | '/painel/vistorias/$ruaId'
     | '/painel/vistorias/admin'
     | '/painel/$encarregado'
@@ -275,20 +319,24 @@ export interface FileRouteTypes {
     | '/api/public/hooks/reenviar-alertas'
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
+    | '/painel/formularios/$id/respostas'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/painel'
     | '/reset-password'
+    | '/f/$slug'
     | '/painel/$encarregado'
     | '/painel/admin'
     | '/painel/ai-bot'
+    | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/visao'
     | '/painel/vistorias'
     | '/painel/'
+    | '/painel/formularios/$id'
     | '/painel/vistorias/$ruaId'
     | '/painel/vistorias/admin'
     | '/painel/$encarregado/'
@@ -300,6 +348,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/reenviar-alertas'
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
+    | '/painel/formularios/$id/respostas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -307,6 +356,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  FSlugRoute: typeof FSlugRoute
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
   ApiPublicHooksMensagensProgramadasRoute: typeof ApiPublicHooksMensagensProgramadasRoute
   ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
@@ -380,6 +430,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelGruposRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/painel/formularios': {
+      id: '/painel/formularios'
+      path: '/formularios'
+      fullPath: '/painel/formularios'
+      preLoaderRoute: typeof PainelFormulariosRouteImport
+      parentRoute: typeof PainelRoute
+    }
     '/painel/ai-bot': {
       id: '/painel/ai-bot'
       path: '/ai-bot'
@@ -400,6 +457,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/painel/$encarregado'
       preLoaderRoute: typeof PainelEncarregadoRouteImport
       parentRoute: typeof PainelRoute
+    }
+    '/f/$slug': {
+      id: '/f/$slug'
+      path: '/f/$slug'
+      fullPath: '/f/$slug'
+      preLoaderRoute: typeof FSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/painel/vistorias/': {
       id: '/painel/vistorias/'
@@ -428,6 +492,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/painel/vistorias/$ruaId'
       preLoaderRoute: typeof PainelVistoriasRuaIdRouteImport
       parentRoute: typeof PainelVistoriasRoute
+    }
+    '/painel/formularios/$id': {
+      id: '/painel/formularios/$id'
+      path: '/$id'
+      fullPath: '/painel/formularios/$id'
+      preLoaderRoute: typeof PainelFormulariosIdRouteImport
+      parentRoute: typeof PainelFormulariosRoute
+    }
+    '/painel/formularios/$id/respostas': {
+      id: '/painel/formularios/$id/respostas'
+      path: '/respostas'
+      fullPath: '/painel/formularios/$id/respostas'
+      preLoaderRoute: typeof PainelFormulariosIdRespostasRouteImport
+      parentRoute: typeof PainelFormulariosIdRoute
     }
     '/painel/$encarregado/$anoMes/$dia': {
       id: '/painel/$encarregado/$anoMes/$dia'
@@ -494,6 +572,28 @@ const PainelEncarregadoRouteChildren: PainelEncarregadoRouteChildren = {
 const PainelEncarregadoRouteWithChildren =
   PainelEncarregadoRoute._addFileChildren(PainelEncarregadoRouteChildren)
 
+interface PainelFormulariosIdRouteChildren {
+  PainelFormulariosIdRespostasRoute: typeof PainelFormulariosIdRespostasRoute
+}
+
+const PainelFormulariosIdRouteChildren: PainelFormulariosIdRouteChildren = {
+  PainelFormulariosIdRespostasRoute: PainelFormulariosIdRespostasRoute,
+}
+
+const PainelFormulariosIdRouteWithChildren =
+  PainelFormulariosIdRoute._addFileChildren(PainelFormulariosIdRouteChildren)
+
+interface PainelFormulariosRouteChildren {
+  PainelFormulariosIdRoute: typeof PainelFormulariosIdRouteWithChildren
+}
+
+const PainelFormulariosRouteChildren: PainelFormulariosRouteChildren = {
+  PainelFormulariosIdRoute: PainelFormulariosIdRouteWithChildren,
+}
+
+const PainelFormulariosRouteWithChildren =
+  PainelFormulariosRoute._addFileChildren(PainelFormulariosRouteChildren)
+
 interface PainelVistoriasRouteChildren {
   PainelVistoriasRuaIdRoute: typeof PainelVistoriasRuaIdRoute
   PainelVistoriasAdminRoute: typeof PainelVistoriasAdminRoute
@@ -514,6 +614,7 @@ interface PainelRouteChildren {
   PainelEncarregadoRoute: typeof PainelEncarregadoRouteWithChildren
   PainelAdminRoute: typeof PainelAdminRoute
   PainelAiBotRoute: typeof PainelAiBotRoute
+  PainelFormulariosRoute: typeof PainelFormulariosRouteWithChildren
   PainelGruposRoute: typeof PainelGruposRoute
   PainelGuiaRoute: typeof PainelGuiaRoute
   PainelVisaoRoute: typeof PainelVisaoRoute
@@ -525,6 +626,7 @@ const PainelRouteChildren: PainelRouteChildren = {
   PainelEncarregadoRoute: PainelEncarregadoRouteWithChildren,
   PainelAdminRoute: PainelAdminRoute,
   PainelAiBotRoute: PainelAiBotRoute,
+  PainelFormulariosRoute: PainelFormulariosRouteWithChildren,
   PainelGruposRoute: PainelGruposRoute,
   PainelGuiaRoute: PainelGuiaRoute,
   PainelVisaoRoute: PainelVisaoRoute,
@@ -540,6 +642,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  FSlugRoute: FSlugRoute,
   ApiPublicHooksAiBotRoute: ApiPublicHooksAiBotRoute,
   ApiPublicHooksMensagensProgramadasRoute:
     ApiPublicHooksMensagensProgramadasRoute,
@@ -552,13 +655,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

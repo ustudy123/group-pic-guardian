@@ -1,0 +1,346 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { CheckCircle2, Paperclip, Loader2 } from "lucide-react";
+
+export const Route = createFileRoute("/f/$slug")({
+  component: FormPublico,
+});
+
+function FormPublico() {
+  const { slug } = Route.useParams();
+  const [valores, setValores] = useState<Record<string, any>>({});
+  const [arquivos, setArquivos] = useState<Record<string, File[]>>({});
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [enviado, setEnviado] = useState(false);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["form-publico", slug],
+    queryFn: async () => {
+      const { data: form, error: e1 } = await supabase
+        .from("formularios")
+        .select("*")
+        .eq("share_slug", slug)
+        .eq("status", "publicado")
+        .eq("publico", true)
+        .maybeSingle();
+      if (e1) throw e1;
+      if (!form) throw new Error("Formulário não encontrado ou não está público.");
+      const { data: campos } = await supabase
+        .from("formulario_campos")
+        .select("*")
+        .eq("formulario_id", form.id)
+        .order("ordem");
+      return { form, campos: campos ?? [] };
+    },
+  });
+
+  const enviar = useMutation({
+    mutationFn: async () => {
+      if (!data) return;
+      // Validação obrigatórios
+      for (const c of data.campos) {
+        if (c.obrigatorio && c.tipo !== "secao") {
+          if (c.tipo === "arquivo" || c.tipo === "foto") {
+            if (!arquivos[c.id]?.length) throw new Error(`Campo "${c.rotulo}" é obrigatório.`);
+          } else {
+            const v = valores[c.id];
+            if (v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length))
+              throw new Error(`Campo "${c.rotulo}" é obrigatório.`);
+          }
+        }
+      }
+
+      // Upload arquivos
+      const arquivosMeta: any[] = [];
+      const { data: { user } } = await supabase.auth.getUser();
+      for (const [campoId, files] of Object.entries(arquivos)) {
+        for (const f of files) {
+          if (!user) {
+            throw new Error(
+              `Anexos só são suportados para usuários autenticados nesta versão. Remova o arquivo do campo.`,
+            );
+          }
+          const path = `formularios/${data.form.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.name}`;
+          const { error } = await supabase.storage.from("fotos-obras").upload(path, f);
+          if (error) throw error;
+          arquivosMeta.push({
+            campo_id: campoId,
+            path,
+            nome: f.name,
+            tipo: f.type,
+            tamanho: f.size,
+          });
+        }
+      }
+
+      const { error } = await supabase.from("formulario_respostas").insert({
+        formulario_id: data.form.id,
+        respondente_id: user?.id ?? null,
+        respondente_nome: nome || null,
+        respondente_email: email || user?.email || null,
+        dados: valores,
+        arquivos: arquivosMeta,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => setEnviado(true),
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  if (isLoading)
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  if (error || !data)
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md text-center">
+          <h1 className="text-2xl font-bold">Formulário indisponível</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            {(error as any)?.message ?? "Verifique o link."}
+          </p>
+        </div>
+      </div>
+    );
+
+  if (enviado)
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-muted/30">
+        <div className="max-w-md text-center bg-card border rounded-2xl p-8 shadow-sm">
+          <CheckCircle2 className="mx-auto text-emerald-500" size={48} />
+          <h1 className="text-2xl font-bold mt-3">Resposta enviada!</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            Obrigado por preencher o formulário.
+          </p>
+          {data.form.permite_multiplas && (
+            <button
+              onClick={() => {
+                setValores({});
+                setArquivos({});
+                setNome("");
+                setEmail("");
+                setEnviado(false);
+              }}
+              className="mt-4 rounded-lg border px-3 py-2 text-sm hover:bg-accent"
+            >
+              Enviar outra resposta
+            </button>
+          )}
+        </div>
+      </div>
+    );
+
+  return (
+    <div className="min-h-screen bg-muted/30 py-8 px-4">
+      <div className="max-w-2xl mx-auto space-y-4">
+        <div className="bg-card border rounded-2xl p-6 shadow-sm">
+          <h1 className="text-3xl font-bold">{data.form.titulo}</h1>
+          {data.form.descricao && (
+            <p className="text-sm text-muted-foreground mt-2">{data.form.descricao}</p>
+          )}
+        </div>
+
+        <div className="bg-card border rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block text-sm">
+              <span className="text-muted-foreground">Seu nome (opcional)</span>
+              <input
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="text-muted-foreground">Seu email (opcional)</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2"
+              />
+            </label>
+          </div>
+        </div>
+
+        {data.campos.map((c: any) => (
+          <CampoInput
+            key={c.id}
+            c={c}
+            valor={valores[c.id]}
+            onChange={(v) => setValores({ ...valores, [c.id]: v })}
+            arquivos={arquivos[c.id] ?? []}
+            onArquivos={(fs) => setArquivos({ ...arquivos, [c.id]: fs })}
+          />
+        ))}
+
+        <button
+          onClick={() => enviar.mutate()}
+          disabled={enviar.isPending}
+          className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-3 font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+        >
+          {enviar.isPending && <Loader2 size={16} className="animate-spin" />}
+          Enviar resposta
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CampoInput({
+  c,
+  valor,
+  onChange,
+  arquivos,
+  onArquivos,
+}: {
+  c: any;
+  valor: any;
+  onChange: (v: any) => void;
+  arquivos: File[];
+  onArquivos: (fs: File[]) => void;
+}) {
+  if (c.tipo === "secao") {
+    return (
+      <div className="pt-2">
+        <h2 className="text-xl font-bold">{c.rotulo}</h2>
+        {c.descricao && <p className="text-sm text-muted-foreground">{c.descricao}</p>}
+      </div>
+    );
+  }
+  const baseInput = "mt-1 w-full rounded-md border bg-background px-3 py-2";
+  return (
+    <div className="bg-card border rounded-2xl p-5 shadow-sm">
+      <label className="block text-sm font-semibold">
+        {c.rotulo}
+        {c.obrigatorio && <span className="text-destructive"> *</span>}
+      </label>
+      {c.descricao && <p className="text-xs text-muted-foreground mt-0.5">{c.descricao}</p>}
+      {c.tipo === "texto_curto" && (
+        <input
+          value={valor ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={c.placeholder ?? ""}
+          className={baseInput}
+        />
+      )}
+      {c.tipo === "texto_longo" && (
+        <textarea
+          value={valor ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={c.placeholder ?? ""}
+          rows={4}
+          className={baseInput}
+        />
+      )}
+      {c.tipo === "numero" && (
+        <input
+          type="number"
+          value={valor ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={baseInput}
+        />
+      )}
+      {c.tipo === "data" && (
+        <input
+          type="date"
+          value={valor ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={baseInput}
+        />
+      )}
+      {c.tipo === "hora" && (
+        <input
+          type="time"
+          value={valor ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={baseInput}
+        />
+      )}
+      {c.tipo === "datahora" && (
+        <input
+          type="datetime-local"
+          value={valor ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={baseInput}
+        />
+      )}
+      {c.tipo === "dropdown" && (
+        <select
+          value={valor ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={baseInput}
+        >
+          <option value="">{c.placeholder ?? "Selecione..."}</option>
+          {(c.opcoes as string[]).map((op, i) => (
+            <option key={i} value={op}>
+              {op}
+            </option>
+          ))}
+        </select>
+      )}
+      {c.tipo === "escolha_unica" && (
+        <div className="mt-2 space-y-1.5">
+          {(c.opcoes as string[]).map((op, i) => (
+            <label key={i} className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                checked={valor === op}
+                onChange={() => onChange(op)}
+              />
+              {op}
+            </label>
+          ))}
+        </div>
+      )}
+      {c.tipo === "escolha_multipla" && (
+        <div className="mt-2 space-y-1.5">
+          {(c.opcoes as string[]).map((op, i) => {
+            const arr: string[] = Array.isArray(valor) ? valor : [];
+            return (
+              <label key={i} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={arr.includes(op)}
+                  onChange={(e) => {
+                    if (e.target.checked) onChange([...arr, op]);
+                    else onChange(arr.filter((x) => x !== op));
+                  }}
+                />
+                {op}
+              </label>
+            );
+          })}
+        </div>
+      )}
+      {(c.tipo === "arquivo" || c.tipo === "foto") && (
+        <div className="mt-2">
+          <label className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm cursor-pointer hover:bg-accent">
+            <Paperclip size={14} />
+            {arquivos.length ? `${arquivos.length} arquivo(s)` : c.tipo === "foto" ? "Selecionar foto" : "Selecionar arquivo"}
+            <input
+              type="file"
+              accept={c.tipo === "foto" ? "image/*" : undefined}
+              multiple={!!(c.config as any)?.multiplo}
+              capture={c.tipo === "foto" ? "environment" : undefined}
+              onChange={(e) => onArquivos(Array.from(e.target.files ?? []))}
+              className="hidden"
+            />
+          </label>
+          {arquivos.length > 0 && (
+            <ul className="mt-2 text-xs text-muted-foreground space-y-0.5">
+              {arquivos.map((f, i) => (
+                <li key={i}>• {f.name}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

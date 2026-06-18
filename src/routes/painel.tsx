@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { BotStatusIndicator } from "@/components/bot-status-indicator";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye } from "lucide-react";
+import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye, ClipboardList } from "lucide-react";
 
 function AdminLink() {
   const { data } = useQuery({
@@ -134,6 +134,14 @@ function PainelLayout() {
                 >
                   <Eye size={15} />
                   <span className="hidden sm:inline">Visão IA</span>
+                </Link>
+                <Link
+                  to="/painel/formularios"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+                  title="Formulários"
+                >
+                  <ClipboardList size={15} />
+                  <span className="hidden sm:inline">Formulários</span>
                 </Link>
               </>
             )}
