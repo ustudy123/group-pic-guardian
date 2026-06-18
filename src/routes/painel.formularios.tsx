@@ -342,7 +342,7 @@ function ListaFormularios() {
                         pastas={pastas}
                         onMover={(pid) => moverForm.mutate({ id: f.id, pasta_id: pid })}
                         onClonar={() => clonarForm.mutate(f.id)}
-                        onExcluir={() => excluirForm.mutate(f.id)}
+                        onExcluir={() => abrirExcluirForm(f.id)}
                       />
                     ))}
                   </div>
@@ -370,7 +370,7 @@ function ListaFormularios() {
               pastas={pastas}
               onMover={(pid) => moverForm.mutate({ id: f.id, pasta_id: pid })}
               onClonar={() => clonarForm.mutate(f.id)}
-              onExcluir={() => excluirForm.mutate(f.id)}
+              onExcluir={() => abrirExcluirForm(f.id)}
             />
           ))}
         </div>
