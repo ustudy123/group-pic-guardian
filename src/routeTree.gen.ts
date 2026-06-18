@@ -26,6 +26,7 @@ import { Route as PainelVistoriasIndexRouteImport } from './routes/painel.vistor
 import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
 import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistorias.admin'
 import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
+import { Route as PainelFormulariosIdRouteImport } from './routes/painel.formularios.$id'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public/hooks/uazapi-bot'
 import { Route as ApiPublicHooksReenviarAlertasRouteImport } from './routes/api/public/hooks/reenviar-alertas'
@@ -119,6 +120,11 @@ const PainelVistoriasRuaIdRoute = PainelVistoriasRuaIdRouteImport.update({
   path: '/$ruaId',
   getParentRoute: () => PainelVistoriasRoute,
 } as any)
+const PainelFormulariosIdRoute = PainelFormulariosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => PainelFormulariosRoute,
+} as any)
 const PainelEncarregadoAnoMesDiaRoute =
   PainelEncarregadoAnoMesDiaRouteImport.update({
     id: '/$anoMes/$dia',
@@ -168,12 +174,13 @@ export interface FileRoutesByFullPath {
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
-  '/painel/formularios': typeof PainelFormulariosRoute
+  '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/visao': typeof PainelVisaoRoute
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/formularios/$id': typeof PainelFormulariosIdRoute
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
@@ -192,11 +199,12 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
-  '/painel/formularios': typeof PainelFormulariosRoute
+  '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/visao': typeof PainelVisaoRoute
   '/painel': typeof PainelIndexRoute
+  '/painel/formularios/$id': typeof PainelFormulariosIdRoute
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
@@ -218,12 +226,13 @@ export interface FileRoutesById {
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
-  '/painel/formularios': typeof PainelFormulariosRoute
+  '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/visao': typeof PainelVisaoRoute
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
+  '/painel/formularios/$id': typeof PainelFormulariosIdRoute
   '/painel/vistorias/$ruaId': typeof PainelVistoriasRuaIdRoute
   '/painel/vistorias/admin': typeof PainelVistoriasAdminRoute
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
@@ -252,6 +261,7 @@ export interface FileRouteTypes {
     | '/painel/visao'
     | '/painel/vistorias'
     | '/painel/'
+    | '/painel/formularios/$id'
     | '/painel/vistorias/$ruaId'
     | '/painel/vistorias/admin'
     | '/painel/$encarregado/'
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/painel/guia'
     | '/painel/visao'
     | '/painel'
+    | '/painel/formularios/$id'
     | '/painel/vistorias/$ruaId'
     | '/painel/vistorias/admin'
     | '/painel/$encarregado'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/painel/visao'
     | '/painel/vistorias'
     | '/painel/'
+    | '/painel/formularios/$id'
     | '/painel/vistorias/$ruaId'
     | '/painel/vistorias/admin'
     | '/painel/$encarregado/'
@@ -448,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelVistoriasRuaIdRouteImport
       parentRoute: typeof PainelVistoriasRoute
     }
+    '/painel/formularios/$id': {
+      id: '/painel/formularios/$id'
+      path: '/$id'
+      fullPath: '/painel/formularios/$id'
+      preLoaderRoute: typeof PainelFormulariosIdRouteImport
+      parentRoute: typeof PainelFormulariosRoute
+    }
     '/painel/$encarregado/$anoMes/$dia': {
       id: '/painel/$encarregado/$anoMes/$dia'
       path: '/$anoMes/$dia'
@@ -513,6 +532,17 @@ const PainelEncarregadoRouteChildren: PainelEncarregadoRouteChildren = {
 const PainelEncarregadoRouteWithChildren =
   PainelEncarregadoRoute._addFileChildren(PainelEncarregadoRouteChildren)
 
+interface PainelFormulariosRouteChildren {
+  PainelFormulariosIdRoute: typeof PainelFormulariosIdRoute
+}
+
+const PainelFormulariosRouteChildren: PainelFormulariosRouteChildren = {
+  PainelFormulariosIdRoute: PainelFormulariosIdRoute,
+}
+
+const PainelFormulariosRouteWithChildren =
+  PainelFormulariosRoute._addFileChildren(PainelFormulariosRouteChildren)
+
 interface PainelVistoriasRouteChildren {
   PainelVistoriasRuaIdRoute: typeof PainelVistoriasRuaIdRoute
   PainelVistoriasAdminRoute: typeof PainelVistoriasAdminRoute
@@ -533,7 +563,7 @@ interface PainelRouteChildren {
   PainelEncarregadoRoute: typeof PainelEncarregadoRouteWithChildren
   PainelAdminRoute: typeof PainelAdminRoute
   PainelAiBotRoute: typeof PainelAiBotRoute
-  PainelFormulariosRoute: typeof PainelFormulariosRoute
+  PainelFormulariosRoute: typeof PainelFormulariosRouteWithChildren
   PainelGruposRoute: typeof PainelGruposRoute
   PainelGuiaRoute: typeof PainelGuiaRoute
   PainelVisaoRoute: typeof PainelVisaoRoute
@@ -545,7 +575,7 @@ const PainelRouteChildren: PainelRouteChildren = {
   PainelEncarregadoRoute: PainelEncarregadoRouteWithChildren,
   PainelAdminRoute: PainelAdminRoute,
   PainelAiBotRoute: PainelAiBotRoute,
-  PainelFormulariosRoute: PainelFormulariosRoute,
+  PainelFormulariosRoute: PainelFormulariosRouteWithChildren,
   PainelGruposRoute: PainelGruposRoute,
   PainelGuiaRoute: PainelGuiaRoute,
   PainelVisaoRoute: PainelVisaoRoute,
