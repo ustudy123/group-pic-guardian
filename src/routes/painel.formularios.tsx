@@ -306,26 +306,27 @@ function ListaFormularios() {
                     </div>
                   </div>
                   <button
-                    onClick={() => criarForm.mutate(p.id)}
+                    onClick={() => abrirNovoForm(p.id)}
                     className="text-xs inline-flex items-center gap-1 rounded-md border px-2 py-1 hover:bg-accent"
                     title="Adicionar formulário a esta pasta"
                   >
                     <FilePlus size={12} /> Form
                   </button>
                   <button
-                    onClick={() => renomearPasta.mutate(p)}
+                    onClick={() => abrirRenomearPasta(p)}
                     className="text-muted-foreground hover:text-foreground p-1"
                     title="Renomear"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
-                    onClick={() => excluirPasta.mutate(p.id)}
+                    onClick={() => abrirExcluirPasta(p.id)}
                     className="text-muted-foreground hover:text-destructive p-1"
                     title="Excluir"
                   >
                     <Trash2 size={14} />
                   </button>
+
                 </div>
                 {aberta && (
                   <div className="bg-muted/30 px-3 py-2 space-y-1">
