@@ -18,6 +18,7 @@ import { Route as PainelVistoriasRouteImport } from './routes/painel.vistorias'
 import { Route as PainelVisaoRouteImport } from './routes/painel.visao'
 import { Route as PainelGuiaRouteImport } from './routes/painel.guia'
 import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
+import { Route as PainelFormulariosRouteImport } from './routes/painel.formularios'
 import { Route as PainelAiBotRouteImport } from './routes/painel.ai-bot'
 import { Route as PainelAdminRouteImport } from './routes/painel.admin'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
@@ -76,6 +77,11 @@ const PainelGuiaRoute = PainelGuiaRouteImport.update({
 const PainelGruposRoute = PainelGruposRouteImport.update({
   id: '/grupos',
   path: '/grupos',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelFormulariosRoute = PainelFormulariosRouteImport.update({
+  id: '/formularios',
+  path: '/formularios',
   getParentRoute: () => PainelRoute,
 } as any)
 const PainelAiBotRoute = PainelAiBotRouteImport.update({
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
+  '/painel/formularios': typeof PainelFormulariosRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/visao': typeof PainelVisaoRoute
@@ -185,6 +192,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
+  '/painel/formularios': typeof PainelFormulariosRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/visao': typeof PainelVisaoRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
+  '/painel/formularios': typeof PainelFormulariosRoute
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
   '/painel/visao': typeof PainelVisaoRoute
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/admin'
     | '/painel/ai-bot'
+    | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/visao'
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/painel/admin'
     | '/painel/ai-bot'
+    | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/visao'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/admin'
     | '/painel/ai-bot'
+    | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
     | '/painel/visao'
@@ -378,6 +390,13 @@ declare module '@tanstack/react-router' {
       path: '/grupos'
       fullPath: '/painel/grupos'
       preLoaderRoute: typeof PainelGruposRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/formularios': {
+      id: '/painel/formularios'
+      path: '/formularios'
+      fullPath: '/painel/formularios'
+      preLoaderRoute: typeof PainelFormulariosRouteImport
       parentRoute: typeof PainelRoute
     }
     '/painel/ai-bot': {
@@ -514,6 +533,7 @@ interface PainelRouteChildren {
   PainelEncarregadoRoute: typeof PainelEncarregadoRouteWithChildren
   PainelAdminRoute: typeof PainelAdminRoute
   PainelAiBotRoute: typeof PainelAiBotRoute
+  PainelFormulariosRoute: typeof PainelFormulariosRoute
   PainelGruposRoute: typeof PainelGruposRoute
   PainelGuiaRoute: typeof PainelGuiaRoute
   PainelVisaoRoute: typeof PainelVisaoRoute
@@ -525,6 +545,7 @@ const PainelRouteChildren: PainelRouteChildren = {
   PainelEncarregadoRoute: PainelEncarregadoRouteWithChildren,
   PainelAdminRoute: PainelAdminRoute,
   PainelAiBotRoute: PainelAiBotRoute,
+  PainelFormulariosRoute: PainelFormulariosRoute,
   PainelGruposRoute: PainelGruposRoute,
   PainelGuiaRoute: PainelGuiaRoute,
   PainelVisaoRoute: PainelVisaoRoute,
