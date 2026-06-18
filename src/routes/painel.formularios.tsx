@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, useLocation } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -62,10 +62,28 @@ type Form = {
   updated_at: string;
 };
 
+type PromptState = {
+  title: string;
+  label?: string;
+  initial?: string;
+  confirmLabel?: string;
+  onConfirm: (value: string) => void;
+} | null;
+
+type ConfirmState = {
+  title: string;
+  message?: string;
+  destructive?: boolean;
+  confirmLabel?: string;
+  onConfirm: () => void;
+} | null;
+
 function ListaFormularios() {
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const [pastaAberta, setPastaAberta] = useState<Record<string, boolean>>({});
+  const [promptDlg, setPromptDlg] = useState<PromptState>(null);
+  const [confirmDlg, setConfirmDlg] = useState<ConfirmState>(null);
 
   const { data: pastas = [] } = useQuery({
     queryKey: ["form-pastas"],
@@ -91,53 +109,41 @@ function ListaFormularios() {
     },
   });
 
-  const criarPasta = useMutation({
-    mutationFn: async () => {
-      const nome = prompt("Nome da pasta:");
-      if (!nome) return null;
+  const criarPastaMut = useMutation({
+    mutationFn: async (nome: string) => {
       const { error } = await supabase.from("form_pastas").insert({ nome });
       if (error) throw error;
-      return true;
     },
-    onSuccess: (r) => {
-      if (r) {
-        qc.invalidateQueries({ queryKey: ["form-pastas"] });
-        toast.success("Pasta criada");
-      }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["form-pastas"] });
+      toast.success("Pasta criada");
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  const renomearPasta = useMutation({
-    mutationFn: async (p: Pasta) => {
-      const nome = prompt("Renomear pasta:", p.nome);
-      if (!nome) return null;
-      const { error } = await supabase.from("form_pastas").update({ nome }).eq("id", p.id);
+  const renomearPastaMut = useMutation({
+    mutationFn: async ({ id, nome }: { id: string; nome: string }) => {
+      const { error } = await supabase.from("form_pastas").update({ nome }).eq("id", id);
       if (error) throw error;
-      return true;
     },
-    onSuccess: (r) => r && qc.invalidateQueries({ queryKey: ["form-pastas"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["form-pastas"] }),
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const excluirPasta = useMutation({
+  const excluirPastaMut = useMutation({
     mutationFn: async (id: string) => {
-      if (!confirm("Excluir pasta? Os formulários ficarão sem pasta.")) return null;
       const { error } = await supabase.from("form_pastas").delete().eq("id", id);
       if (error) throw error;
-      return true;
     },
-    onSuccess: (r) => {
-      if (r) {
-        qc.invalidateQueries({ queryKey: ["form-pastas"] });
-        qc.invalidateQueries({ queryKey: ["formularios"] });
-      }
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["form-pastas"] });
+      qc.invalidateQueries({ queryKey: ["formularios"] });
     },
+    onError: (e: any) => toast.error(e.message),
   });
 
-  const criarForm = useMutation({
-    mutationFn: async (pasta_id: string | null) => {
-      const titulo = prompt("Nome do formulário:");
-      if (!titulo) return null;
+  const criarFormMut = useMutation({
+    mutationFn: async ({ titulo, pasta_id }: { titulo: string; pasta_id: string | null }) => {
       const { data, error } = await supabase
         .from("formularios")
         .insert({ titulo, pasta_id })
@@ -147,13 +153,42 @@ function ListaFormularios() {
       return data.id as string;
     },
     onSuccess: (id) => {
-      if (id) {
-        qc.invalidateQueries({ queryKey: ["formularios"] });
-        window.location.href = `/painel/formularios/${id}`;
-      }
+      qc.invalidateQueries({ queryKey: ["formularios"] });
+      window.location.href = `/painel/formularios/${id}`;
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const abrirCriarPasta = () =>
+    setPromptDlg({
+      title: "Nova pasta",
+      label: "Nome da pasta",
+      confirmLabel: "Criar",
+      onConfirm: (v) => criarPastaMut.mutate(v),
+    });
+  const abrirRenomearPasta = (p: Pasta) =>
+    setPromptDlg({
+      title: "Renomear pasta",
+      label: "Nome da pasta",
+      initial: p.nome,
+      confirmLabel: "Salvar",
+      onConfirm: (v) => renomearPastaMut.mutate({ id: p.id, nome: v }),
+    });
+  const abrirExcluirPasta = (id: string) =>
+    setConfirmDlg({
+      title: "Excluir pasta?",
+      message: "Os formulários ficarão sem pasta.",
+      destructive: true,
+      confirmLabel: "Excluir",
+      onConfirm: () => excluirPastaMut.mutate(id),
+    });
+  const abrirNovoForm = (pasta_id: string | null) =>
+    setPromptDlg({
+      title: "Novo formulário",
+      label: "Nome do formulário",
+      confirmLabel: "Criar",
+      onConfirm: (v) => criarFormMut.mutate({ titulo: v, pasta_id }),
+    });
 
   const moverForm = useMutation({
     mutationFn: async ({ id, pasta_id }: { id: string; pasta_id: string | null }) => {
@@ -193,15 +228,22 @@ function ListaFormularios() {
     },
   });
 
-  const excluirForm = useMutation({
+  const excluirFormMut = useMutation({
     mutationFn: async (id: string) => {
-      if (!confirm("Excluir formulário e todas as respostas?")) return null;
       const { error } = await supabase.from("formularios").delete().eq("id", id);
       if (error) throw error;
-      return true;
     },
-    onSuccess: (r) => r && qc.invalidateQueries({ queryKey: ["formularios"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["formularios"] }),
+    onError: (e: any) => toast.error(e.message),
   });
+  const abrirExcluirForm = (id: string) =>
+    setConfirmDlg({
+      title: "Excluir formulário?",
+      message: "Todas as respostas também serão removidas.",
+      destructive: true,
+      confirmLabel: "Excluir",
+      onConfirm: () => excluirFormMut.mutate(id),
+    });
 
   const formsFiltrados = forms.filter(
     (f) => !busca || f.titulo.toLowerCase().includes(busca.toLowerCase()),
@@ -211,6 +253,8 @@ function ListaFormularios() {
 
   return (
     <div className="space-y-6">
+      <PromptDialog state={promptDlg} onClose={() => setPromptDlg(null)} />
+      <ConfirmDialog state={confirmDlg} onClose={() => setConfirmDlg(null)} />
       <div className="flex flex-wrap items-center gap-3">
         <input
           value={busca}
@@ -219,13 +263,13 @@ function ListaFormularios() {
           className="flex-1 min-w-[200px] rounded-lg border bg-background px-3 py-2 text-sm"
         />
         <button
-          onClick={() => criarPasta.mutate()}
+          onClick={abrirCriarPasta}
           className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-3 py-2 text-sm font-medium hover:bg-accent"
         >
           <FolderPlus size={15} /> Nova pasta
         </button>
         <button
-          onClick={() => criarForm.mutate(null)}
+          onClick={() => abrirNovoForm(null)}
           className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-semibold hover:opacity-90"
         >
           <FilePlus size={15} /> Novo formulário
@@ -262,26 +306,27 @@ function ListaFormularios() {
                     </div>
                   </div>
                   <button
-                    onClick={() => criarForm.mutate(p.id)}
+                    onClick={() => abrirNovoForm(p.id)}
                     className="text-xs inline-flex items-center gap-1 rounded-md border px-2 py-1 hover:bg-accent"
                     title="Adicionar formulário a esta pasta"
                   >
                     <FilePlus size={12} /> Form
                   </button>
                   <button
-                    onClick={() => renomearPasta.mutate(p)}
+                    onClick={() => abrirRenomearPasta(p)}
                     className="text-muted-foreground hover:text-foreground p-1"
                     title="Renomear"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
-                    onClick={() => excluirPasta.mutate(p.id)}
+                    onClick={() => abrirExcluirPasta(p.id)}
                     className="text-muted-foreground hover:text-destructive p-1"
                     title="Excluir"
                   >
                     <Trash2 size={14} />
                   </button>
+
                 </div>
                 {aberta && (
                   <div className="bg-muted/30 px-3 py-2 space-y-1">
@@ -297,7 +342,7 @@ function ListaFormularios() {
                         pastas={pastas}
                         onMover={(pid) => moverForm.mutate({ id: f.id, pasta_id: pid })}
                         onClonar={() => clonarForm.mutate(f.id)}
-                        onExcluir={() => excluirForm.mutate(f.id)}
+                        onExcluir={() => abrirExcluirForm(f.id)}
                       />
                     ))}
                   </div>
@@ -325,7 +370,7 @@ function ListaFormularios() {
               pastas={pastas}
               onMover={(pid) => moverForm.mutate({ id: f.id, pasta_id: pid })}
               onClonar={() => clonarForm.mutate(f.id)}
-              onExcluir={() => excluirForm.mutate(f.id)}
+              onExcluir={() => abrirExcluirForm(f.id)}
             />
           ))}
         </div>
@@ -460,4 +505,82 @@ function Badge({ status }: { status: string }) {
       {status}
     </span>
   );
+}
+
+function PromptDialog({ state, onClose }: { state: PromptState; onClose: () => void }) {
+  const [value, setValue] = useState("");
+  const open = !!state;
+  // reset value when dialog opens
+  useEffectOnOpen(open, () => setValue(state?.initial ?? ""));
+  if (!state) return null;
+  const submit = () => {
+    const v = value.trim();
+    if (!v) return;
+    state.onConfirm(v);
+    onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl border bg-card shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-bold mb-3">{state.title}</h3>
+        {state.label && <label className="text-xs font-medium text-muted-foreground">{state.label}</label>}
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+            if (e.key === "Escape") onClose();
+          }}
+          className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border px-3 py-1.5 text-sm hover:bg-accent">
+            Cancelar
+          </button>
+          <button onClick={submit} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold hover:opacity-90">
+            {state.confirmLabel ?? "OK"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({ state, onClose }: { state: ConfirmState; onClose: () => void }) {
+  if (!state) return null;
+  const submit = () => {
+    state.onConfirm();
+    onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl border bg-card shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-bold mb-1">{state.title}</h3>
+        {state.message && <p className="text-sm text-muted-foreground">{state.message}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border px-3 py-1.5 text-sm hover:bg-accent">
+            Cancelar
+          </button>
+          <button
+            onClick={submit}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+              state.destructive
+                ? "bg-destructive text-destructive-foreground hover:opacity-90"
+                : "bg-primary text-primary-foreground hover:opacity-90"
+            }`}
+          >
+            {state.confirmLabel ?? "Confirmar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function useEffectOnOpen(open: boolean, fn: () => void) {
+  useEffect(() => {
+    if (open) fn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 }
