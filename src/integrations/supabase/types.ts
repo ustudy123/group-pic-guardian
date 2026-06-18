@@ -439,6 +439,195 @@ export type Database = {
         }
         Relationships: []
       }
+      form_pastas: {
+        Row: {
+          cor: string | null
+          created_at: string
+          criado_por: string | null
+          id: string
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          cor?: string | null
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          cor?: string | null
+          created_at?: string
+          criado_por?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      formulario_campos: {
+        Row: {
+          config: Json
+          created_at: string
+          descricao: string | null
+          formulario_id: string
+          id: string
+          obrigatorio: boolean
+          opcoes: Json
+          ordem: number
+          placeholder: string | null
+          rotulo: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          descricao?: string | null
+          formulario_id: string
+          id?: string
+          obrigatorio?: boolean
+          opcoes?: Json
+          ordem?: number
+          placeholder?: string | null
+          rotulo: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          descricao?: string | null
+          formulario_id?: string
+          id?: string
+          obrigatorio?: boolean
+          opcoes?: Json
+          ordem?: number
+          placeholder?: string | null
+          rotulo?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formulario_campos_formulario_id_fkey"
+            columns: ["formulario_id"]
+            isOneToOne: false
+            referencedRelation: "formularios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formulario_respostas: {
+        Row: {
+          arquivos: Json
+          created_at: string
+          dados: Json
+          formulario_id: string
+          id: string
+          ip: string | null
+          respondente_email: string | null
+          respondente_id: string | null
+          respondente_nome: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          arquivos?: Json
+          created_at?: string
+          dados?: Json
+          formulario_id: string
+          id?: string
+          ip?: string | null
+          respondente_email?: string | null
+          respondente_id?: string | null
+          respondente_nome?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          arquivos?: Json
+          created_at?: string
+          dados?: Json
+          formulario_id?: string
+          id?: string
+          ip?: string | null
+          respondente_email?: string | null
+          respondente_id?: string | null
+          respondente_nome?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formulario_respostas_formulario_id_fkey"
+            columns: ["formulario_id"]
+            isOneToOne: false
+            referencedRelation: "formularios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      formularios: {
+        Row: {
+          cor: string | null
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          icone: string | null
+          id: string
+          modelo: boolean
+          pasta_id: string | null
+          permite_multiplas: boolean
+          publico: boolean
+          share_slug: string | null
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          cor?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          modelo?: boolean
+          pasta_id?: string | null
+          permite_multiplas?: boolean
+          publico?: boolean
+          share_slug?: string | null
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          cor?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          icone?: string | null
+          id?: string
+          modelo?: boolean
+          pasta_id?: string | null
+          permite_multiplas?: boolean
+          publico?: boolean
+          share_slug?: string | null
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formularios_pasta_id_fkey"
+            columns: ["pasta_id"]
+            isOneToOne: false
+            referencedRelation: "form_pastas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       foto_analise_jobs: {
         Row: {
           created_at: string
