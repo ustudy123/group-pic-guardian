@@ -22,6 +22,7 @@ import { Route as PainelFormulariosRouteImport } from './routes/painel.formulari
 import { Route as PainelAiBotRouteImport } from './routes/painel.ai-bot'
 import { Route as PainelAdminRouteImport } from './routes/painel.admin'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
+import { Route as FSlugRouteImport } from './routes/f.$slug'
 import { Route as PainelVistoriasIndexRouteImport } from './routes/painel.vistorias.index'
 import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
 import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistorias.admin'
@@ -101,6 +102,11 @@ const PainelEncarregadoRoute = PainelEncarregadoRouteImport.update({
   path: '/$encarregado',
   getParentRoute: () => PainelRoute,
 } as any)
+const FSlugRoute = FSlugRouteImport.update({
+  id: '/f/$slug',
+  path: '/f/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PainelVistoriasIndexRoute = PainelVistoriasIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/f/$slug': typeof FSlugRoute
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/f/$slug': typeof FSlugRoute
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
   '/painel/formularios': typeof PainelFormulariosRouteWithChildren
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/reset-password': typeof ResetPasswordRoute
+  '/f/$slug': typeof FSlugRoute
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/painel'
     | '/reset-password'
+    | '/f/$slug'
     | '/painel/$encarregado'
     | '/painel/admin'
     | '/painel/ai-bot'
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reset-password'
+    | '/f/$slug'
     | '/painel/admin'
     | '/painel/ai-bot'
     | '/painel/formularios'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/painel'
     | '/reset-password'
+    | '/f/$slug'
     | '/painel/$encarregado'
     | '/painel/admin'
     | '/painel/ai-bot'
@@ -344,6 +356,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
   ResetPasswordRoute: typeof ResetPasswordRoute
+  FSlugRoute: typeof FSlugRoute
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
   ApiPublicHooksMensagensProgramadasRoute: typeof ApiPublicHooksMensagensProgramadasRoute
   ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
@@ -444,6 +457,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/painel/$encarregado'
       preLoaderRoute: typeof PainelEncarregadoRouteImport
       parentRoute: typeof PainelRoute
+    }
+    '/f/$slug': {
+      id: '/f/$slug'
+      path: '/f/$slug'
+      fullPath: '/f/$slug'
+      preLoaderRoute: typeof FSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/painel/vistorias/': {
       id: '/painel/vistorias/'
@@ -622,6 +642,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
   ResetPasswordRoute: ResetPasswordRoute,
+  FSlugRoute: FSlugRoute,
   ApiPublicHooksAiBotRoute: ApiPublicHooksAiBotRoute,
   ApiPublicHooksMensagensProgramadasRoute:
     ApiPublicHooksMensagensProgramadasRoute,
