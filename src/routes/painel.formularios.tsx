@@ -506,3 +506,81 @@ function Badge({ status }: { status: string }) {
     </span>
   );
 }
+
+function PromptDialog({ state, onClose }: { state: PromptState; onClose: () => void }) {
+  const [value, setValue] = useState("");
+  const open = !!state;
+  // reset value when dialog opens
+  useEffectOnOpen(open, () => setValue(state?.initial ?? ""));
+  if (!state) return null;
+  const submit = () => {
+    const v = value.trim();
+    if (!v) return;
+    state.onConfirm(v);
+    onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl border bg-card shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-bold mb-3">{state.title}</h3>
+        {state.label && <label className="text-xs font-medium text-muted-foreground">{state.label}</label>}
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+            if (e.key === "Escape") onClose();
+          }}
+          className="mt-1 w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border px-3 py-1.5 text-sm hover:bg-accent">
+            Cancelar
+          </button>
+          <button onClick={submit} className="rounded-lg bg-primary text-primary-foreground px-3 py-1.5 text-sm font-semibold hover:opacity-90">
+            {state.confirmLabel ?? "OK"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({ state, onClose }: { state: ConfirmState; onClose: () => void }) {
+  if (!state) return null;
+  const submit = () => {
+    state.onConfirm();
+    onClose();
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl border bg-card shadow-xl p-5" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-base font-bold mb-1">{state.title}</h3>
+        {state.message && <p className="text-sm text-muted-foreground">{state.message}</p>}
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border px-3 py-1.5 text-sm hover:bg-accent">
+            Cancelar
+          </button>
+          <button
+            onClick={submit}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+              state.destructive
+                ? "bg-destructive text-destructive-foreground hover:opacity-90"
+                : "bg-primary text-primary-foreground hover:opacity-90"
+            }`}
+          >
+            {state.confirmLabel ?? "Confirmar"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function useEffectOnOpen(open: boolean, fn: () => void) {
+  useEffect(() => {
+    if (open) fn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+}
