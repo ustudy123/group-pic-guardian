@@ -311,6 +311,17 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
           return json({ ok: true, error: "upload_falhou" });
         }
 
+        // Cria URL assinada de 10 anos para preview no painel
+        let signedUrl: string | null = null;
+        const { data: signed, error: signErr } = await supabaseAdmin.storage
+          .from(BUCKET)
+          .createSignedUrl(storagePath, 60 * 60 * 24 * 365 * 10);
+        if (signErr) {
+          console.error("[uazapi-fotos] erro createSignedUrl:", signErr);
+        } else {
+          signedUrl = signed?.signedUrl ?? null;
+        }
+
         // === Insert em fotos (trigger enfileirar_analise_foto cria o job) ===
         const senderTel = String(
           pick<string>(d, "participantPhone", "sender_pn", "sender", "participant", "from") || "",
@@ -329,6 +340,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
             remetente_telefone: senderTel,
             remetente_nome: senderNome,
             storage_path: storagePath,
+            storage_url: signedUrl,
             caption,
             mime_type: contentType,
             tamanho_bytes: bytes.byteLength,
@@ -338,6 +350,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
           })
           .select("id")
           .single();
+
 
         if (insErr) {
           console.error("[uazapi-fotos] erro insert foto:", insErr);
