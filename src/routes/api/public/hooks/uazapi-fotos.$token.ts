@@ -108,6 +108,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
       POST: async ({ request, params }) => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const expected = process.env.UAZAPI_FOTOS_WEBHOOK_TOKEN;
         if (!expected) {
           console.error("[uazapi-fotos] UAZAPI_FOTOS_WEBHOOK_TOKEN não configurado");
@@ -126,26 +127,33 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
         }
 
         // UazAPI envia em body.data (padrão) — alguns proxies em body.message
-        const d = (body.data as AnyRec) || (body.message as AnyRec) || body;
+        const d = asRecord(body.data) || asRecord(body.message) || body;
+        const chat = asRecord(d.chat) || asRecord(body.chat);
+        const content = asRecord(d.content);
 
         const chatId = String(
-          pick<string>(d, "chatid", "chatId", "chat_id", "remoteJid", "from") || "",
+          pick<string>(d, "chatid", "chatId", "chat_id", "remoteJid", "from") ||
+            pick<string>(chat, "wa_chatid") ||
+            "",
         );
         const messageId = String(
           pick<string>(d, "messageid", "messageId", "id", "key_id", "key") || "",
         );
         const isGroup =
           Boolean(pick<boolean>(d, "isGroup", "fromGroup")) ||
+          Boolean(pick<boolean>(chat, "wa_isGroup")) ||
           chatId.includes("@g.us") ||
           chatId.endsWith("-group");
         const fromMe = Boolean(pick<boolean>(d, "fromMe", "wasSentByApi"));
         const messageType = String(
           pick<string>(d, "messageType", "type", "msgType") || "",
         ).toLowerCase();
+        const mediaType = String(pick<string>(d, "mediaType") || "").toLowerCase();
+        const contentMime = String(pick<string>(content, "mimetype", "mimeType", "mime") || "").toLowerCase();
 
         // === Auditoria: sempre grava em eventos_raw ===
         const tipoEvento =
-          messageType.includes("image") || d.image
+          messageType.includes("image") || mediaType === "image" || contentMime.includes("image") || d.image
             ? "image"
             : messageType || "message";
         try {
@@ -163,6 +171,8 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
         // === Filtros: só imagem, só grupo, só recebidas ===
         const isImage =
           messageType.includes("image") ||
+          mediaType === "image" ||
+          contentMime.includes("image") ||
           Boolean(d.image) ||
           Boolean(pick(d, "imageMessage")) ||
           tipoEvento === "image";
