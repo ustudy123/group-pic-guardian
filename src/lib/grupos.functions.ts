@@ -127,29 +127,32 @@ export const sincronizarGruposZapi = createServerFn({ method: "POST" })
 
 export const verificarStatusZapi = createServerFn({ method: "GET" }).handler(
   async () => {
-    const instanceId = process.env.ZAPI_INSTANCE_ID;
-    const instanceToken = process.env.ZAPI_INSTANCE_TOKEN;
-    const clientToken = process.env.ZAPI_CLIENT_TOKEN;
+    const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
+    const token = process.env.UAZAPI_INSTANCE_TOKEN;
 
-    if (!instanceId || !instanceToken || !clientToken) {
-      return { connected: false, error: "Credenciais Z-API ausentes" };
+    if (!token) {
+      return { connected: false, error: "Token UazAPI ausente" };
     }
 
     try {
-      const res = await fetch(
-        `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}/status`,
-        { headers: { "Client-Token": clientToken } },
-      );
+      const res = await fetch(`${baseUrl}/instance/status`, {
+        headers: { token },
+      });
       if (!res.ok) {
-        return { connected: false, error: `Z-API ${res.status}` };
+        return { connected: false, error: `UazAPI ${res.status}` };
       }
-      const json = (await res.json()) as { connected?: boolean; smartphoneConnected?: boolean };
-      return {
-        connected: Boolean(json.connected ?? json.smartphoneConnected),
-        error: null,
+      const json = (await res.json()) as {
+        status?: { connected?: boolean; loggedIn?: boolean };
+        instance?: { status?: string };
       };
+      const connected =
+        Boolean(json.status?.connected) ||
+        Boolean(json.status?.loggedIn) ||
+        json.instance?.status === "connected";
+      return { connected, error: null };
     } catch (e) {
       return { connected: false, error: e instanceof Error ? e.message : "Erro desconhecido" };
     }
   },
 );
+
