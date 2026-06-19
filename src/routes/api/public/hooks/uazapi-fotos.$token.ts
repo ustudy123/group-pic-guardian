@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json } from "@/integrations/supabase/types";
 
 // Webhook UazAPI — recebe fotos de grupos do WhatsApp.
@@ -23,6 +22,12 @@ function json(body: unknown, status = 200) {
 const BUCKET = "fotos-obras";
 
 type AnyRec = Record<string, unknown>;
+
+function asRecord(value: unknown): AnyRec | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as AnyRec)
+    : undefined;
+}
 
 function ext(mime?: string): string {
   if (!mime) return "jpeg";
@@ -59,11 +64,51 @@ function pick<T = unknown>(obj: AnyRec | undefined, ...keys: string[]): T | unde
   return undefined;
 }
 
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isEncryptedWhatsappUrl(url: string): boolean {
+  return url.includes("mmg.whatsapp.net") || url.includes(".enc?") || url.endsWith(".enc");
+}
+
+async function baixarUrl(url: string, fallbackMime: string) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`download_url_${r.status}`);
+  return {
+    bytes: new Uint8Array(await r.arrayBuffer()),
+    contentType: r.headers.get("content-type") || fallbackMime,
+  };
+}
+
+async function baixarMidiaUazapi(messageId: string, fallbackMime: string) {
+  const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
+  const token = process.env.UAZAPI_INSTANCE_TOKEN;
+  if (!token) throw new Error("UAZAPI_INSTANCE_TOKEN ausente");
+
+  const r = await fetch(`${baseUrl}/message/download`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", token },
+    body: JSON.stringify({ id: messageId }),
+  });
+  if (!r.ok) throw new Error(`uazapi_download_${r.status}`);
+
+  const payload = (await r.json()) as AnyRec;
+  const fileUrl = text(
+    pick<string>(payload, "fileURL", "fileUrl", "url", "URL", "mediaUrl", "downloadUrl"),
+  );
+  if (!fileUrl) throw new Error("uazapi_download_sem_url");
+
+  const mime = text(pick<string>(payload, "mimetype", "mimeType", "mime")) || fallbackMime;
+  return baixarUrl(fileUrl, mime);
+}
+
 export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
   server: {
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
       POST: async ({ request, params }) => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const expected = process.env.UAZAPI_FOTOS_WEBHOOK_TOKEN;
         if (!expected) {
           console.error("[uazapi-fotos] UAZAPI_FOTOS_WEBHOOK_TOKEN não configurado");
@@ -82,26 +127,33 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
         }
 
         // UazAPI envia em body.data (padrão) — alguns proxies em body.message
-        const d = (body.data as AnyRec) || (body.message as AnyRec) || body;
+        const d = asRecord(body.data) || asRecord(body.message) || body;
+        const chat = asRecord(d.chat) || asRecord(body.chat);
+        const content = asRecord(d.content);
 
         const chatId = String(
-          pick<string>(d, "chatid", "chatId", "chat_id", "remoteJid", "from") || "",
+          pick<string>(d, "chatid", "chatId", "chat_id", "remoteJid", "from") ||
+            pick<string>(chat, "wa_chatid") ||
+            "",
         );
         const messageId = String(
           pick<string>(d, "messageid", "messageId", "id", "key_id", "key") || "",
         );
         const isGroup =
           Boolean(pick<boolean>(d, "isGroup", "fromGroup")) ||
+          Boolean(pick<boolean>(chat, "wa_isGroup")) ||
           chatId.includes("@g.us") ||
           chatId.endsWith("-group");
         const fromMe = Boolean(pick<boolean>(d, "fromMe", "wasSentByApi"));
         const messageType = String(
           pick<string>(d, "messageType", "type", "msgType") || "",
         ).toLowerCase();
+        const mediaType = String(pick<string>(d, "mediaType") || "").toLowerCase();
+        const contentMime = String(pick<string>(content, "mimetype", "mimeType", "mime") || "").toLowerCase();
 
         // === Auditoria: sempre grava em eventos_raw ===
         const tipoEvento =
-          messageType.includes("image") || d.image
+          messageType.includes("image") || mediaType === "image" || contentMime.includes("image") || d.image
             ? "image"
             : messageType || "message";
         try {
@@ -119,6 +171,8 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
         // === Filtros: só imagem, só grupo, só recebidas ===
         const isImage =
           messageType.includes("image") ||
+          mediaType === "image" ||
+          contentMime.includes("image") ||
           Boolean(d.image) ||
           Boolean(pick(d, "imageMessage")) ||
           tipoEvento === "image";
@@ -179,26 +233,27 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
 
         // === Localiza payload da imagem ===
         const img =
-          (d.image as AnyRec) ||
+          asRecord(d.image) ||
           (pick<AnyRec>(d, "imageMessage")) ||
+          content ||
           ({} as AnyRec);
 
-        const imageUrl = String(
-          pick<string>(img, "url", "imageUrl", "mediaUrl", "downloadUrl") ||
+        const imageUrl = text(
+          pick<string>(img, "url", "URL", "imageUrl", "mediaUrl", "downloadUrl", "fileURL") ||
             pick<string>(d, "mediaUrl", "fileUrl", "content") ||
             "",
         );
-        const imageBase64 = String(
+        const imageBase64 = text(
           pick<string>(img, "base64", "data") ||
             pick<string>(d, "base64", "fileBase64") ||
             "",
         );
-        const caption = String(
+        const caption = text(
           pick<string>(img, "caption") ||
             pick<string>(d, "caption", "text", "content") ||
             "",
         ) || null;
-        const mimeHint = String(
+        const mimeHint = text(
           pick<string>(img, "mimetype", "mimeType", "mime") ||
             pick<string>(d, "mimetype", "mimeType") ||
             "image/jpeg",
@@ -218,16 +273,15 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
             for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
             bytes = arr;
           } else if (imageUrl) {
-            const r = await fetch(imageUrl);
-            if (!r.ok) {
-              console.error(`[uazapi-fotos] download ${r.status} ${imageUrl}`);
-              return json({ ok: true, error: "download_falhou" });
-            }
-            contentType = r.headers.get("content-type") || contentType;
-            bytes = new Uint8Array(await r.arrayBuffer());
+            const baixada = isEncryptedWhatsappUrl(imageUrl)
+              ? await baixarMidiaUazapi(messageId, contentType)
+              : await baixarUrl(imageUrl, contentType);
+            bytes = baixada.bytes;
+            contentType = baixada.contentType;
           } else {
-            console.warn("[uazapi-fotos] sem url nem base64 — payload keys:", Object.keys(d));
-            return json({ ok: true, ignored: "sem_midia" });
+            const baixada = await baixarMidiaUazapi(messageId, contentType);
+            bytes = baixada.bytes;
+            contentType = baixada.contentType;
           }
         } catch (e) {
           console.error("[uazapi-fotos] erro baixando imagem:", e);
@@ -259,7 +313,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
 
         // === Insert em fotos (trigger enfileirar_analise_foto cria o job) ===
         const senderTel = String(
-          pick<string>(d, "participantPhone", "sender", "participant", "from") || "",
+          pick<string>(d, "participantPhone", "sender_pn", "sender", "participant", "from") || "",
         ).replace(/@.*/, "") || null;
         const senderNome = String(
           pick<string>(d, "senderName", "pushName", "notifyName") || "",
