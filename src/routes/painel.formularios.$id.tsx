@@ -294,6 +294,10 @@ function Editor() {
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
         <div className="space-y-2">
+          <div className="rounded-lg border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            ✏️ Modo edição — os campos abaixo são apenas pré-visualização. Clique em <b>Pré-visualizar</b> (no topo) para testar o formulário real.
+          </div>
+
           {campos.length === 0 && (
             <div className="rounded-2xl border bg-card p-8 shadow-sm text-center text-sm text-muted-foreground">
               Nenhum campo ainda. Adicione o primeiro usando o painel à direita.
