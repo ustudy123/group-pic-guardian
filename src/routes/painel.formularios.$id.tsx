@@ -205,6 +205,20 @@ function Editor() {
           <ArrowLeft size={15} /> Voltar
         </button>
         <div className="flex items-center gap-2 flex-wrap">
+          {form.share_slug && (
+            <button
+              onClick={() => {
+                if (form.status !== "publicado" || !form.publico) {
+                  toast.info("Publique o formulário (e marque como público) para abrir a pré-visualização real.");
+                  return;
+                }
+                window.open(`/f/${form.share_slug}`, "_blank");
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm hover:bg-accent"
+            >
+              <Eye size={14} /> Pré-visualizar
+            </button>
+          )}
           {form.status === "publicado" && form.publico && form.share_slug && (
             <button
               onClick={() => {
@@ -224,6 +238,7 @@ function Editor() {
           >
             <Eye size={14} /> Respostas
           </Link>
+
           {form.status !== "publicado" ? (
             <button
               onClick={publicar}
