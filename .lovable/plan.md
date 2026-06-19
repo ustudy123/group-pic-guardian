@@ -1,123 +1,81 @@
-# Agente de Análise Visual de Fotos de Obra
+## Objetivo
+Eliminar o Railway criando um endpoint webhook dentro do próprio app Lovable que replica 100% do comportamento atual visível nos logs.
 
-Sobrepõe uma camada de IA visual ao fluxo que já existe (encarregado manda foto no grupo → bot Z-API grava em `fotos` + Storage). Cada nova foto será analisada automaticamente pelo Gemini 2.5 Pro, classificada por etapa de obra e checada para EPI, sinalização e acabamento de PV. Resultado fica visível no painel, sem responder no grupo.
+## O que os screenshots me revelaram
 
-## O que será entregue
+**Do log do Railway:**
+- Quando chega foto de grupo **cadastrado** → baixa, salva com nome `{encarregado} / {data} / {hash}` e tamanho em KB
+- Quando chega de grupo **não cadastrado** → ignora e loga aviso (não cria nada)
+- Fotos chegam em rajadas (várias do mesmo grupo no mesmo segundo)
 
-1. **Análise automática** de toda foto nova (a partir do deploy).
-2. **Classificação de etapa**: DDS, sinalização, vala, compactação, PV, drenagem, limpeza, banheiro, mapa de rede, checklist, outros.
-3. **Checagens de conformidade**:
-   - EPI (capacete, colete, luva, bota, óculos) por pessoa visível
-   - Sinalização (cones, placas, fitas)
-   - Acabamento/qualidade do PV (tampa, nivelamento, concretagem)
-4. **Painel novo** `/painel/visao` para acompanhar análises e filtrar não conformidades.
-5. **Indicador na foto** dentro das telas já existentes do encarregado (badge ✅ / ⚠️ / 🚨 / ⏳).
+**Da Z-API:**
+- Webhook único configurado em "Ao receber": `https://bot-macro-ambiental-production.up.railway.app/webhook/zapi/123456`
+- Filtros desligados (recebe grupos, texto, imagem, vídeo, áudio, documento)
+- Instância conectada, multi-device, assinatura **expirada mas ainda PAGA/ativa** (vai cair logo)
 
-Nada é enviado ao grupo nem ao coordenador — modo silencioso confirmado.
+## Arquitetura proposta
 
-## Como funciona (técnico)
-
-```text
-WhatsApp → webhook Z-API → tabela `fotos` (já existe)
-                              │
-                              ▼
-            trigger pg → INSERT em `foto_analise_jobs (pendente)`
-                              │
-                              ▼
-         cron /api/public/hooks/processar-analises (a cada 1 min)
-                              │
-                              ▼
-         signed URL da foto → Gemini 2.5 Pro (multimodal, JSON estruturado)
-                              │
-                              ▼
-       UPDATE `foto_analises` + UPDATE status no job
+```
+WhatsApp → Z-API → POST https://gestaomacroambiental.com.br/api/public/hooks/zapi-bot
+                                          ↓
+                          Lovable Server Route (TanStack)
+                                          ↓
+                ┌─────────────────────────┼─────────────────────────┐
+                ↓                         ↓                         ↓
+        eventos_raw              Storage (obras-fotos)      foto_analise_jobs
+        (auditoria)              + tabela fotos             (trigger automático)
 ```
 
-### Banco (nova migração)
+## Implementação
 
-- `foto_analises` (1:1 com `fotos`):
-  - `foto_id`, `etapa` (enum texto), `etapa_confianca` (0-1)
-  - `conformidade_geral` (`conforme | atencao | nao_conforme | critico | inconclusivo`)
-  - `epi_detectado` (jsonb: `{ pessoas: [{capacete, colete, luva, bota, oculos}] }`)
-  - `sinalizacao` (jsonb: `{ presente, itens: [...], adequada }`)
-  - `pv_qualidade` (jsonb: `{ aplicavel, tampa_ok, nivelamento_ok, acabamento_ok, observacoes }`)
-  - `problemas` (jsonb array: `[{categoria, criticidade, descricao}]`)
-  - `resumo` (texto curto, 1-2 frases)
-  - `modelo`, `tokens_in`, `tokens_out`, `analisado_em`
-- `foto_analise_jobs` (fila simples):
-  - `foto_id`, `status` (`pendente|processando|ok|erro`), `tentativas`, `erro`, `created_at`, `updated_at`
-- Trigger `AFTER INSERT ON fotos` → enfileira job.
-- RLS: leitura para `authenticated`, escrita só `admin` (worker usa `supabaseAdmin`).
-- GRANTs explícitos (authenticated + service_role).
+### 1. Nova rota pública: `src/routes/api/public/hooks/zapi-bot.ts`
 
-### Server functions e rota
+Recebe POST da Z-API. Lógica do handler:
 
-- `src/lib/visao.functions.ts`
-  - `listarAnalises({ filtros })` — paginado, com join leve em `fotos` + `encarregados`
-  - `reprocessarFoto(fotoId)` — admin only, recria job
-  - `getEstatisticas()` — % conformes, top problemas, por encarregado
-- `src/routes/api/public/hooks/processar-analises.ts` (público, protegido por `AI_BOT_WEBHOOK_SECRET` que já existe — reaproveitamos, ou criamos `VISAO_WORKER_SECRET`):
-  - Pega até 10 jobs pendentes, processa em paralelo controlado.
-  - Gera signed URL do bucket `fotos-obras`.
-  - Chama Lovable AI Gateway (`google/gemini-2.5-pro`) com a imagem + prompt + JSON schema via `Output.object` (Zod).
-  - Grava resultado; em erro, incrementa `tentativas` (máx 3) e marca `erro`.
-- Disparo: GitHub Actions cron a cada 1 min batendo no endpoint (mesmo padrão do `processar-relatorios.yml` que já existe).
+1. **Validação leve**: token na URL (ex: `?token=XXX`) comparado com secret `ZAPI_WEBHOOK_TOKEN` (Z-API não assina HMAC, então usamos token na URL — mesma técnica do Railway hoje com `/123456`).
+2. **Insert em `eventos_raw`** sempre (auditoria completa, igual hoje).
+3. **Trigger `descobrir_grupo_de_evento`** já existe — ele auto-cria/atualiza `grupos` a partir do `eventos_raw`. Não precisa duplicar.
+4. **Se for imagem em grupo**:
+   - Buscar `encarregado` ativo pelo `grupo_whatsapp_id` (JID do grupo)
+   - Se **não achar** → só loga "grupo não cadastrado" e retorna 200 (igual Railway)
+   - Se achar → baixar imagem da URL do payload Z-API (`payload.image.imageUrl`)
+   - Upload para bucket `obras-fotos` com path `{encarregado_id}/{YYYY-MM-DD}/{messageId}.jpg`
+   - Insert em `fotos` com `status='processada'`, `storage_path`, `encarregado_id`, `tirada_em`
+   - Trigger `enfileirar_analise_foto` (já existe) cria job automaticamente
 
-### Prompt do agente
+### 2. Novo secret: `ZAPI_WEBHOOK_TOKEN`
+Token aleatório gerado, usado na URL pública do webhook.
 
-System prompt focado em Macroambiental:
-- Identifica etapa pela tabela fixa do projeto.
-- Para cada pessoa visível, marca EPI item a item (presente/ausente/não_visível).
-- Marca sinalização só quando contexto sugere (vala aberta, frente de rua).
-- PV: só avalia se a foto mostrar PV; senão `aplicavel=false`.
-- Criticidade:
-  - `critica`: ausência de capacete em frente aberta, vala sem sinalização, risco de queda
-  - `alta`: falta de colete em via, PV sem acabamento na entrega
-  - `media`: EPI parcial, sinalização insuficiente
-  - `baixa`: detalhe estético
-- Retorna sempre o JSON do schema (sem texto livre fora).
+### 3. Atualização no painel Z-API (você faz)
+Substituir a URL "Ao receber" por:
+```
+https://gestaomacroambiental.com.br/api/public/hooks/zapi-bot?token=XXX
+```
 
-### Painel `/painel/visao`
+### 4. Cancelar Railway (depois de validar)
+Após 1-2 dias rodando estável, cancela a assinatura do Railway.
 
-- **Topo**: cards de KPI (analisadas hoje, % conformes, # críticos abertos, fila pendente).
-- **Filtros**: encarregado, etapa, conformidade, período.
-- **Lista** (grade de cards): thumbnail + badge de conformidade + etapa + resumo + chips de problemas. Click abre modal com a foto carimbada original + JSON expandido + botão "Reanalisar".
-- **Aba "Pendentes / Erros"** para admin acompanhar a fila.
+## O que NÃO muda
 
-### Integração leve nas telas existentes
+- Banco de dados, Storage, painel, encarregados, fotos antigas, análises por IA — tudo intacto
+- Fluxo de descoberta de grupos novos (trigger já faz)
+- Análise automática de fotos (trigger já faz)
 
-- Em `painel.$encarregado.$anoMes.$dia.tsx` cada foto ganha um badge pequeno no canto (✅/⚠️/🚨/⏳) lendo `foto_analises` por `foto_id`. Sem mudar o layout.
+## Pontos que preciso confirmar com você antes de implementar
 
-## Modelo e custo
+1. **Formato exato do payload da Z-API para imagem**: vou assumir o padrão público (`payload.image.imageUrl` em base64 ou URL HTTPS direta). Se o Railway faz algo diferente (ex: chama outro endpoint Z-API para baixar), só vou descobrir no primeiro teste real — pode precisar de 1 ajuste rápido.
+2. **Bucket correto**: existem dois (`obras-fotos` e `fotos-obras`). Qual o Railway está usando hoje? Vou olhar uma foto existente na tabela `fotos` para descobrir o `storage_path` real.
+3. **Coluna `tirada_em` vs `momento`**: preciso checar o schema da tabela `fotos` para mapear corretamente.
 
-- `google/gemini-2.5-pro` em todas as análises (escolha confirmada).
-- ~1 chamada por foto. Imagens reduzidas a max 1280px antes de mandar (worker faz o resize via signed URL + `fetch` + canvas no edge não dá — então mandamos a `carimbada.jpg` que já é ≤2000px; o Gemini aceita). Se custo virar problema, dá pra trocar pra híbrido depois sem mudar schema.
+## Riscos
 
-## Itens fora do escopo (desta etapa)
+- **Baixo**: se eu errar o formato do payload Z-API, fotos novas param de cair até eu ajustar. Fotos antigas continuam no banco.
+- **Zero**: nenhum dado existente é tocado.
+- **Mitigação**: deixar Railway rodando em paralelo por 1 dia. As duas pontas escrevem no mesmo banco — vai ter foto duplicada por 1 dia, depois você desliga o Railway.
 
-- Resposta automática no grupo do WhatsApp.
-- Alerta ao coordenador (já existe no Marcel Virtual via outra trilha).
-- Backfill de fotos antigas.
-- Fine-tuning de modelo — substituído por iteração do system prompt com exemplos reais durante implantação.
-
-## Pré-requisitos
-
-- `LOVABLE_API_KEY` já existe ✅
-- Secret novo `VISAO_WORKER_SECRET` para o cron (vou pedir após aprovar o plano).
-- GitHub Actions `processar-analises.yml` (espelho do que já existe para relatórios).
-
-## Arquivos que serão criados / alterados
-
-Criados:
-- migração SQL (`foto_analises`, `foto_analise_jobs`, trigger, RLS, GRANTs)
-- `src/lib/ai-gateway.server.ts` (helper do AI SDK Lovable, se ainda não existir)
-- `src/lib/visao.functions.ts`
-- `src/lib/visao-analyzer.server.ts` (prompt + schema Zod + chamada Gemini)
-- `src/routes/api/public/hooks/processar-analises.ts`
-- `src/routes/painel.visao.tsx` + componentes auxiliares
-- `.github/workflows/processar-analises.yml`
-
-Alterados:
-- `src/routes/painel.tsx` (link "Visão IA" no header)
-- `src/routes/painel.$encarregado.$anoMes.$dia.tsx` (badge na thumbnail)
-- `src/integrations/supabase/types.ts` (regenerado após migração)
+## Próximo passo
+Se aprovar este plano, ao entrar em build mode eu:
+1. Leio o schema real da tabela `fotos` e descubro o bucket usado
+2. Crio a rota `/api/public/hooks/zapi-bot`
+3. Crio o secret `ZAPI_WEBHOOK_TOKEN`
+4. Te entrego a URL pra colar na Z-API
