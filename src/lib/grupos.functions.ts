@@ -3,12 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-type ZapiChat = {
-  phone?: string;
-  name?: string;
-  isGroup?: boolean;
-};
-
+// === Autenticação reutilizada ===
 async function getAuthContext() {
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -41,46 +36,53 @@ async function getAuthContext() {
   return { supabase, userId: data.claims.sub };
 }
 
+type UazapiGroup = {
+  JID?: string;
+  jid?: string;
+  Name?: string;
+  name?: string;
+  Subject?: string;
+  subject?: string;
+};
+
+/**
+ * Sincroniza a lista de grupos do WhatsApp consultando diretamente a UazAPI
+ * da instância conectada (UAZAPI_INSTANCE_TOKEN). Cria novos registros em
+ * public.grupos e atualiza o nome_exibicao dos já existentes.
+ */
 export const sincronizarGruposZapi = createServerFn({ method: "POST" })
   .handler(async () => {
     const { supabase } = await getAuthContext();
-    const instanceId = process.env.ZAPI_INSTANCE_ID;
-    const instanceToken = process.env.ZAPI_INSTANCE_TOKEN;
-    const clientToken = process.env.ZAPI_CLIENT_TOKEN;
 
-    if (!instanceId || !instanceToken || !clientToken) {
-      throw new Error("Credenciais Z-API ausentes no servidor.");
+    const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
+    const token = process.env.UAZAPI_INSTANCE_TOKEN;
+    if (!token) {
+      throw new Error("UAZAPI_INSTANCE_TOKEN ausente no servidor.");
     }
 
-    const base = `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}/chats`;
+    const res = await fetch(`${baseUrl}/group/list`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token },
+      body: JSON.stringify({}),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`UazAPI /group/list respondeu ${res.status}: ${txt.slice(0, 200)}`);
+    }
+
+    const json = (await res.json()) as { groups?: UazapiGroup[] } | UazapiGroup[];
+    const lista: UazapiGroup[] = Array.isArray(json) ? json : (json.groups ?? []);
 
     const grupos: { jid: string; nome: string }[] = [];
     const seen = new Set<string>();
-
-    for (let page = 1; page <= 50; page++) {
-      const res = await fetch(`${base}?page=${page}&pageSize=100`, {
-        headers: { "Client-Token": clientToken },
-      });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`Z-API respondeu ${res.status}: ${txt.slice(0, 200)}`);
-      }
-
-      const json = (await res.json()) as ZapiChat[] | { chats?: ZapiChat[] };
-      const lista: ZapiChat[] = Array.isArray(json) ? json : (json.chats ?? []);
-
-      if (lista.length === 0) break;
-
-      for (const c of lista) {
-        const jid = (c.phone ?? "").trim();
-        if (!jid || !c.isGroup) continue;
-        if (seen.has(jid)) continue;
-        seen.add(jid);
-        grupos.push({ jid, nome: (c.name ?? "").trim() || jid });
-      }
-
-      if (lista.length < 100) break;
+    for (const g of lista) {
+      const jid = (g.JID || g.jid || "").trim();
+      if (!jid) continue;
+      if (seen.has(jid)) continue;
+      seen.add(jid);
+      const nome = (g.Name || g.name || g.Subject || g.subject || "").trim() || jid;
+      grupos.push({ jid, nome });
     }
 
     if (grupos.length === 0) {
@@ -125,30 +127,35 @@ export const sincronizarGruposZapi = createServerFn({ method: "POST" })
     };
   });
 
+/**
+ * Verifica se a instância UazAPI conectada está online.
+ */
 export const verificarStatusZapi = createServerFn({ method: "GET" }).handler(
   async () => {
-    const instanceId = process.env.ZAPI_INSTANCE_ID;
-    const instanceToken = process.env.ZAPI_INSTANCE_TOKEN;
-    const clientToken = process.env.ZAPI_CLIENT_TOKEN;
-
-    if (!instanceId || !instanceToken || !clientToken) {
-      return { connected: false, error: "Credenciais Z-API ausentes" };
+    const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
+    const token = process.env.UAZAPI_INSTANCE_TOKEN;
+    if (!token) {
+      return { connected: false, error: "UAZAPI_INSTANCE_TOKEN ausente" };
     }
 
     try {
-      const res = await fetch(
-        `https://api.z-api.io/instances/${instanceId}/token/${instanceToken}/status`,
-        { headers: { "Client-Token": clientToken } },
-      );
+      const res = await fetch(`${baseUrl}/instance/status`, {
+        headers: { token },
+      });
       if (!res.ok) {
-        return { connected: false, error: `Z-API ${res.status}` };
+        return { connected: false, error: `UazAPI ${res.status}` };
       }
-      const json = (await res.json()) as { connected?: boolean; smartphoneConnected?: boolean };
-      const connected = Boolean(json.connected) || Boolean(json.smartphoneConnected);
+      const json = (await res.json()) as {
+        status?: { connected?: boolean; loggedIn?: boolean };
+        instance?: { status?: string };
+      };
+      const connected =
+        Boolean(json.status?.connected) ||
+        Boolean(json.status?.loggedIn) ||
+        json.instance?.status === "connected";
       return { connected, error: null };
     } catch (e) {
       return { connected: false, error: e instanceof Error ? e.message : "Erro desconhecido" };
     }
   },
 );
-
