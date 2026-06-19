@@ -313,7 +313,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
 
         // === Insert em fotos (trigger enfileirar_analise_foto cria o job) ===
         const senderTel = String(
-          pick<string>(d, "participantPhone", "sender", "participant", "from") || "",
+          pick<string>(d, "participantPhone", "sender_pn", "sender", "participant", "from") || "",
         ).replace(/@.*/, "") || null;
         const senderNome = String(
           pick<string>(d, "senderName", "pushName", "notifyName") || "",
