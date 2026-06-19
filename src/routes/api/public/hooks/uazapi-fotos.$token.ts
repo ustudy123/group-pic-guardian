@@ -233,26 +233,27 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
 
         // === Localiza payload da imagem ===
         const img =
-          (d.image as AnyRec) ||
+          asRecord(d.image) ||
           (pick<AnyRec>(d, "imageMessage")) ||
+          content ||
           ({} as AnyRec);
 
-        const imageUrl = String(
-          pick<string>(img, "url", "imageUrl", "mediaUrl", "downloadUrl") ||
+        const imageUrl = text(
+          pick<string>(img, "url", "URL", "imageUrl", "mediaUrl", "downloadUrl", "fileURL") ||
             pick<string>(d, "mediaUrl", "fileUrl", "content") ||
             "",
         );
-        const imageBase64 = String(
+        const imageBase64 = text(
           pick<string>(img, "base64", "data") ||
             pick<string>(d, "base64", "fileBase64") ||
             "",
         );
-        const caption = String(
+        const caption = text(
           pick<string>(img, "caption") ||
             pick<string>(d, "caption", "text", "content") ||
             "",
         ) || null;
-        const mimeHint = String(
+        const mimeHint = text(
           pick<string>(img, "mimetype", "mimeType", "mime") ||
             pick<string>(d, "mimetype", "mimeType") ||
             "image/jpeg",
@@ -272,16 +273,15 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
             for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
             bytes = arr;
           } else if (imageUrl) {
-            const r = await fetch(imageUrl);
-            if (!r.ok) {
-              console.error(`[uazapi-fotos] download ${r.status} ${imageUrl}`);
-              return json({ ok: true, error: "download_falhou" });
-            }
-            contentType = r.headers.get("content-type") || contentType;
-            bytes = new Uint8Array(await r.arrayBuffer());
+            const baixada = isEncryptedWhatsappUrl(imageUrl)
+              ? await baixarMidiaUazapi(messageId, contentType)
+              : await baixarUrl(imageUrl, contentType);
+            bytes = baixada.bytes;
+            contentType = baixada.contentType;
           } else {
-            console.warn("[uazapi-fotos] sem url nem base64 — payload keys:", Object.keys(d));
-            return json({ ok: true, ignored: "sem_midia" });
+            const baixada = await baixarMidiaUazapi(messageId, contentType);
+            bytes = baixada.bytes;
+            contentType = baixada.contentType;
           }
         } catch (e) {
           console.error("[uazapi-fotos] erro baixando imagem:", e);
