@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json } from "@/integrations/supabase/types";
 
 // Webhook UazAPI — recebe fotos de grupos do WhatsApp.
@@ -23,6 +22,12 @@ function json(body: unknown, status = 200) {
 const BUCKET = "fotos-obras";
 
 type AnyRec = Record<string, unknown>;
+
+function asRecord(value: unknown): AnyRec | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as AnyRec)
+    : undefined;
+}
 
 function ext(mime?: string): string {
   if (!mime) return "jpeg";
@@ -57,6 +62,45 @@ function pick<T = unknown>(obj: AnyRec | undefined, ...keys: string[]): T | unde
     if (v !== undefined && v !== null && v !== "") return v as T;
   }
   return undefined;
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isEncryptedWhatsappUrl(url: string): boolean {
+  return url.includes("mmg.whatsapp.net") || url.includes(".enc?") || url.endsWith(".enc");
+}
+
+async function baixarUrl(url: string, fallbackMime: string) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`download_url_${r.status}`);
+  return {
+    bytes: new Uint8Array(await r.arrayBuffer()),
+    contentType: r.headers.get("content-type") || fallbackMime,
+  };
+}
+
+async function baixarMidiaUazapi(messageId: string, fallbackMime: string) {
+  const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
+  const token = process.env.UAZAPI_INSTANCE_TOKEN;
+  if (!token) throw new Error("UAZAPI_INSTANCE_TOKEN ausente");
+
+  const r = await fetch(`${baseUrl}/message/download`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", token },
+    body: JSON.stringify({ id: messageId }),
+  });
+  if (!r.ok) throw new Error(`uazapi_download_${r.status}`);
+
+  const payload = (await r.json()) as AnyRec;
+  const fileUrl = text(
+    pick<string>(payload, "fileURL", "fileUrl", "url", "URL", "mediaUrl", "downloadUrl"),
+  );
+  if (!fileUrl) throw new Error("uazapi_download_sem_url");
+
+  const mime = text(pick<string>(payload, "mimetype", "mimeType", "mime")) || fallbackMime;
+  return baixarUrl(fileUrl, mime);
 }
 
 export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
