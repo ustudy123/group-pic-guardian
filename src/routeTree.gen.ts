@@ -36,6 +36,7 @@ import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/
 import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
 import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes/api/public/hooks/mensagens-programadas'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
+import { Route as ApiPublicHooksUazapiFotosTokenRouteImport } from './routes/api/public/hooks/uazapi-fotos.$token'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -178,6 +179,12 @@ const ApiPublicHooksAiBotRoute = ApiPublicHooksAiBotRouteImport.update({
   path: '/api/public/hooks/ai-bot',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksUazapiFotosTokenRoute =
+  ApiPublicHooksUazapiFotosTokenRouteImport.update({
+    id: '/api/public/hooks/uazapi-fotos/$token',
+    path: '/api/public/hooks/uazapi-fotos/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -207,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
   '/painel/formularios/$id/respostas': typeof PainelFormulariosIdRespostasRoute
+  '/api/public/hooks/uazapi-fotos/$token': typeof ApiPublicHooksUazapiFotosTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -233,6 +241,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
   '/painel/formularios/$id/respostas': typeof PainelFormulariosIdRespostasRoute
+  '/api/public/hooks/uazapi-fotos/$token': typeof ApiPublicHooksUazapiFotosTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -263,6 +272,7 @@ export interface FileRoutesById {
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
   '/painel/formularios/$id/respostas': typeof PainelFormulariosIdRespostasRoute
+  '/api/public/hooks/uazapi-fotos/$token': typeof ApiPublicHooksUazapiFotosTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -294,6 +304,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
     | '/painel/formularios/$id/respostas'
+    | '/api/public/hooks/uazapi-fotos/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
     | '/painel/formularios/$id/respostas'
+    | '/api/public/hooks/uazapi-fotos/$token'
   id:
     | '__root__'
     | '/'
@@ -349,6 +361,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
     | '/painel/formularios/$id/respostas'
+    | '/api/public/hooks/uazapi-fotos/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -363,6 +376,7 @@ export interface RootRouteChildren {
   ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
   ApiPublicHooksReenviarAlertasRoute: typeof ApiPublicHooksReenviarAlertasRoute
   ApiPublicHooksUazapiBotRoute: typeof ApiPublicHooksUazapiBotRoute
+  ApiPublicHooksUazapiFotosTokenRoute: typeof ApiPublicHooksUazapiFotosTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -556,6 +570,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksAiBotRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/uazapi-fotos/$token': {
+      id: '/api/public/hooks/uazapi-fotos/$token'
+      path: '/api/public/hooks/uazapi-fotos/$token'
+      fullPath: '/api/public/hooks/uazapi-fotos/$token'
+      preLoaderRoute: typeof ApiPublicHooksUazapiFotosTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -651,17 +672,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicHooksProcessarRelatoriosRoute,
   ApiPublicHooksReenviarAlertasRoute: ApiPublicHooksReenviarAlertasRoute,
   ApiPublicHooksUazapiBotRoute: ApiPublicHooksUazapiBotRoute,
+  ApiPublicHooksUazapiFotosTokenRoute: ApiPublicHooksUazapiFotosTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
