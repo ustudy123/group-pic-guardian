@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CheckCircle2, Paperclip, Loader2 } from "lucide-react";
+import { FORM_GRAD, FORM_GRAD_BTN, FORM_BG, FORM_SHADOW } from "@/lib/ui-form";
 
 export const Route = createFileRoute("/f/$slug")({
   component: FormPublico,
@@ -111,10 +112,15 @@ function FormPublico() {
 
   if (enviado)
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-muted/30">
-        <div className="max-w-md text-center bg-card border rounded-2xl p-8 shadow-sm">
-          <CheckCircle2 className="mx-auto text-emerald-500" size={48} />
-          <h1 className="text-2xl font-bold mt-3">Resposta enviada!</h1>
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundImage: FORM_BG }}>
+        <div className="max-w-md text-center bg-card border rounded-3xl p-8" style={{ boxShadow: FORM_SHADOW }}>
+          <div
+            className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl text-white"
+            style={{ backgroundImage: FORM_GRAD, boxShadow: FORM_SHADOW }}
+          >
+            <CheckCircle2 size={32} />
+          </div>
+          <h1 className="text-2xl font-bold mt-4">Resposta enviada!</h1>
           <p className="text-sm text-muted-foreground mt-2">
             Obrigado por preencher o formulário.
           </p>
@@ -127,7 +133,7 @@ function FormPublico() {
                 setEmail("");
                 setEnviado(false);
               }}
-              className="mt-4 rounded-lg border px-3 py-2 text-sm hover:bg-accent"
+              className="mt-5 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent"
             >
               Enviar outra resposta
             </button>
@@ -137,23 +143,32 @@ function FormPublico() {
     );
 
   return (
-    <div className="min-h-screen bg-muted/30 py-8 px-4">
+    <div className="min-h-screen py-8 px-4" style={{ backgroundImage: FORM_BG }}>
       <div className="max-w-2xl mx-auto space-y-4">
-        <div className="bg-card border rounded-2xl p-6 shadow-sm">
-          <h1 className="text-3xl font-bold">{data.form.titulo}</h1>
+        {/* Cabeçalho herói com gradiente */}
+        <div
+          className="relative overflow-hidden rounded-3xl p-7 text-white"
+          style={{ backgroundImage: FORM_GRAD, boxShadow: FORM_SHADOW }}
+        >
+          <div
+            className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full"
+            style={{ background: "rgba(255,255,255,0.12)" }}
+          />
+          <h1 className="relative text-3xl font-bold drop-shadow-sm">{data.form.titulo}</h1>
           {data.form.descricao && (
-            <p className="text-sm text-muted-foreground mt-2">{data.form.descricao}</p>
+            <p className="relative text-sm text-white/85 mt-2">{data.form.descricao}</p>
           )}
         </div>
 
-        <div className="bg-card border rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="bg-card border rounded-2xl p-6 shadow-lg space-y-4">
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block text-sm">
               <span className="text-muted-foreground">Seu nome (opcional)</span>
               <input
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
-                className="mt-1 w-full rounded-md border bg-background px-3 py-2"
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 outline-none focus:ring-2"
+                style={{ ["--tw-ring-color" as any]: "#8b5cf6" }}
               />
             </label>
             <label className="block text-sm">
@@ -162,7 +177,8 @@ function FormPublico() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-md border bg-background px-3 py-2"
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 outline-none focus:ring-2"
+                style={{ ["--tw-ring-color" as any]: "#8b5cf6" }}
               />
             </label>
           </div>
@@ -182,7 +198,8 @@ function FormPublico() {
         <button
           onClick={() => enviar.mutate()}
           disabled={enviar.isPending}
-          className="w-full rounded-lg bg-primary text-primary-foreground px-4 py-3 font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+          style={{ backgroundImage: FORM_GRAD_BTN, boxShadow: FORM_SHADOW }}
+          className="w-full rounded-xl px-4 py-3 font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 inline-flex items-center justify-center gap-2"
         >
           {enviar.isPending && <Loader2 size={16} className="animate-spin" />}
           Enviar resposta
@@ -207,15 +224,16 @@ function CampoInput({
 }) {
   if (c.tipo === "secao") {
     return (
-      <div className="pt-2">
+      <div className="pt-2 pl-3" style={{ borderLeft: "3px solid #8b5cf6" }}>
         <h2 className="text-xl font-bold">{c.rotulo}</h2>
         {c.descricao && <p className="text-sm text-muted-foreground">{c.descricao}</p>}
       </div>
     );
   }
-  const baseInput = "mt-1 w-full rounded-md border bg-background px-3 py-2";
+  const baseInput =
+    "mt-1 w-full rounded-md border bg-background px-3 py-2 outline-none focus:ring-2 [--tw-ring-color:#8b5cf6]";
   return (
-    <div className="bg-card border rounded-2xl p-5 shadow-sm">
+    <div className="bg-card border rounded-2xl p-5 shadow-lg transition-shadow hover:shadow-xl">
       <label className="block text-sm font-semibold">
         {c.rotulo}
         {c.obrigatorio && <span className="text-destructive"> *</span>}

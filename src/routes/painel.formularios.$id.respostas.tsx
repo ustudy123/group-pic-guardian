@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Download, FileText, Paperclip } from "lucide-react";
 import { useMemo, useState } from "react";
+import { FORM_GRAD, FORM_SHADOW } from "@/lib/ui-form";
 
 export const Route = createFileRoute("/painel/formularios/$id/respostas")({
   component: Respostas,
@@ -97,16 +98,17 @@ function Respostas() {
           <Download size={14} /> Exportar CSV
         </button>
       </div>
-      <div className="rounded-xl border bg-card p-4">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+      <div className="relative overflow-hidden rounded-3xl p-5 text-white" style={{ backgroundImage: FORM_GRAD, boxShadow: FORM_SHADOW }}>
+        <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
+        <h1 className="relative text-2xl font-bold flex items-center gap-2">
           <FileText size={20} /> {form?.titulo}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="relative text-sm text-white/85 mt-1">
           {respostas.length} resposta{respostas.length === 1 ? "" : "s"}
         </p>
       </div>
 
-      <div className="rounded-xl border bg-card divide-y">
+      <div className="rounded-2xl border bg-card divide-y shadow-lg">
         {respostas.length === 0 && (
           <div className="p-8 text-center text-sm text-muted-foreground">
             Nenhuma resposta recebida ainda.

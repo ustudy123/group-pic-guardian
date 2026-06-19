@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { FORM_GRAD_BTN, FORM_SHADOW } from "@/lib/ui-form";
 import {
   ArrowLeft,
   Plus,
@@ -226,7 +227,8 @@ function Editor() {
           {form.status !== "publicado" ? (
             <button
               onClick={publicar}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-semibold hover:opacity-90"
+              style={{ backgroundImage: FORM_GRAD_BTN, boxShadow: FORM_SHADOW }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
             >
               <Send size={14} /> Publicar
             </button>
@@ -241,7 +243,7 @@ function Editor() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 space-y-3">
+      <div className="rounded-2xl border bg-card p-4 shadow-md space-y-3">
         <input
           value={form.titulo}
           onChange={(e) => salvarForm.mutate({ titulo: e.target.value })}
@@ -278,7 +280,7 @@ function Editor() {
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
         <div className="space-y-2">
           {campos.length === 0 && (
-            <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-2xl border bg-card p-8 shadow-sm text-center text-sm text-muted-foreground">
               Nenhum campo ainda. Adicione o primeiro usando o painel à direita.
             </div>
           )}
@@ -290,7 +292,7 @@ function Editor() {
               <div
                 key={c.id}
                 onClick={() => setSelecionado(c.id)}
-                className={`rounded-xl border bg-card p-4 cursor-pointer transition ${
+                className={`rounded-2xl border bg-card p-4 shadow-md cursor-pointer transition ${
                   sel ? "ring-2 ring-primary" : "hover:bg-accent/30"
                 }`}
               >
@@ -345,7 +347,7 @@ function Editor() {
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-xl border bg-card p-3">
+          <div className="rounded-2xl border bg-card p-3 shadow-md">
             <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">
               Adicionar campo
             </div>
@@ -363,7 +365,7 @@ function Editor() {
           </div>
 
           {campoSel && (
-            <div className="rounded-xl border bg-card p-3 space-y-3 sticky top-20">
+            <div className="rounded-2xl border bg-card p-3 shadow-md space-y-3 sticky top-20">
               <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
                 Configurar campo
               </div>

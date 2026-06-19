@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { FORM_GRAD, FORM_GRAD_BTN, FORM_SHADOW } from "@/lib/ui-form";
 import {
   Folder,
   FolderPlus,
@@ -28,16 +29,16 @@ function FormulariosLayout() {
   const isDetail = /\/painel\/formularios\/[^/]+/.test(loc.pathname);
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary to-[color:var(--primary-glow)] text-primary-foreground p-6 md:p-8 shadow-sm">
-        <div className="absolute -right-12 -top-12 w-56 h-56 rounded-full bg-white/5 blur-2xl" />
+      <div className="relative overflow-hidden rounded-3xl text-white p-6 md:p-8" style={{ backgroundImage: FORM_GRAD, boxShadow: FORM_SHADOW }}>
+        <div className="absolute -right-12 -top-12 w-56 h-56 rounded-full bg-white/10 blur-2xl" />
         <div className="relative">
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary-foreground/80">
-            <span className="w-6 h-px bg-primary-foreground/60" /> Formulários
+          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">
+            <span className="w-6 h-px bg-white/60" /> Formulários
           </div>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1">
             Construtor de formulários
           </h1>
-          <p className="text-sm text-primary-foreground/80 mt-1 max-w-2xl">
+          <p className="text-sm text-white/80 mt-1 max-w-2xl">
             Crie formulários organizados por pastas, anexe arquivos, compartilhe por link público
             e reutilize modelos prontos.
           </p>
@@ -270,7 +271,8 @@ function ListaFormularios() {
         </button>
         <button
           onClick={() => abrirNovoForm(null)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-semibold hover:opacity-90"
+          style={{ backgroundImage: FORM_GRAD_BTN, boxShadow: FORM_SHADOW }}
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
         >
           <FilePlus size={15} /> Novo formulário
         </button>
@@ -280,7 +282,7 @@ function ListaFormularios() {
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground mb-2">
           Pastas
         </h2>
-        <div className="rounded-xl border bg-card divide-y">
+        <div className="rounded-2xl border bg-card divide-y shadow-lg">
           {pastas.length === 0 && (
             <div className="p-6 text-center text-sm text-muted-foreground">
               Nenhuma pasta criada ainda.
@@ -357,7 +359,7 @@ function ListaFormularios() {
         <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground mb-2">
           Formulários {semPasta.length > 0 ? "(sem pasta)" : ""}
         </h2>
-        <div className="rounded-xl border bg-card divide-y">
+        <div className="rounded-2xl border bg-card divide-y shadow-lg">
           {semPasta.length === 0 && (
             <div className="p-6 text-center text-sm text-muted-foreground">
               Nenhum formulário sem pasta.
