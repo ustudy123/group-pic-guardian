@@ -769,7 +769,11 @@ function AutorizadosTab() {
 
   const add = useMutation({
     mutationFn: async () => {
-      const tel = novo.telefone.replace(/\D/g, "");
+      let tel = novo.telefone.replace(/\D/g, "");
+      // Garante código do país BR (55) se o usuário digitar só DDD + número
+      if (tel.length >= 10 && tel.length <= 11 && !tel.startsWith("55")) {
+        tel = "55" + tel;
+      }
       if (!tel) throw new Error("Telefone inválido");
       const { error } = await supabase
         .from("ai_bot_autorizados")
