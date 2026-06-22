@@ -15,7 +15,12 @@ function json(body: unknown, status = 200) {
 }
 
 function normalizarTelefone(tel: string): string {
-  return (tel || "").replace(/\D/g, "");
+  let t = (tel || "").replace(/\D/g, "");
+  // Garante código do país BR (55) quando vier só DDD + número (10-11 dígitos)
+  if (t.length >= 10 && t.length <= 11 && !t.startsWith("55")) {
+    t = "55" + t;
+  }
+  return t;
 }
 
 const CRITICIDADES = ["baixa", "media", "alta", "critica"] as const;
