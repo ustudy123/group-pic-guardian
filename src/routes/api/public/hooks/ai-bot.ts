@@ -259,12 +259,24 @@ export const Route = createFileRoute("/api/public/hooks/ai-bot")({
               .select("id")
               .single();
 
-            const coordTel = normalizarTelefone(config.coordenador_telefone || "");
-            if (coordTel) {
+            const coordTels = [
+              config.coordenador_telefone,
+              (config as any).coordenador_telefone_2,
+              (config as any).coordenador_telefone_3,
+              (config as any).coordenador_telefone_4,
+            ]
+              .map((t) => normalizarTelefone(t || ""))
+              .filter((t) => t.length > 0);
+
+            if (coordTels.length > 0) {
               const emoji = EMOJI_CRIT[alertaInfo.criticidade];
               const msgCoord = `${emoji} *Alerta de obra* (${alertaInfo.criticidade.toUpperCase()})\n*Categoria:* ${alertaInfo.categoria}\n*Encarregado:* ${nome || telefone}\n\n${alertaInfo.resumo}\n\n_Mensagem original:_\n"${mensagem}"`;
-              const ok = await enviarWhatsapp(coordTel, msgCoord);
-              if (ok && alertRow?.id) {
+              let algumOk = false;
+              for (const tel of coordTels) {
+                const ok = await enviarWhatsapp(tel, msgCoord);
+                if (ok) algumOk = true;
+              }
+              if (algumOk && alertRow?.id) {
                 await supabaseAdmin
                   .from("ai_bot_alertas")
                   .update({ enviado_coordenador: true, enviado_em: new Date().toISOString() })
