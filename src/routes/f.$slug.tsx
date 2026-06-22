@@ -344,9 +344,9 @@ function CampoInput({
             <input
               type="file"
               accept={c.tipo === "foto" ? "image/*" : undefined}
-              multiple={!!(c.config as any)?.multiplo}
+              multiple={c.tipo === "foto" ? (c.config as any)?.multiplo !== false : !!(c.config as any)?.multiplo}
               capture={c.tipo === "foto" ? "environment" : undefined}
-              onChange={(e) => onArquivos(Array.from(e.target.files ?? []))}
+              onChange={(e) => onArquivos([...arquivos, ...Array.from(e.target.files ?? [])])}
               className="hidden"
             />
           </label>
