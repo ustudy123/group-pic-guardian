@@ -168,6 +168,32 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
           console.error("[uazapi-fotos] erro insert eventos_raw:", e);
         }
 
+        // === Encaminha mensagens privadas de TEXTO para o bot de IA ===
+        // O UazAPI tem só um webhook por instância; este endpoint recebe TUDO.
+        // Para que conversas no privado (1:1) com o bot funcionem, repassamos
+        // os textos privados para o handler /api/public/hooks/uazapi-bot.
+        try {
+          const texto = String(
+            pick<string>(d, "text", "content", "message", "body") ||
+              pick<string>(content, "text", "body") ||
+              "",
+          ).trim();
+          const isPrivateText = !isGroup && !fromMe && texto.length > 0 && !d.image && !pick(d, "imageMessage");
+          if (isPrivateText) {
+            const url = new URL(request.url);
+            const forwardUrl = `${url.origin}/api/public/hooks/uazapi-bot`;
+            // fire-and-forget para não atrasar a resposta ao UazAPI
+            fetch(forwardUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            }).catch((e) => console.error("[uazapi-fotos] forward bot falhou:", e));
+          }
+        } catch (e) {
+          console.error("[uazapi-fotos] erro ao avaliar forward bot:", e);
+        }
+
+
         // === Filtros: só imagem, só grupo, só recebidas ===
         const isImage =
           messageType.includes("image") ||
