@@ -182,12 +182,12 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
           if (isPrivateText) {
             const url = new URL(request.url);
             const forwardUrl = `${url.origin}/api/public/hooks/uazapi-bot`;
-            // fire-and-forget para não atrasar a resposta ao UazAPI
-            fetch(forwardUrl, {
+            await fetch(forwardUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(body),
             }).catch((e) => console.error("[uazapi-fotos] forward bot falhou:", e));
+            return json({ ok: true, forwarded: "uazapi-bot" });
           }
         } catch (e) {
           console.error("[uazapi-fotos] erro ao avaliar forward bot:", e);
