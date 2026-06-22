@@ -484,7 +484,11 @@ function Editor() {
                 <label className="inline-flex items-center gap-2 text-xs">
                   <input
                     type="checkbox"
-                    checked={!!(campoSel.config as any)?.multiplo}
+                    checked={
+                      campoSel.tipo === "foto"
+                        ? (campoSel.config as any)?.multiplo !== false
+                        : !!(campoSel.config as any)?.multiplo
+                    }
                     onChange={(e) =>
                       updateCampo.mutate({
                         cid: campoSel.id,
@@ -492,7 +496,7 @@ function Editor() {
                       })
                     }
                   />
-                  Permitir múltiplos arquivos
+                  Permitir múltiplas {campoSel.tipo === "foto" ? "fotos" : "anexos"}
                 </label>
               )}
             </div>
