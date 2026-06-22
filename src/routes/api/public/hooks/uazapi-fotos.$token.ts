@@ -68,6 +68,20 @@ function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function onlyDigits(value: unknown): string {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function isMacroIaOwner(body: AnyRec, d: AnyRec, chat: AnyRec | undefined): boolean {
+  const owner = onlyDigits(
+    pick<string>(d, "owner") ||
+      pick<string>(body, "owner") ||
+      pick<string>(chat, "owner") ||
+      "",
+  );
+  return owner === "5527996228530";
+}
+
 function isEncryptedWhatsappUrl(url: string): boolean {
   return url.includes("mmg.whatsapp.net") || url.includes(".enc?") || url.endsWith(".enc");
 }
@@ -166,6 +180,36 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
           });
         } catch (e) {
           console.error("[uazapi-fotos] erro insert eventos_raw:", e);
+        }
+
+        const privateTextForMacroIa =
+          isMacroIaOwner(body, d, chat) &&
+          !isGroup &&
+          !fromMe &&
+          (messageType.includes("conversation") || messageType === "text" || messageType === "message") &&
+          Boolean(text(pick<string>(d, "text", "content", "message", "body")));
+
+        if (privateTextForMacroIa) {
+          const url = new URL(request.url);
+          const botUrl = `${url.origin}/api/public/hooks/uazapi-bot`;
+          const botHeaders: Record<string, string> = { "Content-Type": "application/json" };
+          const botToken = process.env.UAZAPI_BOT_WEBHOOK_TOKEN;
+          if (botToken) botHeaders.Authorization = `Bearer ${botToken}`;
+
+          try {
+            const forwarded = await fetch(botUrl, {
+              method: "POST",
+              headers: botHeaders,
+              body: JSON.stringify(body),
+            });
+            if (!forwarded.ok) {
+              console.error(`[uazapi-fotos] forward Macro I.A. falhou ${forwarded.status}`);
+            }
+            return json({ ok: true, forwarded: "macro_ia", status: forwarded.status });
+          } catch (e) {
+            console.error("[uazapi-fotos] erro forward Macro I.A.:", e);
+            return json({ ok: true, error: "forward_macro_ia" });
+          }
         }
 
         const isImage =
