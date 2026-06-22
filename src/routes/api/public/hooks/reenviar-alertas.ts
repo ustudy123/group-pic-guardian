@@ -37,12 +37,20 @@ export const Route = createFileRoute("/api/public/hooks/reenviar-alertas")({
 
         const { data: config } = await supabaseAdmin
           .from("ai_bot_config")
-          .select("coordenador_telefone")
+          .select("coordenador_telefone, coordenador_telefone_2, coordenador_telefone_3, coordenador_telefone_4")
           .eq("id", "default")
           .maybeSingle();
 
-        const coord = (config?.coordenador_telefone || "").replace(/\D/g, "");
-        if (!coord) {
+        const coords = [
+          config?.coordenador_telefone,
+          (config as any)?.coordenador_telefone_2,
+          (config as any)?.coordenador_telefone_3,
+          (config as any)?.coordenador_telefone_4,
+        ]
+          .map((t) => (t || "").replace(/\D/g, ""))
+          .filter((t) => t.length > 0);
+
+        if (coords.length === 0) {
           return new Response(JSON.stringify({ error: "coordenador nao configurado" }), { status: 400 });
         }
 
@@ -52,19 +60,23 @@ export const Route = createFileRoute("/api/public/hooks/reenviar-alertas")({
           .eq("enviado_coordenador", false)
           .order("created_at", { ascending: true });
 
-        const resultados: Array<{ id: string; ok: boolean; status: number; detail: string }> = [];
+        const resultados: Array<{ id: string; coord: string; ok: boolean; status: number; detail: string }> = [];
         for (const a of pendentes ?? []) {
           const emoji = EMOJI_CRIT[a.criticidade] || "⚠️";
           const msg = `${emoji} *Alerta de obra* (${String(a.criticidade).toUpperCase()})\n*Categoria:* ${a.categoria}\n*Encarregado:* ${a.nome || a.telefone}\n\n${a.resumo}\n\n_Mensagem original:_\n"${a.mensagem_origem}"`;
-          const res = await enviarUazapi(coord, msg);
-          if (res.ok) {
+          let algumOk = false;
+          for (const coord of coords) {
+            const res = await enviarUazapi(coord, msg);
+            if (res.ok) algumOk = true;
+            resultados.push({ id: a.id, coord, ...res });
+            await new Promise((r) => setTimeout(r, 600));
+          }
+          if (algumOk) {
             await supabaseAdmin
               .from("ai_bot_alertas")
               .update({ enviado_coordenador: true, enviado_em: new Date().toISOString() })
               .eq("id", a.id);
           }
-          resultados.push({ id: a.id, ...res });
-          await new Promise((r) => setTimeout(r, 800));
         }
 
         return new Response(
