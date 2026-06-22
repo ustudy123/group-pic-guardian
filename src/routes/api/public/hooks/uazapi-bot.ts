@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -158,6 +157,19 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
     handlers: {
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
       POST: async ({ request }) => {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+        const expected = process.env.UAZAPI_BOT_WEBHOOK_TOKEN;
+        if (expected) {
+          const auth = request.headers.get("Authorization") || "";
+          const bearer = auth.replace(/^Bearer\s+/i, "");
+          const token = bearer || request.headers.get("x-uazapi-token") || "";
+          if (token !== expected) {
+            console.warn("[uazapi-bot] token inválido");
+            return json({ error: "forbidden" }, 403);
+          }
+        }
+
         const openaiKey = process.env.OPENAI_API_KEY;
         console.log("[uazapi-bot] openaiKey exists:", Boolean(openaiKey));
         if (!openaiKey) return json({ error: "OPENAI_API_KEY ausente" }, 503);
