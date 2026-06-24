@@ -381,10 +381,15 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           return json({ ok: true, ignored: "saida" });
         }
 
-        // Aceita qualquer messageType desde que tenha texto.
         const messageType = String(d.messageType || "").toLowerCase();
+        const isAudio =
+          messageType.includes("audio") ||
+          messageType.includes("ptt") ||
+          messageType.includes("voice") ||
+          Boolean(d.audio) ||
+          String((d as Record<string, unknown>).mimetype || "").startsWith("audio");
 
-        const mensagem = String(
+        let mensagem = String(
           d.text || d.content || d.message || (d as Record<string, unknown>).body || "",
         ).trim();
         const telefone = normalizarTelefone(
@@ -394,6 +399,26 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           (d.senderName || d.pushName || rootChat.name || rootChat.wa_name || "")
             ?.toString()
             .trim() || null;
+
+        // Se for áudio, baixa e transcreve com Whisper
+        if (isAudio && !mensagem) {
+          console.log(`[uazapi-bot] audio detectado (tipo=${messageType}), baixando...`);
+          const audio = await baixarAudioDoPayload(
+            d as Record<string, unknown>,
+            body as Record<string, unknown>,
+          );
+          if (!audio) {
+            console.warn("[uazapi-bot] nao foi possivel baixar audio");
+            return json({ ok: true, ignored: "audio_download_falhou" });
+          }
+          const transcricao = await transcreverAudio(openaiKey, audio);
+          if (!transcricao) {
+            console.warn("[uazapi-bot] transcricao vazia");
+            return json({ ok: true, ignored: "transcricao_vazia" });
+          }
+          mensagem = transcricao;
+          console.log(`[uazapi-bot] transcricao: ${mensagem.slice(0, 120)}`);
+        }
 
         if (!telefone || !mensagem) {
           console.log(
