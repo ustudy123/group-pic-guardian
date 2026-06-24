@@ -27,18 +27,20 @@ const EMOJI_CRIT: Record<Criticidade, string> = {
   critica: "🔴",
 };
 
-// === Envio via uazapi ===
-async function enviarUazapi(numero: string, mensagem: string): Promise<boolean> {
+function uazapiCreds() {
   const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
   const token = process.env.UAZAPI_INSTANCE_TOKEN || "33a062cb-b1a8-4e74-ba11-a0519fb52af4";
+  return { baseUrl, token };
+}
+
+// === Envio via uazapi ===
+async function enviarUazapi(numero: string, mensagem: string): Promise<boolean> {
+  const { baseUrl, token } = uazapiCreds();
   if (!baseUrl || !token || !numero || !mensagem) return false;
   try {
     const r = await fetch(`${baseUrl}/send/text`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        token,
-      },
+      headers: { "Content-Type": "application/json", token },
       body: JSON.stringify({ number: numero, text: mensagem }),
     });
     if (!r.ok) {
@@ -49,6 +51,169 @@ async function enviarUazapi(numero: string, mensagem: string): Promise<boolean> 
   } catch (e) {
     console.error("[uazapi-bot] erro send/text:", e);
     return false;
+  }
+}
+
+// === Envio de áudio (voice note / ptt) via uazapi ===
+async function enviarUazapiAudio(numero: string, audioBase64: string): Promise<boolean> {
+  const { baseUrl, token } = uazapiCreds();
+  if (!baseUrl || !token || !numero || !audioBase64) return false;
+  // uazapi /send/media com type=ptt envia como mensagem de voz no WhatsApp
+  const attempts: Array<{ path: string; body: Record<string, unknown> }> = [
+    { path: "/send/media", body: { number: numero, type: "ptt", file: audioBase64 } },
+    { path: "/send/media", body: { number: numero, type: "audio", file: audioBase64 } },
+  ];
+  for (const a of attempts) {
+    try {
+      const r = await fetch(`${baseUrl}${a.path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token },
+        body: JSON.stringify(a.body),
+      });
+      if (r.ok) return true;
+      const txt = await r.text().catch(() => "");
+      console.error(`[uazapi-bot] ${a.path} type=${a.body.type} falhou ${r.status}: ${txt.slice(0, 300)}`);
+    } catch (e) {
+      console.error(`[uazapi-bot] erro ${a.path}:`, e);
+    }
+  }
+  return false;
+}
+
+// === Baixa áudio da mensagem recebida ===
+async function baixarAudioDoPayload(
+  d: Record<string, unknown>,
+  body: Record<string, unknown>,
+): Promise<{ buffer: ArrayBuffer; mime: string; filename: string } | null> {
+  // Tenta endpoint uazapi para baixar mídia por messageId
+  const messageId =
+    (d.messageid as string) ||
+    (d.messageId as string) ||
+    (d.id as string) ||
+    ((body.message as Record<string, unknown>)?.id as string) ||
+    "";
+
+  const { baseUrl, token } = uazapiCreds();
+  if (messageId && baseUrl && token) {
+    try {
+      const r = await fetch(`${baseUrl}/message/download`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token },
+        body: JSON.stringify({ id: messageId }),
+      });
+      if (r.ok) {
+        const j = (await r.json()) as { fileURL?: string; file?: string; mimetype?: string };
+        const mime = j.mimetype || "audio/ogg";
+        if (j.fileURL) {
+          const rr = await fetch(j.fileURL);
+          if (rr.ok) {
+            const buf = await rr.arrayBuffer();
+            return { buffer: buf, mime, filename: `audio.${mime.includes("mp4") ? "m4a" : "ogg"}` };
+          }
+        }
+        if (j.file) {
+          const bin = Uint8Array.from(atob(j.file), (c) => c.charCodeAt(0));
+          return {
+            buffer: bin.buffer,
+            mime,
+            filename: `audio.${mime.includes("mp4") ? "m4a" : "ogg"}`,
+          };
+        }
+      } else {
+        const txt = await r.text().catch(() => "");
+        console.warn(`[uazapi-bot] /message/download ${r.status}: ${txt.slice(0, 200)}`);
+      }
+    } catch (e) {
+      console.warn("[uazapi-bot] erro /message/download:", e);
+    }
+  }
+
+  // Fallback: procura URL direta no payload
+  const candidatosUrl = [
+    d.mediaUrl,
+    d.fileURL,
+    d.fileUrl,
+    d.url,
+    d.audioUrl,
+    (d.audio as Record<string, unknown> | undefined)?.url,
+    (d.audio as Record<string, unknown> | undefined)?.audioUrl,
+  ].filter((v): v is string => typeof v === "string" && v.startsWith("http"));
+
+  for (const url of candidatosUrl) {
+    try {
+      const rr = await fetch(url);
+      if (rr.ok) {
+        const buf = await rr.arrayBuffer();
+        const mime = rr.headers.get("content-type") || "audio/ogg";
+        return { buffer: buf, mime, filename: `audio.${mime.includes("mp4") ? "m4a" : "ogg"}` };
+      }
+    } catch (e) {
+      console.warn("[uazapi-bot] erro baixando audio:", e);
+    }
+  }
+  return null;
+}
+
+// === Transcreve áudio com Whisper ===
+async function transcreverAudio(
+  openaiKey: string,
+  audio: { buffer: ArrayBuffer; mime: string; filename: string },
+): Promise<string | null> {
+  try {
+    const fd = new FormData();
+    fd.append("file", new Blob([audio.buffer], { type: audio.mime }), audio.filename);
+    fd.append("model", "whisper-1");
+    fd.append("language", "pt");
+    const r = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openaiKey}` },
+      body: fd,
+    });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => "");
+      console.error(`[uazapi-bot] transcricao falhou ${r.status}: ${txt.slice(0, 300)}`);
+      return null;
+    }
+    const j = (await r.json()) as { text?: string };
+    return (j.text || "").trim() || null;
+  } catch (e) {
+    console.error("[uazapi-bot] erro transcricao:", e);
+    return null;
+  }
+}
+
+// === Gera áudio com TTS ===
+async function sintetizarAudio(openaiKey: string, texto: string): Promise<string | null> {
+  try {
+    const r = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini-tts",
+        voice: "onyx",
+        input: texto.slice(0, 4000),
+        format: "opus",
+      }),
+    });
+    if (!r.ok) {
+      const txt = await r.text().catch(() => "");
+      console.error(`[uazapi-bot] TTS falhou ${r.status}: ${txt.slice(0, 300)}`);
+      return null;
+    }
+    const buf = await r.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  } catch (e) {
+    console.error("[uazapi-bot] erro TTS:", e);
+    return null;
   }
 }
 
