@@ -544,9 +544,26 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         // Uazapi send/text espera o número limpo, sem @s.whatsapp.net
         const destino = telefone;
         if (resposta) {
-          console.log(`[uazapi-bot] enviando resposta para ${destino}: ${resposta.slice(0, 50)}...`);
-          const ok = await enviarUazapi(destino, resposta);
-          console.log(`[uazapi-bot] status do envio: ${ok ? "sucesso" : "falha"}`);
+          // Se o encarregado mandou áudio, responde em áudio (e também texto como fallback/registro)
+          if (isAudio) {
+            console.log(`[uazapi-bot] gerando audio TTS para ${destino}...`);
+            const audioB64 = await sintetizarAudio(openaiKey, resposta);
+            if (audioB64) {
+              const okAudio = await enviarUazapiAudio(destino, audioB64);
+              console.log(`[uazapi-bot] envio audio: ${okAudio ? "sucesso" : "falha"}`);
+              if (!okAudio) {
+                // fallback texto
+                await enviarUazapi(destino, resposta);
+              }
+            } else {
+              console.warn("[uazapi-bot] TTS falhou, enviando texto");
+              await enviarUazapi(destino, resposta);
+            }
+          } else {
+            console.log(`[uazapi-bot] enviando resposta para ${destino}: ${resposta.slice(0, 50)}...`);
+            const ok = await enviarUazapi(destino, resposta);
+            console.log(`[uazapi-bot] status do envio: ${ok ? "sucesso" : "falha"}`);
+          }
         } else {
           console.log("[uazapi-bot] nenhuma resposta gerada pela AI");
         }
