@@ -9,8 +9,8 @@ const EMOJI_CRIT: Record<string, string> = {
 };
 
 async function enviarUazapi(telefone: string, mensagem: string): Promise<{ ok: boolean; status: number; detail: string }> {
-  const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
-  const token = process.env.UAZAPI_INSTANCE_TOKEN;
+  const baseUrl = (process.env.UAZAPI_MACRO_IA_BASE_URL || process.env.UAZAPI_BASE_URL || "https://ipazua.uazapi.com").replace(/\/+$/, "");
+  const token = process.env.UAZAPI_MACRO_IA_TOKEN || process.env.UAZAPI_INSTANCE_TOKEN;
   if (!token) return { ok: false, status: 0, detail: "sem token" };
   try {
     const r = await fetch(`${baseUrl}/send/text`, {

@@ -91,8 +91,8 @@ Responda APENAS com JSON válido no formato:
 }
 
 async function enviarWhatsapp(telefone: string, mensagem: string): Promise<boolean> {
-  const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
-  const token = process.env.UAZAPI_INSTANCE_TOKEN;
+  const baseUrl = (process.env.UAZAPI_MACRO_IA_BASE_URL || process.env.UAZAPI_BASE_URL || "https://ipazua.uazapi.com").replace(/\/+$/, "");
+  const token = process.env.UAZAPI_MACRO_IA_TOKEN || process.env.UAZAPI_INSTANCE_TOKEN;
   if (!token || !telefone || !mensagem) return false;
   try {
     const r = await fetch(`${baseUrl}/send/text`, {

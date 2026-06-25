@@ -28,8 +28,15 @@ const EMOJI_CRIT: Record<Criticidade, string> = {
 };
 
 function uazapiCreds() {
-  const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
-  const token = process.env.UAZAPI_INSTANCE_TOKEN || "33a062cb-b1a8-4e74-ba11-a0519fb52af4";
+  const baseUrl = (
+    process.env.UAZAPI_MACRO_IA_BASE_URL ||
+    process.env.UAZAPI_BASE_URL ||
+    "https://ipazua.uazapi.com"
+  ).replace(/\/+$/, "");
+  const token =
+    process.env.UAZAPI_MACRO_IA_TOKEN ||
+    process.env.UAZAPI_INSTANCE_TOKEN ||
+    "33a062cb-b1a8-4e74-ba11-a0519fb52af4";
   return { baseUrl, token };
 }
 
