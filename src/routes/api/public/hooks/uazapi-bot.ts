@@ -551,8 +551,12 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         // Uazapi send/text espera o número limpo, sem @s.whatsapp.net
         const destino = telefone;
         if (resposta) {
-          // Se o encarregado mandou áudio, responde em áudio (e também texto como fallback/registro)
-          if (isAudio) {
+          console.log(`[uazapi-bot] enviando resposta para ${destino}: ${resposta.slice(0, 50)}...`);
+          const ok = await enviarUazapi(destino, resposta);
+          console.log(`[uazapi-bot] status do envio: ${ok ? "sucesso" : "falha"}`);
+        } else {
+          console.log("[uazapi-bot] nenhuma resposta gerada pela AI");
+        }
             console.log(`[uazapi-bot] gerando audio TTS para ${destino}...`);
             const audioB64 = await sintetizarAudio(openaiKey, resposta);
             if (audioB64) {
