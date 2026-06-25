@@ -396,8 +396,13 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           Boolean(d.audio) ||
           String((d as Record<string, unknown>).mimetype || "").startsWith("audio");
 
-        let mensagem = String(
-          d.text || d.content || d.message || (d as Record<string, unknown>).body || "",
+        const pickStr = (v: unknown) => (typeof v === "string" ? v : "");
+        let mensagem = (
+          pickStr(d.text) ||
+          pickStr(d.content) ||
+          pickStr(d.message) ||
+          pickStr((d as Record<string, unknown>).body) ||
+          ""
         ).trim();
         const telefone = normalizarTelefone(
           chatid.split("@")[0] || String(rootChat.phone || ""),
