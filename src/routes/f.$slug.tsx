@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CheckCircle2, Paperclip, Loader2 } from "lucide-react";
+import { CheckCircle2, Paperclip, Loader2, Image as ImageIcon, X } from "lucide-react";
 import { FORM_GRAD, FORM_GRAD_BTN, FORM_BG, FORM_SHADOW } from "@/lib/ui-form";
 
 export const Route = createFileRoute("/f/$slug")({
@@ -337,27 +337,131 @@ function CampoInput({
         </div>
       )}
       {(c.tipo === "arquivo" || c.tipo === "foto") && (
-        <div className="mt-2">
-          <label className="inline-flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm cursor-pointer hover:bg-accent">
-            <Paperclip size={14} />
-            {arquivos.length ? `${arquivos.length} arquivo(s)` : c.tipo === "foto" ? "Selecionar foto" : "Selecionar arquivo"}
-            <input
-              type="file"
-              accept={c.tipo === "foto" ? "image/*" : undefined}
-              multiple={c.tipo === "foto" ? (c.config as any)?.multiplo !== false : !!(c.config as any)?.multiplo}
-              capture={c.tipo === "foto" ? "environment" : undefined}
-              onChange={(e) => onArquivos([...arquivos, ...Array.from(e.target.files ?? [])])}
-              className="hidden"
-            />
-          </label>
-          {arquivos.length > 0 && (
-            <ul className="mt-2 text-xs text-muted-foreground space-y-0.5">
-              {arquivos.map((f, i) => (
-                <li key={i}>• {f.name}</li>
-              ))}
-            </ul>
-          )}
+        <FileField
+          tipo={c.tipo}
+          multiplo={(c.config as any)?.multiplo !== false}
+          arquivos={arquivos}
+          onArquivos={onArquivos}
+        />
+      )}
+    </div>
+  );
+}
+
+function FileField({
+  tipo,
+  multiplo,
+  arquivos,
+  onArquivos,
+}: {
+  tipo: string;
+  multiplo: boolean;
+  arquivos: File[];
+  onArquivos: (fs: File[]) => void;
+}) {
+  const ehFoto = tipo === "foto";
+
+  // Prévia em miniatura para imagens (com limpeza dos object URLs)
+  const previews = useMemo(
+    () => arquivos.map((f) => (f.type.startsWith("image/") ? URL.createObjectURL(f) : null)),
+    [arquivos],
+  );
+  useEffect(
+    () => () => previews.forEach((u) => u && URL.revokeObjectURL(u)),
+    [previews],
+  );
+
+  const chave = (f: File) => `${f.name}-${f.size}-${f.lastModified}`;
+  const adicionar = (lista: FileList | null) => {
+    const novos = Array.from(lista ?? []);
+    if (!novos.length) return;
+    if (!multiplo) {
+      onArquivos(novos.slice(0, 1));
+      return;
+    }
+    const existentes = new Set(arquivos.map(chave));
+    onArquivos([...arquivos, ...novos.filter((f) => !existentes.has(chave(f)))]);
+  };
+  const remover = (i: number) => onArquivos(arquivos.filter((_, k) => k !== i));
+
+  const rotulo = arquivos.length
+    ? multiplo
+      ? ehFoto
+        ? "Adicionar mais fotos"
+        : "Adicionar mais arquivos"
+      : "Trocar"
+    : ehFoto
+      ? multiplo
+        ? "Selecionar fotos (várias de uma vez)"
+        : "Selecionar foto"
+      : multiplo
+        ? "Selecionar arquivos"
+        : "Selecionar arquivo";
+
+  return (
+    <div className="mt-2 space-y-2">
+      <label className="inline-flex items-center gap-2 rounded-lg border-2 border-dashed bg-background px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-accent">
+        {ehFoto ? <ImageIcon size={15} /> : <Paperclip size={14} />}
+        {rotulo}
+        <input
+          type="file"
+          accept={ehFoto ? "image/*" : undefined}
+          multiple={multiplo}
+          onChange={(e) => {
+            adicionar(e.target.files);
+            e.currentTarget.value = ""; // permite reescolher o mesmo arquivo
+          }}
+          className="hidden"
+        />
+      </label>
+
+      {arquivos.length > 0 && ehFoto && (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {arquivos.map((f, i) => (
+            <div key={chave(f)} className="group relative aspect-square overflow-hidden rounded-lg border">
+              {previews[i] ? (
+                <img src={previews[i]!} alt={f.name} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full items-center justify-center p-1 text-center text-[10px] text-muted-foreground">
+                  {f.name}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => remover(i)}
+                className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white transition hover:bg-black/80"
+                title="Remover"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
         </div>
+      )}
+
+      {arquivos.length > 0 && !ehFoto && (
+        <ul className="space-y-1">
+          {arquivos.map((f, i) => (
+            <li
+              key={chave(f)}
+              className="flex items-center justify-between rounded-md border bg-background px-2 py-1 text-xs"
+            >
+              <span className="truncate">{f.name}</span>
+              <button
+                type="button"
+                onClick={() => remover(i)}
+                className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
+                title="Remover"
+              >
+                <X size={13} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {arquivos.length > 1 && (
+        <p className="text-xs text-muted-foreground">{arquivos.length} arquivos selecionados</p>
       )}
     </div>
   );
