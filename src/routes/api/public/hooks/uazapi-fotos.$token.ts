@@ -47,12 +47,18 @@ function ymd(d: Date): string {
   }).format(d);
 }
 
-// Extrai só os dígitos iniciais de um JID de grupo, para casar formatos
-// diferentes ("120363xxx@g.us", "120363xxx-group", "120363xxx").
+// Normaliza um JID de grupo removendo sufixos opcionais ("@g.us", "-group",
+// "@s.whatsapp.net") e espaços, preservando a parte única que identifica o
+// grupo (ex.: "120363xxx" ou "5527997215836-1614003130"). NUNCA truncar só
+// o prefixo numérico — grupos legados compartilham o mesmo prefixo antes do
+// hífen e isso causaria mistura de fotos entre encarregados diferentes.
 function jidNumero(s: string | null | undefined): string {
   if (!s) return "";
-  const m = String(s).match(/^(\d+)/);
-  return m ? m[1] : "";
+  let v = String(s).trim().toLowerCase();
+  v = v.replace(/@g\.us$/, "");
+  v = v.replace(/@s\.whatsapp\.net$/, "");
+  v = v.replace(/-group$/, "");
+  return v;
 }
 
 function pick<T = unknown>(obj: AnyRec | undefined, ...keys: string[]): T | undefined {
