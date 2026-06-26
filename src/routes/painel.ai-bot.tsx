@@ -272,6 +272,19 @@ Regras:
 }
 
 /* ----------------- MENSAGENS PROGRAMADAS ----------------- */
+const JANELA_MINUTOS_MIN = 10;
+
+function hhmmToMinutes(n: number): number {
+  const h = Math.floor(n / 100);
+  const m = n % 100;
+  return h * 60 + m;
+}
+function minutesToHhmm(total: number): number {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h * 100 + m;
+}
+
 function hhmmToStr(n: number): string {
   const s = String(n).padStart(4, "0");
   return `${s.slice(0, 2)}:${s.slice(2)}`;
@@ -280,6 +293,11 @@ function strToHhmm(s: string): number {
   const [h, m] = s.split(":");
   return Number(h) * 100 + Number(m || "0");
 }
+
+function janelaLarguraMinutos(inicio: number, fim: number): number {
+  return hhmmToMinutes(fim) - hhmmToMinutes(inicio);
+}
+
 
 function ProgramadasTab() {
   const qc = useQueryClient();
