@@ -70,10 +70,13 @@ function periodoAtual(
   hhmm: number,
   j: { mIni: number; mFim: number; nIni: number; nFim: number },
 ): Periodo | null {
-  if (hhmm >= j.mIni && hhmm <= j.mFim) return "manha";
-  if (hhmm >= j.nIni && hhmm <= j.nFim) return "noite";
+  const m = expandirJanelaMinima(j.mIni, j.mFim);
+  const n = expandirJanelaMinima(j.nIni, j.nFim);
+  if (hhmm >= m.inicio && hhmm <= m.fim) return "manha";
+  if (hhmm >= n.inicio && hhmm <= n.fim) return "noite";
   return null;
 }
+
 
 /** Substitui {nome} / FULANO pelo primeiro nome; sem nome, remove o placeholder com naturalidade. */
 function personalizar(template: string, nome: string | null): string {
