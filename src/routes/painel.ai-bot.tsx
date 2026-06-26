@@ -447,24 +447,32 @@ function ProgramadasTab() {
   const janelaPicker = (
     inicioKey: "janela_manha_inicio" | "janela_noite_inicio",
     fimKey: "janela_manha_fim" | "janela_noite_fim",
-  ) => (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="text-muted-foreground">Janela:</span>
-      <input
-        type="time"
-        value={hhmmToStr(form[inicioKey])}
-        onChange={(e) => setForm((f) => ({ ...f, [inicioKey]: strToHhmm(e.target.value) }))}
-        className="rounded-md border border-input bg-background px-2 py-1"
-      />
-      <span>até</span>
-      <input
-        type="time"
-        value={hhmmToStr(form[fimKey])}
-        onChange={(e) => setForm((f) => ({ ...f, [fimKey]: strToHhmm(e.target.value) }))}
-        className="rounded-md border border-input bg-background px-2 py-1"
-      />
-    </div>
-  );
+  ) => {
+    const largura = janelaLarguraMinutos(form[inicioKey], form[fimKey]);
+    const ok = largura >= JANELA_MINUTOS_MIN;
+    return (
+      <div className="flex items-center gap-2 text-sm flex-wrap">
+        <span className="text-muted-foreground">Janela:</span>
+        <input
+          type="time"
+          value={hhmmToStr(form[inicioKey])}
+          onChange={(e) => setForm((f) => ({ ...f, [inicioKey]: strToHhmm(e.target.value) }))}
+          className="rounded-md border border-input bg-background px-2 py-1"
+        />
+        <span>até</span>
+        <input
+          type="time"
+          value={hhmmToStr(form[fimKey])}
+          onChange={(e) => setForm((f) => ({ ...f, [fimKey]: strToHhmm(e.target.value) }))}
+          className="rounded-md border border-input bg-background px-2 py-1"
+        />
+        <span className={`text-xs ${ok ? "text-emerald-600" : "text-destructive"}`}>
+          {largura} min {ok ? "✓" : `(mín. ${JANELA_MINUTOS_MIN})`}
+        </span>
+      </div>
+    );
+  };
+
 
   return (
     <div className="space-y-5 max-w-3xl">
