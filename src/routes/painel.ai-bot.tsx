@@ -272,6 +272,19 @@ Regras:
 }
 
 /* ----------------- MENSAGENS PROGRAMADAS ----------------- */
+const JANELA_MINUTOS_MIN = 10;
+
+function hhmmToMinutes(n: number): number {
+  const h = Math.floor(n / 100);
+  const m = n % 100;
+  return h * 60 + m;
+}
+function minutesToHhmm(total: number): number {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h * 100 + m;
+}
+
 function hhmmToStr(n: number): string {
   const s = String(n).padStart(4, "0");
   return `${s.slice(0, 2)}:${s.slice(2)}`;
@@ -280,6 +293,11 @@ function strToHhmm(s: string): number {
   const [h, m] = s.split(":");
   return Number(h) * 100 + Number(m || "0");
 }
+
+function janelaLarguraMinutos(inicio: number, fim: number): number {
+  return hhmmToMinutes(fim) - hhmmToMinutes(inicio);
+}
+
 
 function ProgramadasTab() {
   const qc = useQueryClient();
@@ -329,6 +347,14 @@ function ProgramadasTab() {
 
   const salvar = useMutation({
     mutationFn: async () => {
+      const manhaMin = janelaLarguraMinutos(form.janela_manha_inicio, form.janela_manha_fim);
+      const noiteMin = janelaLarguraMinutos(form.janela_noite_inicio, form.janela_noite_fim);
+      if (manhaMin < JANELA_MINUTOS_MIN) {
+        throw new Error(`Janela da manhã precisa ter pelo menos ${JANELA_MINUTOS_MIN} minutos (atual: ${manhaMin} min).`);
+      }
+      if (noiteMin < JANELA_MINUTOS_MIN) {
+        throw new Error(`Janela da noite precisa ter pelo menos ${JANELA_MINUTOS_MIN} minutos (atual: ${noiteMin} min).`);
+      }
       const payload = {
         ...form,
         msg_manha_variacoes: form.msg_manha_variacoes.filter((v) => v.trim().length > 0),
@@ -347,6 +373,7 @@ function ProgramadasTab() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   const { data: envios = [] } = useQuery({
@@ -420,24 +447,32 @@ function ProgramadasTab() {
   const janelaPicker = (
     inicioKey: "janela_manha_inicio" | "janela_noite_inicio",
     fimKey: "janela_manha_fim" | "janela_noite_fim",
-  ) => (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="text-muted-foreground">Janela:</span>
-      <input
-        type="time"
-        value={hhmmToStr(form[inicioKey])}
-        onChange={(e) => setForm((f) => ({ ...f, [inicioKey]: strToHhmm(e.target.value) }))}
-        className="rounded-md border border-input bg-background px-2 py-1"
-      />
-      <span>até</span>
-      <input
-        type="time"
-        value={hhmmToStr(form[fimKey])}
-        onChange={(e) => setForm((f) => ({ ...f, [fimKey]: strToHhmm(e.target.value) }))}
-        className="rounded-md border border-input bg-background px-2 py-1"
-      />
-    </div>
-  );
+  ) => {
+    const largura = janelaLarguraMinutos(form[inicioKey], form[fimKey]);
+    const ok = largura >= JANELA_MINUTOS_MIN;
+    return (
+      <div className="flex items-center gap-2 text-sm flex-wrap">
+        <span className="text-muted-foreground">Janela:</span>
+        <input
+          type="time"
+          value={hhmmToStr(form[inicioKey])}
+          onChange={(e) => setForm((f) => ({ ...f, [inicioKey]: strToHhmm(e.target.value) }))}
+          className="rounded-md border border-input bg-background px-2 py-1"
+        />
+        <span>até</span>
+        <input
+          type="time"
+          value={hhmmToStr(form[fimKey])}
+          onChange={(e) => setForm((f) => ({ ...f, [fimKey]: strToHhmm(e.target.value) }))}
+          className="rounded-md border border-input bg-background px-2 py-1"
+        />
+        <span className={`text-xs ${ok ? "text-emerald-600" : "text-destructive"}`}>
+          {largura} min {ok ? "✓" : `(mín. ${JANELA_MINUTOS_MIN})`}
+        </span>
+      </div>
+    );
+  };
+
 
   return (
     <div className="space-y-5 max-w-3xl">

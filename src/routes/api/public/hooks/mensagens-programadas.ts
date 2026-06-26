@@ -47,14 +47,36 @@ function agoraSaoPaulo(): { hhmm: number; dataRef: string } {
   };
 }
 
+const JANELA_MINUTOS_MIN = 10;
+
+function hhmmToMinutes(n: number): number {
+  const h = Math.floor(n / 100);
+  const m = n % 100;
+  return h * 60 + m;
+}
+function minutesToHhmm(total: number): number {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h * 100 + m;
+}
+function expandirJanelaMinima(inicio: number, fim: number): { inicio: number; fim: number } {
+  const largura = hhmmToMinutes(fim) - hhmmToMinutes(inicio);
+  if (largura >= JANELA_MINUTOS_MIN) return { inicio, fim };
+  return { inicio, fim: minutesToHhmm(hhmmToMinutes(inicio) + JANELA_MINUTOS_MIN) };
+}
+
+
 function periodoAtual(
   hhmm: number,
   j: { mIni: number; mFim: number; nIni: number; nFim: number },
 ): Periodo | null {
-  if (hhmm >= j.mIni && hhmm <= j.mFim) return "manha";
-  if (hhmm >= j.nIni && hhmm <= j.nFim) return "noite";
+  const m = expandirJanelaMinima(j.mIni, j.mFim);
+  const n = expandirJanelaMinima(j.nIni, j.nFim);
+  if (hhmm >= m.inicio && hhmm <= m.fim) return "manha";
+  if (hhmm >= n.inicio && hhmm <= n.fim) return "noite";
   return null;
 }
+
 
 /** Substitui {nome} / FULANO pelo primeiro nome; sem nome, remove o placeholder com naturalidade. */
 function personalizar(template: string, nome: string | null): string {
