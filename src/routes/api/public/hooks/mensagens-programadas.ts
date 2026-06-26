@@ -1,7 +1,9 @@
 // Hook de mensagens programadas (check-in proativo dos encarregados).
-// Chamado pelo cron do GitHub Actions a cada 5 min dentro das janelas:
-//   - manhã: 07:15–08:15 (America/Sao_Paulo)
-//   - noite: 18:00–19:00 (America/Sao_Paulo)
+// Chamado pelo cron do GitHub Actions ao longo do dia (America/Sao_Paulo).
+// A janela configurada no painel (manhã/noite) define apenas QUANDO o envio do
+// período pode começar; a partir daí o período fica "aberto" (catch-up) até o
+// próximo período/fim do dia. Isso é proposital: o cron do GitHub é limitado
+// (throttling) e dispara poucas vezes ao dia, raramente dentro da janela exata.
 // A cada chamada envia para um LOTE pequeno de encarregados ainda não contatados
 // no período do dia — assim os envios saem intercalados, evitando bloqueio por spam.
 //
@@ -66,14 +68,35 @@ function expandirJanelaMinima(inicio: number, fim: number): { inicio: number; fi
 }
 
 
+// IMPORTANTE — por que NÃO exigimos que a execução caia DENTRO da janela:
+// O cron do GitHub Actions é fortemente limitado (throttling). Apesar do
+// agendamento "*/5", na prática ele dispara só ~2x por dia, em horários que
+// quase nunca coincidem com a janela estreita configurada (ex.: a execução da
+// manhã costuma cair ~09:30 BRT, bem depois da janela 07:15–08:15; a da noite
+// cai ~19:15 BRT, logo APÓS a janela 18:00–19:00). Resultado: se exigíssemos a
+// execução dentro do intervalo [início, fim], a mensagem NUNCA seria enviada.
+//
+// Solução: a janela define apenas QUANDO o envio pode COMEÇAR. A partir do
+// início da janela da manhã, o período fica "manha" até começar a janela da
+// noite; a partir do início da janela da noite, fica "noite" até o fim do dia.
+// A idempotência (tabela ai_bot_envios_programados, única por telefone+período+
+// data) garante exatamente 1 envio por período por dia, então um cron atrasado
+// ainda entrega a mensagem do dia em vez de pular o dia inteiro.
 function periodoAtual(
   hhmm: number,
   j: { mIni: number; mFim: number; nIni: number; nFim: number },
 ): Periodo | null {
-  const m = expandirJanelaMinima(j.mIni, j.mFim);
-  const n = expandirJanelaMinima(j.nIni, j.nFim);
-  if (hhmm >= m.inicio && hhmm <= m.fim) return "manha";
-  if (hhmm >= n.inicio && hhmm <= n.fim) return "noite";
+  const mIni = expandirJanelaMinima(j.mIni, j.mFim).inicio;
+  const nIni = expandirJanelaMinima(j.nIni, j.nFim).inicio;
+  // Caso normal: janela da noite começa depois da manhã.
+  if (nIni >= mIni) {
+    if (hhmm >= nIni) return "noite";
+    if (hhmm >= mIni) return "manha";
+    return null; // antes da janela da manhã (madrugada)
+  }
+  // Config incomum (noite antes da manhã): trata de forma simétrica.
+  if (hhmm >= mIni) return "manha";
+  if (hhmm >= nIni) return "noite";
   return null;
 }
 
