@@ -347,6 +347,14 @@ function ProgramadasTab() {
 
   const salvar = useMutation({
     mutationFn: async () => {
+      const manhaMin = janelaLarguraMinutos(form.janela_manha_inicio, form.janela_manha_fim);
+      const noiteMin = janelaLarguraMinutos(form.janela_noite_inicio, form.janela_noite_fim);
+      if (manhaMin < JANELA_MINUTOS_MIN) {
+        throw new Error(`Janela da manhã precisa ter pelo menos ${JANELA_MINUTOS_MIN} minutos (atual: ${manhaMin} min).`);
+      }
+      if (noiteMin < JANELA_MINUTOS_MIN) {
+        throw new Error(`Janela da noite precisa ter pelo menos ${JANELA_MINUTOS_MIN} minutos (atual: ${noiteMin} min).`);
+      }
       const payload = {
         ...form,
         msg_manha_variacoes: form.msg_manha_variacoes.filter((v) => v.trim().length > 0),
@@ -365,6 +373,7 @@ function ProgramadasTab() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   const { data: envios = [] } = useQuery({
