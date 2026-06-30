@@ -8,6 +8,7 @@ import {
   createAuthUser,
   removeAuthUser,
   setAdminRole,
+  setUserRole,
 } from "@/lib/admin.server";
 
 export const listUsers = createServerFn({ method: "GET" })
@@ -110,6 +111,23 @@ export const setUserAdmin = createServerFn({ method: "POST" })
     }
 
     await setAdminRole(data.userId, data.isAdmin);
+    return { ok: true };
+  });
+
+export const setUserQualidade = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        enabled: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    // Papel de Qualidade é representado pelo papel `analista`.
+    await setUserRole(data.userId, "analista", data.enabled);
     return { ok: true };
   });
 

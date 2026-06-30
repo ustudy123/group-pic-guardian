@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FORM_GRAD, FORM_GRAD_BTN, FORM_SHADOW } from "@/lib/ui-form";
+import { useRoles } from "@/lib/use-roles";
 import {
   ArrowLeft,
   Plus,
@@ -28,6 +29,7 @@ import {
   Link as LinkIcon,
   GitBranch,
   X,
+  Lock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/painel/formularios/$id")({
@@ -117,6 +119,7 @@ function Editor() {
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [modo, setModo] = useState<"editar" | "preview">("editar");
   const [addOpen, setAddOpen] = useState(false);
+  const { podeGerenciarFormularios, loading: papeisLoading } = useRoles();
 
   const { data: form, isLoading } = useQuery({
     queryKey: ["formulario", id],
@@ -288,7 +291,27 @@ function Editor() {
     toast.success("Formulário publicado");
   };
 
-  if (isLoading || !form) return <div className="text-sm text-muted-foreground">Carregando...</div>;
+  if (isLoading || !form || papeisLoading) return <div className="text-sm text-muted-foreground">Carregando...</div>;
+
+  if (!podeGerenciarFormularios) {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-violet-100">
+          <Lock size={22} className="text-violet-600" />
+        </div>
+        <h2 className="text-lg font-semibold">Acesso restrito</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Apenas a equipe de Qualidade (ou administradores) pode criar e editar formulários.
+        </p>
+        <button
+          onClick={() => navigate({ to: "/painel/formularios" })}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm hover:bg-accent"
+        >
+          <ArrowLeft size={15} /> Voltar
+        </button>
+      </div>
+    );
+  }
 
   const publicado = form.status === "publicado";
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FORM_GRAD, FORM_GRAD_BTN, FORM_SHADOW } from "@/lib/ui-form";
+import { useRoles } from "@/lib/use-roles";
 import {
   Folder,
   FolderPlus,
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/painel/formularios")({
 function FormulariosLayout() {
   const loc = useLocation();
   const isDetail = /\/painel\/formularios\/[^/]+/.test(loc.pathname);
+  const { podeGerenciarFormularios } = useRoles();
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl text-white p-6 md:p-8" style={{ backgroundImage: FORM_GRAD, boxShadow: FORM_SHADOW }}>
@@ -263,19 +265,23 @@ function ListaFormularios() {
           placeholder="Buscar formulário..."
           className="flex-1 min-w-[200px] rounded-lg border bg-background px-3 py-2 text-sm"
         />
-        <button
-          onClick={abrirCriarPasta}
-          className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-3 py-2 text-sm font-medium hover:bg-accent"
-        >
-          <FolderPlus size={15} /> Nova pasta
-        </button>
-        <button
-          onClick={() => abrirNovoForm(null)}
-          style={{ backgroundImage: FORM_GRAD_BTN, boxShadow: FORM_SHADOW }}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
-        >
-          <FilePlus size={15} /> Novo formulário
-        </button>
+        {podeGerenciarFormularios && (
+          <>
+            <button
+              onClick={abrirCriarPasta}
+              className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-3 py-2 text-sm font-medium hover:bg-accent"
+            >
+              <FolderPlus size={15} /> Nova pasta
+            </button>
+            <button
+              onClick={() => abrirNovoForm(null)}
+              style={{ backgroundImage: FORM_GRAD_BTN, boxShadow: FORM_SHADOW }}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-white transition-transform hover:-translate-y-0.5"
+            >
+              <FilePlus size={15} /> Novo formulário
+            </button>
+          </>
+        )}
       </div>
 
       <section>

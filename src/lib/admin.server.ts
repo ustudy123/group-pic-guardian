@@ -52,10 +52,18 @@ export async function changeAuthUserPassword(userId: string, password: string) {
 }
 
 export async function setAdminRole(userId: string, isAdmin: boolean) {
-  if (isAdmin) {
+  return setUserRole(userId, "admin", isAdmin);
+}
+
+export async function setUserRole(
+  userId: string,
+  role: "admin" | "user" | "vistoriante" | "analista",
+  enabled: boolean,
+) {
+  if (enabled) {
     const { error } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: userId, role: "admin" });
+      .insert({ user_id: userId, role });
 
     if (error && !error.message.includes("duplicate")) {
       throw new Error(error.message);
@@ -67,7 +75,7 @@ export async function setAdminRole(userId: string, isAdmin: boolean) {
     .from("user_roles")
     .delete()
     .eq("user_id", userId)
-    .eq("role", "admin");
+    .eq("role", role);
 
   if (error) throw new Error(error.message);
 }

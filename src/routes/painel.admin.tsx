@@ -15,6 +15,7 @@ import {
   HardHat,
   MessageSquare,
   Loader2,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   listUsers,
@@ -22,6 +23,7 @@ import {
   deleteUser,
   updateUserPassword,
   setUserAdmin,
+  setUserQualidade,
   confirmUserEmail,
   getAdminStats,
   checkIsAdmin,
@@ -44,6 +46,7 @@ function AdminPanel() {
   const fnDelete = useServerFn(deleteUser);
   const fnPwd = useServerFn(updateUserPassword);
   const fnRole = useServerFn(setUserAdmin);
+  const fnQualidade = useServerFn(setUserQualidade);
   const fnConfirm = useServerFn(confirmUserEmail);
 
   const { data: adminCheck, isLoading: checking } = useQuery({
@@ -114,6 +117,16 @@ function AdminPanel() {
       fnRole({ data: vars }),
     onSuccess: () => {
       toast.success("Permissão atualizada.");
+      refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const qualidadeMut = useMutation({
+    mutationFn: (vars: { userId: string; enabled: boolean }) =>
+      fnQualidade({ data: vars }),
+    onSuccess: () => {
+      toast.success("Permissão de Qualidade atualizada.");
       refresh();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -248,6 +261,7 @@ function AdminPanel() {
               <tbody>
                 {usersData?.users.map((u) => {
                   const isAdmin = u.roles.includes("admin");
+                  const isQualidade = u.roles.includes("analista");
                   const isSelf = u.id === user?.id;
                   return (
                     <tr key={u.id} className="border-t">
@@ -258,13 +272,20 @@ function AdminPanel() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {isAdmin ? (
-                          <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-                            <ShieldCheck size={12} /> Admin
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Usuário</span>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1">
+                          {isAdmin ? (
+                            <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+                              <ShieldCheck size={12} /> Admin
+                            </span>
+                          ) : !isQualidade ? (
+                            <span className="text-xs text-muted-foreground">Usuário</span>
+                          ) : null}
+                          {isQualidade && (
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded" style={{ background: "rgba(124,58,237,0.12)", color: "#7c3aed" }}>
+                              <ClipboardCheck size={12} /> Qualidade
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         {u.email_confirmed_at ? (
@@ -313,6 +334,14 @@ function AdminPanel() {
                               {isAdmin ? <ShieldOff size={14} /> : <ShieldCheck size={14} />}
                             </IconBtn>
                           )}
+                          <IconBtn
+                            title={isQualidade ? "Remover papel de Qualidade" : "Dar papel de Qualidade (gerencia formulários)"}
+                            onClick={() =>
+                              qualidadeMut.mutate({ userId: u.id, enabled: !isQualidade })
+                            }
+                          >
+                            <ClipboardCheck size={14} className={isQualidade ? "text-violet-600" : ""} />
+                          </IconBtn>
                           {!isSelf && (
                             <IconBtn
                               title="Excluir usuário"
