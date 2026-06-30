@@ -10,6 +10,25 @@ export const Route = createFileRoute("/f/$slug")({
   component: FormPublico,
 });
 
+// Avalia se um campo deve ser exibido, dada a condição e as respostas atuais.
+// Recursivo: se a pergunta de origem também estiver oculta, este campo fica oculto.
+function campoVisivel(
+  c: any,
+  valores: Record<string, any>,
+  byId: Record<string, any>,
+  seen: Set<string> = new Set(),
+): boolean {
+  const cond = c?.condicao;
+  if (!cond || !cond.campo_id) return true;
+  if (seen.has(c.id)) return true; // proteção contra ciclo
+  seen.add(c.id);
+  const origem = byId[cond.campo_id];
+  if (origem && !campoVisivel(origem, valores, byId, seen)) return false;
+  const resp = valores[cond.campo_id];
+  if (resp === undefined || resp === null || resp === "") return false; // origem ainda não respondida
+  return cond.operador === "diferente" ? resp !== cond.valor : resp === cond.valor;
+}
+
 function FormPublico() {
   const { slug } = Route.useParams();
   const [valores, setValores] = useState<Record<string, any>>({});
@@ -39,11 +58,19 @@ function FormPublico() {
     },
   });
 
+  const byId = useMemo(() => {
+    const m: Record<string, any> = {};
+    for (const c of ((data?.campos ?? []) as any[])) m[c.id] = c;
+    return m;
+  }, [data]);
+  const visivel = (c: any) => campoVisivel(c, valores, byId);
+
   const enviar = useMutation({
     mutationFn: async () => {
       if (!data) return;
-      // Validação obrigatórios
+      // Validação obrigatórios (ignora campos ocultos pela condicional)
       for (const c of data.campos) {
+        if (!visivel(c)) continue;
         if (c.obrigatorio && c.tipo !== "secao") {
           if (c.tipo === "arquivo" || c.tipo === "foto") {
             if (!arquivos[c.id]?.length) throw new Error(`Campo "${c.rotulo}" é obrigatório.`);
@@ -59,6 +86,7 @@ function FormPublico() {
       const arquivosMeta: any[] = [];
       const { data: { user } } = await supabase.auth.getUser();
       for (const [campoId, files] of Object.entries(arquivos)) {
+        if (!visivel(byId[campoId])) continue; // não envia arquivo de campo oculto
         for (const f of files) {
           if (!user) {
             throw new Error(
@@ -78,12 +106,19 @@ function FormPublico() {
         }
       }
 
+      // Salva apenas respostas de campos visíveis (descarta respostas de campos ocultos)
+      const dadosVisiveis: Record<string, any> = {};
+      for (const c of data.campos) {
+        if (c.tipo === "secao") continue;
+        if (visivel(c) && valores[c.id] !== undefined) dadosVisiveis[c.id] = valores[c.id];
+      }
+
       const { error } = await supabase.from("formulario_respostas").insert({
         formulario_id: data.form.id,
         respondente_id: user?.id ?? null,
         respondente_nome: nome || null,
         respondente_email: email || user?.email || null,
-        dados: valores,
+        dados: dadosVisiveis,
         arquivos: arquivosMeta,
       });
       if (error) throw error;
@@ -184,7 +219,7 @@ function FormPublico() {
           </div>
         </div>
 
-        {data.campos.map((c: any) => (
+        {data.campos.filter((c: any) => visivel(c)).map((c: any) => (
           <CampoInput
             key={c.id}
             c={c}
