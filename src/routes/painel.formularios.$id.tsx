@@ -351,6 +351,20 @@ function Editor() {
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                       <Icon size={12} /> {Info?.l}
                       {c.obrigatorio && <span className="text-destructive">*</span>}
+                      {c.condicao?.campo_id &&
+                        (() => {
+                          const origem = campos.find((x) => x.id === c.condicao!.campo_id);
+                          const op = c.condicao!.operador === "diferente" ? "≠" : "=";
+                          return (
+                            <span
+                              title={`Mostra só se "${origem?.rotulo ?? "?"}" ${op} "${c.condicao!.valor}"`}
+                              className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-medium"
+                              style={{ background: "rgba(124,58,237,0.12)", color: "#7c3aed" }}
+                            >
+                              <GitBranch size={11} /> Condicional
+                            </span>
+                          );
+                        })()}
                     </div>
                     <div className="font-semibold">{c.rotulo}</div>
                     {c.descricao && (
