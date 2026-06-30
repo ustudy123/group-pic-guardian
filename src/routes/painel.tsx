@@ -9,8 +9,12 @@ import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye, ClipboardList } from "l
 import { useRoles } from "@/lib/use-roles";
 
 function FormulariosLink() {
+  const { user } = useAuth();
   const { podeGerenciarFormularios } = useRoles();
-  if (!podeGerenciarFormularios) return null;
+  const isWhitelist =
+    user?.email === "wallasmonteiro019@gmail.com" ||
+    user?.email === "arthur.freitas@macroambiental.eng.br";
+  if (!podeGerenciarFormularios && !isWhitelist) return null;
   return (
     <Link
       to="/painel/formularios"
@@ -151,16 +155,9 @@ function PainelLayout() {
                   <Eye size={15} />
                   <span className="hidden sm:inline">Visão IA</span>
                 </Link>
-                <Link
-                  to="/painel/formularios"
-                  className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
-                  title="Formulários"
-                >
-                  <ClipboardList size={15} />
-                  <span className="hidden sm:inline">Formulários</span>
-                </Link>
               </>
             )}
+            <FormulariosLink />
             <AdminLink />
             <Link
               to="/painel/guia"
