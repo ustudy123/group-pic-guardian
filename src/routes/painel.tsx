@@ -6,6 +6,22 @@ import { BotStatusIndicator } from "@/components/bot-status-indicator";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye, ClipboardList } from "lucide-react";
+import { useRoles } from "@/lib/use-roles";
+
+function FormulariosLink() {
+  const { podeGerenciarFormularios } = useRoles();
+  if (!podeGerenciarFormularios) return null;
+  return (
+    <Link
+      to="/painel/formularios"
+      className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+      title="Formulários"
+    >
+      <ClipboardList size={15} />
+      <span className="hidden sm:inline">Formulários</span>
+    </Link>
+  );
+}
 
 function AdminLink() {
   const { data } = useQuery({

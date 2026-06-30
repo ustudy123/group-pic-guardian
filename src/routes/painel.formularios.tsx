@@ -83,6 +83,7 @@ type ConfirmState = {
 
 function ListaFormularios() {
   const qc = useQueryClient();
+  const { podeGerenciarFormularios } = useRoles();
   const [busca, setBusca] = useState("");
   const [pastaAberta, setPastaAberta] = useState<Record<string, boolean>>({});
   const [promptDlg, setPromptDlg] = useState<PromptState>(null);
