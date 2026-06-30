@@ -49,15 +49,17 @@ jobs:
             exit 1
           fi
 
-          # batch alto de propósito: o cron do GitHub é limitado e pode disparar
-          # só 1x dentro de um período, então uma única execução precisa dar
-          # conta de toda a equipe de encarregados (idempotência evita repetir).
+          # batch moderado: o hook escalona os envios dentro da janela (cada
+          # encarregado tem um minuto-alvo próprio), então cada execução manda só
+          # quem já "venceu" o horário. Mantemos um teto baixo por execução para os
+          # disparos saírem espaçados (anti-spam); a idempotência evita repetir.
+          # No teste forçado (periodo), usa batch alto para validar todos de uma vez.
           if [ -n "$NUMERO_TESTE" ]; then
             BODY="{\"testNumero\":\"$NUMERO_TESTE\"}"
           elif [ -n "$PERIODO" ]; then
             BODY="{\"batch\":10,\"periodo\":\"$PERIODO\"}"
           else
-            BODY='{"batch":10}'
+            BODY='{"batch":3}'
           fi
 
           RESP=$(curl -sS -X POST "$ENDPOINT" \

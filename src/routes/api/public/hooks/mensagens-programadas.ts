@@ -146,6 +146,34 @@ function embaralhar<T>(arr: T[]): T[] {
   return a;
 }
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Hash determinístico (FNV-1a) — mesmo telefone/dia/período => mesmo número. */
+function hashStr(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/**
+ * Minuto-alvo do contato DENTRO da janela (offset estável no dia). Faz cada
+ * encarregado ter um horário próprio de envio, espalhando os disparos ao longo
+ * da janela em vez de mandar todos no mesmo instante (anti-spam / anti-banimento).
+ */
+function minutoAlvo(
+  telefone: string,
+  dataRef: string,
+  periodo: Periodo,
+  janelaInicioMin: number,
+  janelaLarguraMin: number,
+): number {
+  const offset = hashStr(`${telefone}|${dataRef}|${periodo}`) % Math.max(1, janelaLarguraMin);
+  return janelaInicioMin + offset;
+}
+
 export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")({
   server: {
     handlers: {
@@ -221,6 +249,18 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           return json({ idle: true, motivo: "fora_da_janela", hhmm, janelas });
         }
 
+        // Janela do período ativo (mínimo 10 min), base para escalonar os envios.
+        const janelaPeriodo =
+          periodo === "manha"
+            ? expandirJanelaMinima(janelas.mIni, janelas.mFim)
+            : expandirJanelaMinima(janelas.nIni, janelas.nFim);
+        const janelaInicioMin = hhmmToMinutes(janelaPeriodo.inicio);
+        const janelaLarguraMin = Math.max(
+          1,
+          hhmmToMinutes(janelaPeriodo.fim) - janelaInicioMin,
+        );
+        const agoraMin = hhmmToMinutes(hhmm);
+
         const variacoes = (
           periodo === "manha"
             ? (config.msg_manha_variacoes as string[] | null)
@@ -256,8 +296,32 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           return json({ idle: true, motivo: "todos_contatados", periodo, dataRef });
         }
 
+        // Escalonamento anti-spam: só envia para quem já passou do seu minuto-alvo
+        // dentro da janela. Como cada encarregado tem um alvo diferente, os envios
+        // saem em horários distintos ao longo da janela em vez de todos juntos.
+        // (Quando o período é forçado por teste manual, ignora o escalonamento.)
+        const forcado = body.periodo === "manha" || body.periodo === "noite";
+        const elegiveis = forcado
+          ? pendentes
+          : pendentes.filter(
+              (a) =>
+                agoraMin >=
+                minutoAlvo(a.telefone, dataRef, periodo, janelaInicioMin, janelaLarguraMin),
+            );
+
+        if (elegiveis.length === 0) {
+          return json({
+            idle: true,
+            motivo: "aguardando_escalonamento",
+            periodo,
+            dataRef,
+            agoraMin,
+            restantes: pendentes.length,
+          });
+        }
+
         const batch = Math.min(Math.max(Number(body.batch) || 2, 1), 10);
-        const lote = embaralhar(pendentes).slice(0, batch);
+        const lote = embaralhar(elegiveis).slice(0, batch);
 
         if (body.dryRun) {
           return json({
@@ -279,7 +343,13 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           detalhe?: string;
         }> = [];
 
-        for (const contato of lote) {
+        for (let idx = 0; idx < lote.length; idx++) {
+          const contato = lote[idx];
+
+          // Pequeno atraso aleatório entre um envio e outro do mesmo lote, para
+          // não saírem todos no mesmo segundo (espaça os disparos na instância).
+          if (idx > 0) await sleep(1500 + Math.floor(Math.random() * 2500));
+
           const mensagem = personalizar(escolherTemplate(), contato.nome);
 
           // Reserva a vaga ANTES de enviar (unique constraint evita duplicado
