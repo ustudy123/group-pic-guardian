@@ -25,6 +25,7 @@ import {
   Send,
   Eye,
   Link as LinkIcon,
+  GitBranch,
   Copy,
 } from "lucide-react";
 
@@ -39,6 +40,12 @@ function EditorWrapper() {
   return <Editor />;
 }
 
+type CondicaoCampo = {
+  campo_id: string;
+  operador: "igual" | "diferente";
+  valor: string;
+};
+
 type Campo = {
   id: string;
   formulario_id: string;
@@ -50,6 +57,7 @@ type Campo = {
   obrigatorio: boolean;
   opcoes: any;
   config: any;
+  condicao: CondicaoCampo | null;
 };
 
 const TIPOS = [
@@ -108,7 +116,7 @@ function Editor() {
         .eq("formulario_id", id)
         .order("ordem");
       if (error) throw error;
-      return (data ?? []) as Campo[];
+      return (data ?? []) as unknown as Campo[];
     },
   });
 
@@ -499,6 +507,121 @@ function Editor() {
                   Permitir múltiplas {campoSel.tipo === "foto" ? "fotos" : "anexos"}
                 </label>
               )}
+
+              {/* Lógica condicional */}
+              <div className="border-t pt-3 mt-1 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold">
+                  <GitBranch size={13} /> Lógica condicional
+                </div>
+                {(() => {
+                  const candidatos = campos.filter(
+                    (c) =>
+                      c.id !== campoSel.id &&
+                      c.ordem < campoSel.ordem &&
+                      (c.tipo === "escolha_unica" || c.tipo === "dropdown"),
+                  );
+                  const cond = campoSel.condicao;
+                  if (candidatos.length === 0) {
+                    return (
+                      <p className="text-xs text-muted-foreground">
+                        Para exibir este campo condicionalmente, adicione antes dele uma pergunta de
+                        escolha única ou dropdown.
+                      </p>
+                    );
+                  }
+                  return (
+                    <>
+                      <label className="inline-flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={!!cond}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              const origem = candidatos[0];
+                              const ops = (origem.opcoes as string[]) ?? [];
+                              updateCampo.mutate({
+                                cid: campoSel.id,
+                                patch: {
+                                  condicao: {
+                                    campo_id: origem.id,
+                                    operador: "igual",
+                                    valor: ops[0] ?? "",
+                                  },
+                                },
+                              });
+                            } else {
+                              updateCampo.mutate({ cid: campoSel.id, patch: { condicao: null } });
+                            }
+                          }}
+                        />
+                        Mostrar este campo só com uma condição
+                      </label>
+
+                      {cond &&
+                        (() => {
+                          const origem = campos.find((c) => c.id === cond.campo_id);
+                          const ops = (origem?.opcoes as string[]) ?? [];
+                          return (
+                            <div className="space-y-2 rounded-md border bg-background p-2 text-xs">
+                              <div className="text-muted-foreground">Mostrar somente se a resposta de:</div>
+                              <select
+                                value={cond.campo_id}
+                                onChange={(e) => {
+                                  const novaOrigem = campos.find((c) => c.id === e.target.value);
+                                  const novasOps = (novaOrigem?.opcoes as string[]) ?? [];
+                                  updateCampo.mutate({
+                                    cid: campoSel.id,
+                                    patch: {
+                                      condicao: { ...cond, campo_id: e.target.value, valor: novasOps[0] ?? "" },
+                                    },
+                                  });
+                                }}
+                                className="w-full rounded-md border bg-card px-2 py-1"
+                              >
+                                {candidatos.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.rotulo}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="flex gap-2">
+                                <select
+                                  value={cond.operador}
+                                  onChange={(e) =>
+                                    updateCampo.mutate({
+                                      cid: campoSel.id,
+                                      patch: { condicao: { ...cond, operador: e.target.value } },
+                                    })
+                                  }
+                                  className="rounded-md border bg-card px-2 py-1"
+                                >
+                                  <option value="igual">for igual a</option>
+                                  <option value="diferente">for diferente de</option>
+                                </select>
+                                <select
+                                  value={cond.valor}
+                                  onChange={(e) =>
+                                    updateCampo.mutate({
+                                      cid: campoSel.id,
+                                      patch: { condicao: { ...cond, valor: e.target.value } },
+                                    })
+                                  }
+                                  className="flex-1 rounded-md border bg-card px-2 py-1"
+                                >
+                                  {ops.map((op, i) => (
+                                    <option key={i} value={op}>
+                                      {op}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           )}
         </aside>
