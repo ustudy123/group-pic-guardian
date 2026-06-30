@@ -297,7 +297,41 @@ function Editor() {
             />
             Marcar como modelo
           </label>
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={!!(form as any).no_menu}
+              onChange={(e) => salvarForm.mutate({ no_menu: e.target.checked })}
+            />
+            Mostrar no menu de serviços
+          </label>
         </div>
+        {!!(form as any).no_menu && (
+          <div className="flex flex-wrap items-center gap-3 pt-2 text-sm">
+            <label className="inline-flex items-center gap-2">
+              <span className="text-muted-foreground">Ícone (emoji):</span>
+              <input
+                value={(form as any).menu_icone ?? ""}
+                onChange={(e) => salvarForm.mutate({ menu_icone: e.target.value })}
+                maxLength={4}
+                placeholder="🔧"
+                className="w-16 rounded-md border bg-background px-2 py-1 text-center"
+              />
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <span className="text-muted-foreground">Ordem no menu:</span>
+              <input
+                type="number"
+                value={(form as any).menu_ordem ?? 0}
+                onChange={(e) => salvarForm.mutate({ menu_ordem: Number(e.target.value) })}
+                className="w-20 rounded-md border bg-background px-2 py-1"
+              />
+            </label>
+            <span className="text-xs text-muted-foreground">
+              Aparece em <code>/servicos</code> (precisa estar publicado e aceitar link público).
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
