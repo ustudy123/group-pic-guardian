@@ -36,6 +36,8 @@ function FormPublico() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [enviado, setEnviado] = useState(false);
+  const [temRascunho, setTemRascunho] = useState(false);
+  const RASCUNHO_KEY = `rascunho:formulario:${slug}`;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["form-publico", slug],
@@ -123,9 +125,53 @@ function FormPublico() {
       });
       if (error) throw error;
     },
-    onSuccess: () => setEnviado(true),
+    onSuccess: () => {
+      try {
+        localStorage.removeItem(RASCUNHO_KEY);
+      } catch {}
+      setEnviado(true);
+    },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Rascunho salvo no próprio dispositivo (sem depender de login).
+  // Guarda texto/seleções; as fotos não entram no rascunho.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(RASCUNHO_KEY)) setTemRascunho(true);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [RASCUNHO_KEY]);
+
+  const salvarRascunho = () => {
+    try {
+      localStorage.setItem(RASCUNHO_KEY, JSON.stringify({ nome, email, valores }));
+      setTemRascunho(false);
+      toast.success("Rascunho salvo neste dispositivo.");
+    } catch {
+      toast.error("Não foi possível salvar o rascunho.");
+    }
+  };
+  const restaurarRascunho = () => {
+    try {
+      const raw = localStorage.getItem(RASCUNHO_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      setNome(d.nome ?? "");
+      setEmail(d.email ?? "");
+      setValores(d.valores ?? {});
+      setTemRascunho(false);
+      toast.success("Rascunho restaurado. As fotos precisam ser anexadas novamente.");
+    } catch {
+      toast.error("Não foi possível restaurar o rascunho.");
+    }
+  };
+  const descartarRascunho = () => {
+    try {
+      localStorage.removeItem(RASCUNHO_KEY);
+    } catch {}
+    setTemRascunho(false);
+  };
 
   if (isLoading)
     return (
@@ -195,6 +241,34 @@ function FormPublico() {
           )}
         </div>
 
+        {temRascunho && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border p-3 text-sm"
+            style={{ background: "rgba(124,58,237,0.06)", borderColor: "rgba(124,58,237,0.30)" }}
+          >
+            <span className="text-muted-foreground">
+              Você tem um rascunho salvo deste formulário neste dispositivo.
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={descartarRascunho}
+                className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent"
+              >
+                Descartar
+              </button>
+              <button
+                type="button"
+                onClick={restaurarRascunho}
+                style={{ backgroundImage: FORM_GRAD_BTN }}
+                className="rounded-md px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                Restaurar
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="bg-card border rounded-2xl p-6 shadow-lg space-y-4">
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block text-sm">
@@ -230,15 +304,26 @@ function FormPublico() {
           />
         ))}
 
-        <button
-          onClick={() => enviar.mutate()}
-          disabled={enviar.isPending}
-          style={{ backgroundImage: FORM_GRAD_BTN, boxShadow: FORM_SHADOW }}
-          className="w-full rounded-xl px-4 py-3 font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 inline-flex items-center justify-center gap-2"
-        >
-          {enviar.isPending && <Loader2 size={16} className="animate-spin" />}
-          Enviar resposta
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={salvarRascunho}
+            disabled={enviar.isPending}
+            title="Salva o preenchimento neste dispositivo para continuar depois (não inclui fotos)"
+            className="rounded-xl border px-4 py-3 text-sm font-semibold hover:bg-accent disabled:opacity-50"
+          >
+            Salvar rascunho
+          </button>
+          <button
+            onClick={() => enviar.mutate()}
+            disabled={enviar.isPending}
+            style={{ backgroundImage: FORM_GRAD_BTN, boxShadow: FORM_SHADOW }}
+            className="flex-1 rounded-xl px-4 py-3 font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 inline-flex items-center justify-center gap-2"
+          >
+            {enviar.isPending && <Loader2 size={16} className="animate-spin" />}
+            Enviar resposta
+          </button>
+        </div>
       </div>
     </div>
   );
