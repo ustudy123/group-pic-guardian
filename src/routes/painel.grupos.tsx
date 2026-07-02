@@ -199,7 +199,7 @@ function GruposDescobertos() {
             <p className="text-sm text-muted-foreground">Nenhum grupo encontrado para “{busca.trim()}”.</p>
           )}
           <div className="grid gap-3">
-            {pendentes.map((g) => (
+            {pendentesFiltrados.map((g) => (
               <div
                 key={g.id}
                 className="border rounded-xl bg-card p-4 flex items-center gap-4 flex-wrap"
