@@ -132,7 +132,9 @@ function GruposDescobertos() {
     onError: (e: Error) => toast.error("Falha ao sincronizar: " + e.message),
   });
 
+  const termo = busca.trim().toLowerCase();
   const pendentes = (data ?? []).filter((g) => g.ativo && !g.ja_ativado);
+  const pendentesFiltrados = pendentes.filter((g) => g.nome_exibicao.toLowerCase().includes(termo));
   const ativados = (data ?? []).filter((g) => g.ativo && g.ja_ativado);
   const recusados = (data ?? []).filter((g) => !g.ativo);
 
