@@ -42,6 +42,7 @@ function GruposDescobertos() {
   const qc = useQueryClient();
   const [arquivarAlvo, setArquivarAlvo] = useState<GrupoDescoberto | null>(null);
   const [excluirAlvo, setExcluirAlvo] = useState<GrupoDescoberto | null>(null);
+  const [busca, setBusca] = useState("");
 
   const { data: podeExcluir = false } = useQuery({
     queryKey: ["pode-excluir-grupos"],
