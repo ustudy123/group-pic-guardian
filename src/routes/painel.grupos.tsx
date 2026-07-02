@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { sincronizarGruposZapi } from "@/lib/grupos.functions";
-import { Users, ArrowLeft, Check, RotateCcw, RefreshCw, Archive, Trash2 } from "lucide-react";
+import { Users, ArrowLeft, Check, RotateCcw, RefreshCw, Archive, Trash2, Search } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +42,7 @@ function GruposDescobertos() {
   const qc = useQueryClient();
   const [arquivarAlvo, setArquivarAlvo] = useState<GrupoDescoberto | null>(null);
   const [excluirAlvo, setExcluirAlvo] = useState<GrupoDescoberto | null>(null);
+  const [busca, setBusca] = useState("");
 
   const { data: podeExcluir = false } = useQuery({
     queryKey: ["pode-excluir-grupos"],
@@ -131,7 +132,9 @@ function GruposDescobertos() {
     onError: (e: Error) => toast.error("Falha ao sincronizar: " + e.message),
   });
 
+  const termo = busca.trim().toLowerCase();
   const pendentes = (data ?? []).filter((g) => g.ativo && !g.ja_ativado);
+  const pendentesFiltrados = pendentes.filter((g) => g.nome_exibicao.toLowerCase().includes(termo));
   const ativados = (data ?? []).filter((g) => g.ativo && g.ja_ativado);
   const recusados = (data ?? []).filter((g) => !g.ativo);
 
@@ -177,11 +180,26 @@ function GruposDescobertos() {
 
       {pendentes.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Aguardando ativação ({pendentes.length})
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Aguardando ativação ({pendentes.length})
+            </h2>
+            <div className="relative max-w-sm">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Pesquisar por nome do grupo..."
+                className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          </div>
+          {pendentesFiltrados.length === 0 && termo && (
+            <p className="text-sm text-muted-foreground">Nenhum grupo encontrado para “{busca.trim()}”.</p>
+          )}
           <div className="grid gap-3">
-            {pendentes.map((g) => (
+            {pendentesFiltrados.map((g) => (
               <div
                 key={g.id}
                 className="border rounded-xl bg-card p-4 flex items-center gap-4 flex-wrap"
