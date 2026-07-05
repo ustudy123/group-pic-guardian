@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
 import { Route as PainelVistoriasRouteImport } from './routes/painel.vistorias'
 import { Route as PainelVisaoRouteImport } from './routes/painel.visao'
+import { Route as PainelQualidadeRouteImport } from './routes/painel.qualidade'
 import { Route as PainelGuiaRouteImport } from './routes/painel.guia'
 import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
 import { Route as PainelFormulariosRouteImport } from './routes/painel.formularios'
@@ -77,6 +78,11 @@ const PainelVistoriasRoute = PainelVistoriasRouteImport.update({
 const PainelVisaoRoute = PainelVisaoRouteImport.update({
   id: '/visao',
   path: '/visao',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelQualidadeRoute = PainelQualidadeRouteImport.update({
+  id: '/qualidade',
+  path: '/qualidade',
   getParentRoute: () => PainelRoute,
 } as any)
 const PainelGuiaRoute = PainelGuiaRouteImport.update({
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
+  '/painel/qualidade': typeof PainelQualidadeRoute
   '/painel/visao': typeof PainelVisaoRoute
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByTo {
   '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
+  '/painel/qualidade': typeof PainelQualidadeRoute
   '/painel/visao': typeof PainelVisaoRoute
   '/painel': typeof PainelIndexRoute
   '/painel/formularios/$id': typeof PainelFormulariosIdRouteWithChildren
@@ -265,6 +273,7 @@ export interface FileRoutesById {
   '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
+  '/painel/qualidade': typeof PainelQualidadeRoute
   '/painel/visao': typeof PainelVisaoRoute
   '/painel/vistorias': typeof PainelVistoriasRouteWithChildren
   '/painel/': typeof PainelIndexRoute
@@ -298,6 +307,7 @@ export interface FileRouteTypes {
     | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
+    | '/painel/qualidade'
     | '/painel/visao'
     | '/painel/vistorias'
     | '/painel/'
@@ -327,6 +337,7 @@ export interface FileRouteTypes {
     | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
+    | '/painel/qualidade'
     | '/painel/visao'
     | '/painel'
     | '/painel/formularios/$id'
@@ -357,6 +368,7 @@ export interface FileRouteTypes {
     | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
+    | '/painel/qualidade'
     | '/painel/visao'
     | '/painel/vistorias'
     | '/painel/'
@@ -448,6 +460,13 @@ declare module '@tanstack/react-router' {
       path: '/visao'
       fullPath: '/painel/visao'
       preLoaderRoute: typeof PainelVisaoRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/qualidade': {
+      id: '/painel/qualidade'
+      path: '/qualidade'
+      fullPath: '/painel/qualidade'
+      preLoaderRoute: typeof PainelQualidadeRouteImport
       parentRoute: typeof PainelRoute
     }
     '/painel/guia': {
@@ -658,6 +677,7 @@ interface PainelRouteChildren {
   PainelFormulariosRoute: typeof PainelFormulariosRouteWithChildren
   PainelGruposRoute: typeof PainelGruposRoute
   PainelGuiaRoute: typeof PainelGuiaRoute
+  PainelQualidadeRoute: typeof PainelQualidadeRoute
   PainelVisaoRoute: typeof PainelVisaoRoute
   PainelVistoriasRoute: typeof PainelVistoriasRouteWithChildren
   PainelIndexRoute: typeof PainelIndexRoute
@@ -670,6 +690,7 @@ const PainelRouteChildren: PainelRouteChildren = {
   PainelFormulariosRoute: PainelFormulariosRouteWithChildren,
   PainelGruposRoute: PainelGruposRoute,
   PainelGuiaRoute: PainelGuiaRoute,
+  PainelQualidadeRoute: PainelQualidadeRoute,
   PainelVisaoRoute: PainelVisaoRoute,
   PainelVistoriasRoute: PainelVistoriasRouteWithChildren,
   PainelIndexRoute: PainelIndexRoute,
@@ -698,3 +719,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

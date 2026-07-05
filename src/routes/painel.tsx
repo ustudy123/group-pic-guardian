@@ -5,8 +5,24 @@ import { useAuth } from "@/lib/auth-context";
 import { BotStatusIndicator } from "@/components/bot-status-indicator";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye, ClipboardList } from "lucide-react";
+import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye, ClipboardList, BadgeCheck } from "lucide-react";
 import { useRoles } from "@/lib/use-roles";
+
+function QualidadeLink() {
+  // Papel Qualidade (= analista) e admin avaliam fotos; o gate real é a RLS.
+  const { podeGerenciarFormularios } = useRoles();
+  if (!podeGerenciarFormularios) return null;
+  return (
+    <Link
+      to="/painel/qualidade"
+      className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+      title="Visão Qualidade — aprovar/reprovar fotos"
+    >
+      <BadgeCheck size={15} />
+      <span className="hidden sm:inline">Qualidade</span>
+    </Link>
+  );
+}
 
 function FormulariosLink() {
   const { user } = useAuth();
@@ -157,6 +173,7 @@ function PainelLayout() {
                 </Link>
               </>
             )}
+            <QualidadeLink />
             <FormulariosLink />
             <AdminLink />
             <Link

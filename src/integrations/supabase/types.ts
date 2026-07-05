@@ -471,6 +471,7 @@ export type Database = {
       }
       formulario_campos: {
         Row: {
+          condicao: Json | null
           config: Json
           created_at: string
           descricao: string | null
@@ -485,6 +486,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          condicao?: Json | null
           config?: Json
           created_at?: string
           descricao?: string | null
@@ -499,6 +501,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          condicao?: Json | null
           config?: Json
           created_at?: string
           descricao?: string | null
@@ -577,7 +580,10 @@ export type Database = {
           descricao: string | null
           icone: string | null
           id: string
+          menu_icone: string | null
+          menu_ordem: number
           modelo: boolean
+          no_menu: boolean
           pasta_id: string | null
           permite_multiplas: boolean
           publico: boolean
@@ -593,7 +599,10 @@ export type Database = {
           descricao?: string | null
           icone?: string | null
           id?: string
+          menu_icone?: string | null
+          menu_ordem?: number
           modelo?: boolean
+          no_menu?: boolean
           pasta_id?: string | null
           permite_multiplas?: boolean
           publico?: boolean
@@ -609,7 +618,10 @@ export type Database = {
           descricao?: string | null
           icone?: string | null
           id?: string
+          menu_icone?: string | null
+          menu_ordem?: number
           modelo?: boolean
+          no_menu?: boolean
           pasta_id?: string | null
           permite_multiplas?: boolean
           publico?: boolean
@@ -732,6 +744,67 @@ export type Database = {
             columns: ["foto_id"]
             isOneToOne: true
             referencedRelation: "vw_fotos_completas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      foto_avaliacoes: {
+        Row: {
+          avaliado_em: string
+          avaliado_por: string | null
+          created_at: string
+          foto_id: string
+          id: string
+          motivo_id: string | null
+          notificado: boolean
+          observacao: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          avaliado_em?: string
+          avaliado_por?: string | null
+          created_at?: string
+          foto_id: string
+          id?: string
+          motivo_id?: string | null
+          notificado?: boolean
+          observacao?: string | null
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          avaliado_em?: string
+          avaliado_por?: string | null
+          created_at?: string
+          foto_id?: string
+          id?: string
+          motivo_id?: string | null
+          notificado?: boolean
+          observacao?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foto_avaliacoes_foto_id_fkey"
+            columns: ["foto_id"]
+            isOneToOne: true
+            referencedRelation: "fotos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foto_avaliacoes_foto_id_fkey"
+            columns: ["foto_id"]
+            isOneToOne: true
+            referencedRelation: "vw_fotos_completas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foto_avaliacoes_motivo_id_fkey"
+            columns: ["motivo_id"]
+            isOneToOne: false
+            referencedRelation: "motivos_reprovacao"
             referencedColumns: ["id"]
           },
         ]
@@ -920,6 +993,33 @@ export type Database = {
             referencedColumns: ["encarregado_id"]
           },
         ]
+      }
+      motivos_reprovacao: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
