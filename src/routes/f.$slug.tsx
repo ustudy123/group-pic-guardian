@@ -42,15 +42,20 @@ function FormPublico() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["form-publico", slug],
     queryFn: async () => {
+      // Publicado basta; se não for público, exige usuário logado (portal do
+      // encarregado). A RLS já limita o anônimo a publicado+público.
       const { data: form, error: e1 } = await supabase
         .from("formularios")
         .select("*")
         .eq("share_slug", slug)
         .eq("status", "publicado")
-        .eq("publico", true)
         .maybeSingle();
       if (e1) throw e1;
-      if (!form) throw new Error("Formulário não encontrado ou não está público.");
+      if (!form) throw new Error("Formulário não encontrado ou não está disponível.");
+      if (!form.publico) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Este formulário é restrito — faça login para preencher.");
+      }
       const { data: campos } = await supabase
         .from("formulario_campos")
         .select("*")
@@ -87,15 +92,37 @@ function FormPublico() {
       // Upload arquivos
       const arquivosMeta: any[] = [];
       const { data: { user } } = await supabase.auth.getUser();
+
+      // Encarregado logado? Fotos vão para a PASTA dele ({encarregado}/{data})
+      // e entram no acervo (tabela fotos) tagueadas pelo formulário — assim
+      // aparecem nas pastas do painel e na Visão Qualidade em tempo real.
+      // status='formulario' não dispara a análise de IA.
+      let encarregado: { id: string; nome: string } | null = null;
+      if (user) {
+        const { data: enc } = await (supabase.from("encarregados") as any)
+          .select("id, nome")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        encarregado = enc ?? null;
+      }
+      const dataPasta = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Sao_Paulo",
+      }).format(new Date());
+
       for (const [campoId, files] of Object.entries(arquivos)) {
         if (!visivel(byId[campoId])) continue; // não envia arquivo de campo oculto
+        const rotuloCampo = byId[campoId]?.rotulo ?? "";
         for (const f of files) {
           if (!user) {
             throw new Error(
               `Anexos só são suportados para usuários autenticados nesta versão. Remova o arquivo do campo.`,
             );
           }
-          const path = `formularios/${data.form.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${f.name}`;
+          const uid = `form-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const ehFotoDeEncarregado = !!encarregado && f.type.startsWith("image/");
+          const path = ehFotoDeEncarregado
+            ? `${encarregado!.id}/${dataPasta}/${uid}-${f.name}`
+            : `formularios/${data.form.id}/${uid}-${f.name}`;
           const { error } = await supabase.storage.from("fotos-obras").upload(path, f);
           if (error) throw error;
           arquivosMeta.push({
@@ -105,6 +132,27 @@ function FormPublico() {
             tipo: f.type,
             tamanho: f.size,
           });
+
+          if (ehFotoDeEncarregado) {
+            const { data: signed } = await supabase.storage
+              .from("fotos-obras")
+              .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+            const { error: fotoErr } = await (supabase.from("fotos") as any).insert({
+              encarregado_id: encarregado!.id,
+              message_id: uid,
+              storage_path: path,
+              storage_url: signed?.signedUrl ?? null,
+              data_envio: new Date().toISOString(),
+              data_pasta: dataPasta,
+              caption: `${data.form.titulo}${rotuloCampo ? ` — ${rotuloCampo}` : ""}`,
+              mime_type: f.type,
+              tamanho_bytes: f.size,
+              remetente_nome: encarregado!.nome,
+              status: "formulario",
+              formulario_id: data.form.id,
+            });
+            if (fotoErr) console.error("[formulario] erro ao registrar foto no acervo:", fotoErr);
+          }
         }
       }
 

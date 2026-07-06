@@ -109,12 +109,31 @@ export const Route = createFileRoute("/painel")({
 function PainelLayout() {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const { roles, loading: rolesLoading } = useRoles();
 
   useEffect(() => {
     if (!loading && !user) {
       navigate({ to: "/login" });
     }
   }, [loading, user, navigate]);
+
+  // Login de encarregado (sem papel de gestão) vai direto para o portal dele
+  const { data: ehEncarregado } = useQuery({
+    queryKey: ["eh-encarregado", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await (supabase.from("encarregados") as any)
+        .select("id")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      return !!data;
+    },
+  });
+  useEffect(() => {
+    if (!rolesLoading && ehEncarregado && !roles.includes("admin") && !roles.includes("analista")) {
+      navigate({ to: "/portal" });
+    }
+  }, [ehEncarregado, roles, rolesLoading, navigate]);
 
   if (loading || !user) {
     return (

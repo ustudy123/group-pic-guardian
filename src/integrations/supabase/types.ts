@@ -379,6 +379,7 @@ export type Database = {
           observacoes: string | null
           telefone: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           ativo?: boolean
@@ -391,6 +392,7 @@ export type Database = {
           observacoes?: string | null
           telefone?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           ativo?: boolean
@@ -403,6 +405,7 @@ export type Database = {
           observacoes?: string | null
           telefone?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -468,6 +471,35 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      formulario_acessos: {
+        Row: {
+          created_at: string
+          formulario_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          formulario_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          formulario_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formulario_acessos_formulario_id_fkey"
+            columns: ["formulario_id"]
+            isOneToOne: false
+            referencedRelation: "formularios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       formulario_campos: {
         Row: {
@@ -752,6 +784,8 @@ export type Database = {
         Row: {
           avaliado_em: string
           avaliado_por: string | null
+          correcao_foto_id: string | null
+          corrigida_em: string | null
           created_at: string
           foto_id: string
           id: string
@@ -764,6 +798,8 @@ export type Database = {
         Insert: {
           avaliado_em?: string
           avaliado_por?: string | null
+          correcao_foto_id?: string | null
+          corrigida_em?: string | null
           created_at?: string
           foto_id: string
           id?: string
@@ -776,6 +812,8 @@ export type Database = {
         Update: {
           avaliado_em?: string
           avaliado_por?: string | null
+          correcao_foto_id?: string | null
+          corrigida_em?: string | null
           created_at?: string
           foto_id?: string
           id?: string
@@ -818,6 +856,7 @@ export type Database = {
           data_pasta: string
           encarregado_id: string
           erro_mensagem: string | null
+          formulario_id: string | null
           id: string
           largura: number | null
           message_id: string
@@ -837,6 +876,7 @@ export type Database = {
           data_pasta: string
           encarregado_id: string
           erro_mensagem?: string | null
+          formulario_id?: string | null
           id?: string
           largura?: number | null
           message_id: string
@@ -856,6 +896,7 @@ export type Database = {
           data_pasta?: string
           encarregado_id?: string
           erro_mensagem?: string | null
+          formulario_id?: string | null
           id?: string
           largura?: number | null
           message_id?: string
@@ -888,6 +929,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_resumo_diario"
             referencedColumns: ["encarregado_id"]
+          },
+          {
+            foreignKeyName: "fotos_formulario_id_fkey"
+            columns: ["formulario_id"]
+            isOneToOne: false
+            referencedRelation: "formularios"
+            referencedColumns: ["id"]
           },
         ]
       }

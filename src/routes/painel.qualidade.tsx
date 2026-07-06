@@ -26,6 +26,7 @@ type Avaliacao = {
   motivo_id: string | null;
   observacao: string | null;
   avaliado_em: string;
+  correcao_foto_id?: string | null;
 };
 
 type Motivo = { id: string; nome: string; ativo: boolean; ordem: number };
@@ -116,9 +117,8 @@ function PainelQualidade() {
     enabled: fotoIds.length > 0,
     refetchInterval: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("foto_avaliacoes")
-        .select("id, foto_id, status, motivo_id, observacao, avaliado_em")
+      const { data, error } = await (supabase.from("foto_avaliacoes") as any)
+        .select("id, foto_id, status, motivo_id, observacao, avaliado_em, correcao_foto_id")
         .in("foto_id", fotoIds);
       if (error) throw error;
       return (data ?? []) as Avaliacao[];
@@ -423,6 +423,10 @@ function PainelQualidade() {
                   ) : av.status === "aprovada" ? (
                     <span className="rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-bold text-white">
                       Aprovada
+                    </span>
+                  ) : av.correcao_foto_id ? (
+                    <span className="rounded-full bg-sky-600/90 px-2 py-0.5 text-[10px] font-bold text-white">
+                      Corrigida
                     </span>
                   ) : (
                     <span className="rounded-full bg-red-600/90 px-2 py-0.5 text-[10px] font-bold text-white">

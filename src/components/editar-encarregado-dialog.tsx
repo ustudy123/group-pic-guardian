@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Archive, Upload, User, X, Loader2 } from "lucide-react";
+import { Pencil, Archive, Upload, User, X, Loader2, KeyRound, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { criarLoginEncarregado, infoLoginEncarregado, updateUserPassword } from "@/lib/admin.functions";
 import {
   Dialog,
   DialogContent,
@@ -38,16 +39,52 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
   const [nomeVal, setNomeVal] = useState(nome);
   const [grupoVal, setGrupoVal] = useState(grupoNome ?? "");
   const [fotoVal, setFotoVal] = useState<string | null>(fotoUrl ?? null);
+  const [telefoneVal, setTelefoneVal] = useState("");
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [confirmArquivar, setConfirmArquivar] = useState(false);
-  
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginSenha, setLoginSenha] = useState("");
+
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Telefone atual (para alertas/notificações via WhatsApp)
+  const { data: extra } = useQuery({
+    queryKey: ["encarregado-extra", id],
+    enabled: open,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("encarregados")
+        .select("telefone, user_id")
+        .eq("id", id)
+        .single();
+      return data;
+    },
+  });
+  useEffect(() => {
+    if (extra) setTelefoneVal(extra.telefone ?? "");
+  }, [extra]);
+
+  // Login do portal vinculado (e-mail), visível só para admin
+  const { data: login, refetch: refetchLogin } = useQuery({
+    queryKey: ["encarregado-login", id],
+    enabled: open,
+    retry: false,
+    queryFn: async () => {
+      try {
+        return await infoLoginEncarregado({ data: { encarregadoId: id } });
+      } catch {
+        return null; // usuário não-admin: seção fica oculta
+      }
+    },
+  });
 
   useEffect(() => {
     if (open) {
       setNomeVal(nome);
       setGrupoVal(grupoNome ?? "");
       setFotoVal(fotoUrl ?? null);
+      setLoginEmail("");
+      setLoginSenha("");
     }
   }, [open, nome, grupoNome, fotoUrl]);
 
@@ -94,6 +131,7 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
           nome: novoNome,
           grupo_whatsapp_nome: novoGrupo || null,
           foto_url: fotoVal,
+          telefone: telefoneVal.replace(/\D/g, "") || null,
         })
         .eq("id", id);
       if (error) throw error;
@@ -133,6 +171,35 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
       setConfirmArquivar(false);
       setOpen(false);
       invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const criarAcesso = useMutation({
+    mutationFn: async () => {
+      if (!loginEmail.trim()) throw new Error("Informe o e-mail do login.");
+      if (loginSenha.length < 6) throw new Error("A senha precisa de ao menos 6 caracteres.");
+      return criarLoginEncarregado({
+        data: { encarregadoId: id, email: loginEmail.trim(), password: loginSenha },
+      });
+    },
+    onSuccess: () => {
+      toast.success("Acesso ao portal criado");
+      setLoginSenha("");
+      refetchLogin();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const redefinirSenha = useMutation({
+    mutationFn: async () => {
+      if (!login?.userId) throw new Error("Sem login vinculado.");
+      if (loginSenha.length < 6) throw new Error("A senha precisa de ao menos 6 caracteres.");
+      await updateUserPassword({ data: { userId: login.userId, password: loginSenha } });
+    },
+    onSuccess: () => {
+      toast.success("Senha redefinida");
+      setLoginSenha("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -239,6 +306,84 @@ export function EditarEncarregadoDialog({ id, nome, grupoNome, fotoUrl }: Props)
                 placeholder="Ex: Obra Centro"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="enc-telefone">
+                <Smartphone size={13} className="inline mr-1" />
+                Telefone (WhatsApp, com DDD — usado nos avisos de foto reprovada)
+              </Label>
+              <Input
+                id="enc-telefone"
+                value={telefoneVal}
+                onChange={(e) => setTelefoneVal(e.target.value)}
+                placeholder="Ex: 5527999998888"
+                inputMode="numeric"
+              />
+            </div>
+
+            {login !== null && login !== undefined && (
+              <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
+                <Label className="flex items-center gap-1.5">
+                  <KeyRound size={13} /> Acesso ao portal do encarregado
+                </Label>
+                {login.userId ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Login ativo: <b>{login.email ?? "e-mail não encontrado"}</b>. O encarregado
+                      entra em <b>/login</b> e cai no portal dele.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="password"
+                        value={loginSenha}
+                        onChange={(e) => setLoginSenha(e.target.value)}
+                        placeholder="Nova senha (mín. 6)"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => redefinirSenha.mutate()}
+                        disabled={redefinirSenha.isPending || loginSenha.length < 6}
+                      >
+                        {redefinirSenha.isPending ? "Salvando..." : "Redefinir senha"}
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Crie um login para este encarregado acessar o portal (formulários liberados +
+                      fotos reprovadas para corrigir).
+                    </p>
+                    <Input
+                      type="email"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="E-mail do encarregado"
+                    />
+                    <div className="flex gap-2">
+                      <Input
+                        type="password"
+                        value={loginSenha}
+                        onChange={(e) => setLoginSenha(e.target.value)}
+                        placeholder="Senha (mín. 6)"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => criarAcesso.mutate()}
+                        disabled={criarAcesso.isPending}
+                      >
+                        {criarAcesso.isPending ? "Criando..." : "Criar acesso"}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-2 pt-2 border-t">
               <Button

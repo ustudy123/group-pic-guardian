@@ -1,0 +1,49 @@
+name: Avisar Encarregados de Fotos Reprovadas
+
+# Envia (via instância WhatsApp do Macro I.A) UMA mensagem agrupada por
+# encarregado com as fotos reprovadas pela qualidade que ainda não foram
+# avisadas. O cron do GitHub sofre throttling e roda poucas vezes ao dia —
+# sem problema: as reprovações acumulam e saem agrupadas no próximo disparo,
+# e o portal do encarregado já mostra tudo em tempo real de qualquer forma.
+
+on:
+  schedule:
+    # Grade densa em horário de trabalho BRT (GitHub dispara só algumas vezes)
+    - cron: "*/20 10-22 * * 1-6"   # 07:00–19:55 BRT, seg–sáb
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Só simular (não envia WhatsApp)"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: notificar-reprovacoes
+  cancel-in-progress: false
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Disparar avisos agrupados
+        env:
+          ENDPOINT: https://macroambiental-botgrupos.lovable.app/api/public/hooks/notificar-reprovacoes
+          SECRET: ${{ secrets.AI_BOT_WEBHOOK_SECRET }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "AI_BOT_WEBHOOK_SECRET não configurado nos secrets do repo."
+            exit 1
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            BODY='{"dryRun":true}'
+          else
+            BODY='{}'
+          fi
+          RESP=$(curl -sS -X POST "$ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -H "X-Bot-Secret: $SECRET" \
+            -d "$BODY")
+          echo "Resp: $RESP"

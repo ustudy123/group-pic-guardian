@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ServicosRouteImport } from './routes/servicos'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PainelRouteImport } from './routes/painel'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
@@ -36,6 +37,7 @@ import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public
 import { Route as ApiPublicHooksReenviarAlertasRouteImport } from './routes/api/public/hooks/reenviar-alertas'
 import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
 import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
+import { Route as ApiPublicHooksNotificarReprovacoesRouteImport } from './routes/api/public/hooks/notificar-reprovacoes'
 import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes/api/public/hooks/mensagens-programadas'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
 import { Route as ApiPublicHooksUazapiFotosTokenRouteImport } from './routes/api/public/hooks/uazapi-fotos.$token'
@@ -48,6 +50,11 @@ const ServicosRoute = ServicosRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PainelRoute = PainelRouteImport.update({
@@ -180,6 +187,12 @@ const ApiPublicHooksProcessarAnalisesRoute =
     path: '/api/public/hooks/processar-analises',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksNotificarReprovacoesRoute =
+  ApiPublicHooksNotificarReprovacoesRouteImport.update({
+    id: '/api/public/hooks/notificar-reprovacoes',
+    path: '/api/public/hooks/notificar-reprovacoes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksMensagensProgramadasRoute =
   ApiPublicHooksMensagensProgramadasRouteImport.update({
     id: '/api/public/hooks/mensagens-programadas',
@@ -202,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
+  '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
   '/servicos': typeof ServicosRoute
   '/f/$slug': typeof FSlugRoute
@@ -222,6 +236,7 @@ export interface FileRoutesByFullPath {
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
+  '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
@@ -233,6 +248,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
   '/servicos': typeof ServicosRoute
   '/f/$slug': typeof FSlugRoute
@@ -251,6 +267,7 @@ export interface FileRoutesByTo {
   '/painel/vistorias': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
+  '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
@@ -264,6 +281,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
+  '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
   '/servicos': typeof ServicosRoute
   '/f/$slug': typeof FSlugRoute
@@ -284,6 +302,7 @@ export interface FileRoutesById {
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
+  '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
@@ -298,6 +317,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/painel'
+    | '/portal'
     | '/reset-password'
     | '/servicos'
     | '/f/$slug'
@@ -318,6 +338,7 @@ export interface FileRouteTypes {
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
     | '/api/public/hooks/mensagens-programadas'
+    | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/api/public/hooks/reenviar-alertas'
@@ -329,6 +350,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/portal'
     | '/reset-password'
     | '/servicos'
     | '/f/$slug'
@@ -347,6 +369,7 @@ export interface FileRouteTypes {
     | '/painel/vistorias'
     | '/api/public/hooks/ai-bot'
     | '/api/public/hooks/mensagens-programadas'
+    | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/api/public/hooks/reenviar-alertas'
@@ -359,6 +382,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/painel'
+    | '/portal'
     | '/reset-password'
     | '/servicos'
     | '/f/$slug'
@@ -379,6 +403,7 @@ export interface FileRouteTypes {
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
     | '/api/public/hooks/mensagens-programadas'
+    | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/api/public/hooks/reenviar-alertas'
@@ -392,11 +417,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
+  PortalRoute: typeof PortalRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ServicosRoute: typeof ServicosRoute
   FSlugRoute: typeof FSlugRoute
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
   ApiPublicHooksMensagensProgramadasRoute: typeof ApiPublicHooksMensagensProgramadasRoute
+  ApiPublicHooksNotificarReprovacoesRoute: typeof ApiPublicHooksNotificarReprovacoesRoute
   ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
   ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
   ApiPublicHooksReenviarAlertasRoute: typeof ApiPublicHooksReenviarAlertasRoute
@@ -418,6 +445,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/painel': {
@@ -595,6 +629,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksProcessarAnalisesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/notificar-reprovacoes': {
+      id: '/api/public/hooks/notificar-reprovacoes'
+      path: '/api/public/hooks/notificar-reprovacoes'
+      fullPath: '/api/public/hooks/notificar-reprovacoes'
+      preLoaderRoute: typeof ApiPublicHooksNotificarReprovacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/mensagens-programadas': {
       id: '/api/public/hooks/mensagens-programadas'
       path: '/api/public/hooks/mensagens-programadas'
@@ -703,12 +744,15 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
+  PortalRoute: PortalRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ServicosRoute: ServicosRoute,
   FSlugRoute: FSlugRoute,
   ApiPublicHooksAiBotRoute: ApiPublicHooksAiBotRoute,
   ApiPublicHooksMensagensProgramadasRoute:
     ApiPublicHooksMensagensProgramadasRoute,
+  ApiPublicHooksNotificarReprovacoesRoute:
+    ApiPublicHooksNotificarReprovacoesRoute,
   ApiPublicHooksProcessarAnalisesRoute: ApiPublicHooksProcessarAnalisesRoute,
   ApiPublicHooksProcessarRelatoriosRoute:
     ApiPublicHooksProcessarRelatoriosRoute,

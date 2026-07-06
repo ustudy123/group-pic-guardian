@@ -441,6 +441,7 @@ function Editor() {
                 <span className="text-xs text-muted-foreground">Aparece em /servicos (precisa estar publicado e público).</span>
               </div>
             )}
+            <AcessoRestrito formularioId={id} />
           </div>
 
           {/* Lista de campos (edição inline) */}
@@ -975,4 +976,97 @@ function Thumb({ file }: { file: File }) {
     return () => URL.revokeObjectURL(u);
   }, [file]);
   return url ? <img src={url} alt="" className="h-16 w-16 rounded border object-cover" /> : null;
+}
+
+// Restringe o formulário no portal a logins específicos de encarregados.
+// Sem ninguém marcado = liberado para todos os encarregados com login.
+function AcessoRestrito({ formularioId }: { formularioId: string }) {
+  const qc = useQueryClient();
+  const [aberto, setAberto] = useState(false);
+
+  const { data: encarregados = [] } = useQuery({
+    queryKey: ["encarregados-com-login"],
+    enabled: aberto,
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("encarregados") as any)
+        .select("id, nome, user_id")
+        .not("user_id", "is", null)
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return (data ?? []) as { id: string; nome: string; user_id: string }[];
+    },
+  });
+
+  const { data: acessos = [] } = useQuery({
+    queryKey: ["formulario-acessos", formularioId],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("formulario_acessos") as any)
+        .select("id, user_id")
+        .eq("formulario_id", formularioId);
+      if (error) throw error;
+      return (data ?? []) as { id: string; user_id: string }[];
+    },
+  });
+  const liberados = new Set(acessos.map((a) => a.user_id));
+
+  const alternar = useMutation({
+    mutationFn: async (userId: string) => {
+      if (liberados.has(userId)) {
+        const { error } = await (supabase.from("formulario_acessos") as any)
+          .delete()
+          .eq("formulario_id", formularioId)
+          .eq("user_id", userId);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase.from("formulario_acessos") as any)
+          .insert({ formulario_id: formularioId, user_id: userId });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["formulario-acessos", formularioId] }),
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  return (
+    <div className="pt-3 mt-3 border-t text-sm">
+      <button
+        type="button"
+        onClick={() => setAberto((a) => !a)}
+        className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline"
+      >
+        {aberto ? "▾" : "▸"} Acesso no portal do encarregado
+        <span className="text-xs font-normal text-muted-foreground">
+          {acessos.length === 0
+            ? "(todos os encarregados com login)"
+            : `(restrito a ${acessos.length} login${acessos.length > 1 ? "s" : ""})`}
+        </span>
+      </button>
+      {aberto && (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-xs text-muted-foreground">
+            Marque para restringir este formulário a encarregados específicos. Sem marcação, todos
+            os encarregados com login veem este formulário no portal.
+          </p>
+          {encarregados.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Nenhum encarregado com login ainda — crie o acesso no card do encarregado (lápis ✏️ →
+              "Acesso ao portal").
+            </p>
+          ) : (
+            encarregados.map((e) => (
+              <label key={e.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={liberados.has(e.user_id)}
+                  onChange={() => alternar.mutate(e.user_id)}
+                />
+                {e.nome}
+              </label>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
 }

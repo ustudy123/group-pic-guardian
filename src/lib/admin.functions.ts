@@ -6,6 +6,8 @@ import {
   changeAuthUserPassword,
   confirmAuthUserEmail,
   createAuthUser,
+  createLoginEncarregado,
+  getLoginEncarregado,
   removeAuthUser,
   setAdminRole,
   setUserRole,
@@ -160,6 +162,32 @@ export const getAdminStats = createServerFn({ method: "GET" })
       totalFotos: fotos.count ?? 0,
       totalGrupos: grupos.count ?? 0,
     };
+  });
+
+export const criarLoginEncarregado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        encarregadoId: z.string().uuid(),
+        email: z.string().trim().email().max(255),
+        password: z.string().min(6).max(128),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    return createLoginEncarregado(data);
+  });
+
+export const infoLoginEncarregado = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ encarregadoId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.supabase, context.userId);
+    return getLoginEncarregado(data.encarregadoId);
   });
 
 export const checkIsAdmin = createServerFn({ method: "GET" })
