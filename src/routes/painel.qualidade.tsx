@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useRoles } from "@/lib/use-roles";
+import { avisarPushReprovacao } from "@/lib/push.functions";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -201,6 +202,11 @@ function PainelQualidade() {
           ? `${vars.ids.length} foto(s) aprovada(s)`
           : `${vars.ids.length} foto(s) reprovada(s)`,
       );
+      if (vars.status === "reprovada") {
+        // Push imediato no app do encarregado (fire-and-forget;
+        // o resumo por WhatsApp continua saindo pelo cron)
+        avisarPushReprovacao({ data: { fotoIds: vars.ids } }).catch(() => {});
+      }
       setSelecionadas(new Set());
       setReprovando(null);
       invalidar();

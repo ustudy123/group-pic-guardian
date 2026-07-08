@@ -1090,6 +1090,57 @@ export type Database = {
         }
         Relationships: []
       }
+      push_config: {
+        Row: {
+          created_at: string
+          id: string
+          vapid_private_jwk: string
+          vapid_public: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          vapid_private_jwk: string
+          vapid_public: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          vapid_private_jwk?: string
+          vapid_public?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ruas: {
         Row: {
           bairro_id: string

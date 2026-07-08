@@ -14,6 +14,9 @@ import {
   CheckCircle2,
   LogOut,
   HardHat,
+  Download,
+  Bell,
+  X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/portal")({
@@ -24,10 +27,233 @@ function dataHojeSP(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 
+// ---------- PWA (instalação + notificações) — somente no portal ----------
+
+// Chave PÚBLICA do push (a privada fica no servidor/banco)
+const VAPID_PUBLIC_KEY =
+  "BMeQNnVd1aFrpllOvsqDPHdZ9jhHfbdTWKQQ1RilM4UH8AIQiNpckl4f3k1YOd24T8hr0Ra6jdduTDhISWIDEbo";
+
+function b64ToUint8(base64url: string): Uint8Array {
+  const pad = "=".repeat((4 - (base64url.length % 4)) % 4);
+  const b64 = (base64url + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64);
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+const ehStandalone = () =>
+  typeof window !== "undefined" &&
+  (window.matchMedia?.("(display-mode: standalone)").matches ||
+    (navigator as any).standalone === true);
+
+const ehIOS = () =>
+  typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+/** Registra manifest + service worker apenas quando o portal é aberto. */
+function usePwaPortal() {
+  const [swReg, setSwReg] = useState<ServiceWorkerRegistration | null>(null);
+  useEffect(() => {
+    if (!document.querySelector('link[rel="manifest"]')) {
+      const link = document.createElement("link");
+      link.rel = "manifest";
+      link.href = "/manifest.webmanifest";
+      document.head.appendChild(link);
+    }
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => setSwReg(reg))
+        .catch((e) => console.warn("[portal] sw register falhou:", e));
+    }
+  }, []);
+  return swReg;
+}
+
+/** Banner "instale o aplicativo" (Android/desktop via prompt; iOS via instruções). */
+function BannerInstalarApp() {
+  const [promptEvt, setPromptEvt] = useState<any>(null);
+  const [dispensado, setDispensado] = useState(
+    () => typeof localStorage !== "undefined" && localStorage.getItem("portal-pwa-dispensado") === "1",
+  );
+  const [instalado, setInstalado] = useState(ehStandalone());
+
+  useEffect(() => {
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setPromptEvt(e);
+    };
+    const onInstalled = () => setInstalado(true);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
+  const dispensar = () => {
+    setDispensado(true);
+    try {
+      localStorage.setItem("portal-pwa-dispensado", "1");
+    } catch {}
+  };
+
+  if (instalado || dispensado) return null;
+  const ios = ehIOS();
+  if (!promptEvt && !ios) return null;
+
+  return (
+    <div className="relative rounded-2xl border-2 border-violet-300 bg-violet-50 p-4 shadow-md">
+      <button
+        onClick={dispensar}
+        className="absolute right-2 top-2 text-violet-400 hover:text-violet-700"
+        title="Agora não"
+      >
+        <X size={15} />
+      </button>
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white">
+          <Download size={18} />
+        </div>
+        <div className="min-w-0 flex-1 text-sm">
+          <b>Instale o aplicativo do portal</b>
+          {ios && !promptEvt ? (
+            <p className="mt-0.5 text-xs text-violet-900/80">
+              No iPhone: toque em <b>Compartilhar</b> (□↑) e depois em{" "}
+              <b>"Adicionar à Tela de Início"</b>. O portal vira um app com ícone próprio.
+            </p>
+          ) : (
+            <p className="mt-0.5 text-xs text-violet-900/80">
+              Fica com ícone na tela do celular, abre mais rápido e recebe os avisos.
+            </p>
+          )}
+          {promptEvt && (
+            <button
+              onClick={async () => {
+                promptEvt.prompt();
+                const { outcome } = await promptEvt.userChoice;
+                if (outcome === "accepted") setInstalado(true);
+                setPromptEvt(null);
+              }}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700"
+            >
+              <Download size={13} /> Instalar agora
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Card de ativação das notificações push (avisos de foto reprovada etc.). */
+function CardNotificacoes({
+  swReg,
+  userId,
+}: {
+  swReg: ServiceWorkerRegistration | null;
+  userId: string;
+}) {
+  const suportado =
+    typeof window !== "undefined" && "Notification" in window && "PushManager" in window;
+  const [permissao, setPermissao] = useState(() => (suportado ? Notification.permission : "default"));
+  const [assinado, setAssinado] = useState<boolean | null>(null);
+  const [ativando, setAtivando] = useState(false);
+
+  useEffect(() => {
+    if (!swReg || !suportado) return;
+    swReg.pushManager.getSubscription().then((s) => setAssinado(!!s));
+  }, [swReg, suportado]);
+
+  const ativar = async () => {
+    if (!swReg) {
+      toast.error("Aguarde o portal terminar de carregar e tente de novo.");
+      return;
+    }
+    setAtivando(true);
+    try {
+      const perm = await Notification.requestPermission();
+      setPermissao(perm);
+      if (perm !== "granted") {
+        toast.error("Permissão de notificação não concedida.");
+        return;
+      }
+      const sub =
+        (await swReg.pushManager.getSubscription()) ??
+        (await swReg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: b64ToUint8(VAPID_PUBLIC_KEY) as unknown as BufferSource,
+        }));
+      const raw = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+      if (!raw.endpoint || !raw.keys?.p256dh || !raw.keys?.auth) {
+        throw new Error("Inscrição de push incompleta.");
+      }
+      const { error } = await (supabase.from("push_subscriptions") as any).upsert(
+        {
+          user_id: userId,
+          endpoint: raw.endpoint,
+          p256dh: raw.keys.p256dh,
+          auth: raw.keys.auth,
+          user_agent: navigator.userAgent.slice(0, 250),
+        },
+        { onConflict: "endpoint" },
+      );
+      if (error) throw error;
+      setAssinado(true);
+      toast.success("Avisos ativados neste aparelho!");
+    } catch (e: any) {
+      toast.error(e.message ?? "Não foi possível ativar os avisos.");
+    } finally {
+      setAtivando(false);
+    }
+  };
+
+  if (!suportado) {
+    // iOS só suporta push com o app instalado na tela de início (iOS 16.4+)
+    if (ehIOS() && !ehStandalone()) return null;
+    return null;
+  }
+  if (assinado && permissao === "granted")
+    return (
+      <div className="flex items-center gap-2 rounded-xl border bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+        <Bell size={13} /> Avisos ativados — você será notificado quando uma foto for reprovada.
+      </div>
+    );
+  if (permissao === "denied")
+    return (
+      <div className="rounded-xl border bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        As notificações estão bloqueadas neste navegador. Libere em configurações do site para
+        receber os avisos.
+      </div>
+    );
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-3.5 shadow-md">
+      <div className="flex items-center gap-2.5 text-sm">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+          <Bell size={16} />
+        </div>
+        <div>
+          <b>Ativar avisos</b>
+          <p className="text-xs text-amber-900/80">
+            Receba uma notificação quando uma foto sua for reprovada.
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={ativar}
+        disabled={ativando}
+        className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+      >
+        {ativando ? "Ativando..." : "Ativar"}
+      </button>
+    </div>
+  );
+}
+
 function PortalEncarregado() {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [aba, setAba] = useState<"enviar" | "reprovadas">("enviar");
+  const swReg = usePwaPortal();
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -139,6 +365,14 @@ function PortalEncarregado() {
               <LogOut size={16} />
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Instalação do app + avisos (PWA) */}
+      <div className="px-4 pt-3">
+        <div className="mx-auto max-w-md space-y-2">
+          <BannerInstalarApp />
+          <CardNotificacoes swReg={swReg} userId={user!.id} />
         </div>
       </div>
 
