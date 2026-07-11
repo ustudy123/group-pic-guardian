@@ -17,6 +17,16 @@ function normalizarTelefone(tel: string): string {
   return (tel || "").replace(/\D/g, "");
 }
 
+// Detecta despedidas / encerramento pelo usuário. Se a mensagem dele é claramente
+// um "valeu, tchau", o bot NÃO responde — quem tem a última palavra é o encarregado.
+const REGEX_DESPEDIDA = /^\s*(?:(?:muito\s+)?obrigad[oa]s?|valeu|vlw|flw|beleza|blz|de\s+boa|tranquilo|tranquil[oa]|t[áa]\s+(?:bom|certo|ok)|ok(?:ay)?|show|entendi(?:do)?|s[ó]?\s+iss[oa]\s*mesmo|s[ó]\s+iss[oa]|por\s+enquanto\s+[ée]\s+iss[oa]|acabou|nada\s+mais|tchau|at[ée]\s+(?:mais|logo|amanh[ãa])|boa\s+(?:noite|tarde|semana)|fica\s+com\s+deus|fui|abra[çc]os?|abs)[\s.,!😊👍👌🙏✌️❤️]*$/i;
+function ehDespedidaCurta(msg: string): boolean {
+  const t = (msg || "").trim();
+  if (!t) return false;
+  if (t.length > 40) return false; // mensagem longa não é só despedida
+  return REGEX_DESPEDIDA.test(t);
+}
+
 const CRITICIDADES = ["baixa", "media", "alta", "critica"] as const;
 type Criticidade = (typeof CRITICIDADES)[number];
 

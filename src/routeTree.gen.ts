@@ -34,11 +34,13 @@ import { Route as PainelFormulariosIdRouteImport } from './routes/painel.formula
 import { Route as PainelFormulariosIdRespostasRouteImport } from './routes/painel.formularios.$id.respostas'
 import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
 import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public/hooks/uazapi-bot'
+import { Route as ApiPublicHooksResumoAlertasDiarioRouteImport } from './routes/api/public/hooks/resumo-alertas-diario'
 import { Route as ApiPublicHooksReenviarAlertasRouteImport } from './routes/api/public/hooks/reenviar-alertas'
 import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
 import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
 import { Route as ApiPublicHooksNotificarReprovacoesRouteImport } from './routes/api/public/hooks/notificar-reprovacoes'
 import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes/api/public/hooks/mensagens-programadas'
+import { Route as ApiPublicHooksEnviarRespostasPendentesRouteImport } from './routes/api/public/hooks/enviar-respostas-pendentes'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
 import { Route as ApiPublicHooksUazapiFotosTokenRouteImport } from './routes/api/public/hooks/uazapi-fotos.$token'
 
@@ -169,6 +171,12 @@ const ApiPublicHooksUazapiBotRoute = ApiPublicHooksUazapiBotRouteImport.update({
   path: '/api/public/hooks/uazapi-bot',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksResumoAlertasDiarioRoute =
+  ApiPublicHooksResumoAlertasDiarioRouteImport.update({
+    id: '/api/public/hooks/resumo-alertas-diario',
+    path: '/api/public/hooks/resumo-alertas-diario',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksReenviarAlertasRoute =
   ApiPublicHooksReenviarAlertasRouteImport.update({
     id: '/api/public/hooks/reenviar-alertas',
@@ -197,6 +205,12 @@ const ApiPublicHooksMensagensProgramadasRoute =
   ApiPublicHooksMensagensProgramadasRouteImport.update({
     id: '/api/public/hooks/mensagens-programadas',
     path: '/api/public/hooks/mensagens-programadas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksEnviarRespostasPendentesRoute =
+  ApiPublicHooksEnviarRespostasPendentesRouteImport.update({
+    id: '/api/public/hooks/enviar-respostas-pendentes',
+    path: '/api/public/hooks/enviar-respostas-pendentes',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksAiBotRoute = ApiPublicHooksAiBotRouteImport.update({
@@ -235,11 +249,13 @@ export interface FileRoutesByFullPath {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/enviar-respostas-pendentes': typeof ApiPublicHooksEnviarRespostasPendentesRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
+  '/api/public/hooks/resumo-alertas-diario': typeof ApiPublicHooksResumoAlertasDiarioRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
   '/painel/formularios/$id/respostas': typeof PainelFormulariosIdRespostasRoute
@@ -266,11 +282,13 @@ export interface FileRoutesByTo {
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/enviar-respostas-pendentes': typeof ApiPublicHooksEnviarRespostasPendentesRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
+  '/api/public/hooks/resumo-alertas-diario': typeof ApiPublicHooksResumoAlertasDiarioRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
   '/painel/formularios/$id/respostas': typeof PainelFormulariosIdRespostasRoute
@@ -301,11 +319,13 @@ export interface FileRoutesById {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/enviar-respostas-pendentes': typeof ApiPublicHooksEnviarRespostasPendentesRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
+  '/api/public/hooks/resumo-alertas-diario': typeof ApiPublicHooksResumoAlertasDiarioRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
   '/painel/$encarregado/$anoMes/$dia': typeof PainelEncarregadoAnoMesDiaRoute
   '/painel/formularios/$id/respostas': typeof PainelFormulariosIdRespostasRoute
@@ -337,11 +357,13 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/enviar-respostas-pendentes'
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/api/public/hooks/reenviar-alertas'
+    | '/api/public/hooks/resumo-alertas-diario'
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
     | '/painel/formularios/$id/respostas'
@@ -368,11 +390,13 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/vistorias'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/enviar-respostas-pendentes'
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/api/public/hooks/reenviar-alertas'
+    | '/api/public/hooks/resumo-alertas-diario'
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
     | '/painel/formularios/$id/respostas'
@@ -402,11 +426,13 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/enviar-respostas-pendentes'
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
     | '/api/public/hooks/reenviar-alertas'
+    | '/api/public/hooks/resumo-alertas-diario'
     | '/api/public/hooks/uazapi-bot'
     | '/painel/$encarregado/$anoMes/$dia'
     | '/painel/formularios/$id/respostas'
@@ -422,11 +448,13 @@ export interface RootRouteChildren {
   ServicosRoute: typeof ServicosRoute
   FSlugRoute: typeof FSlugRoute
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
+  ApiPublicHooksEnviarRespostasPendentesRoute: typeof ApiPublicHooksEnviarRespostasPendentesRoute
   ApiPublicHooksMensagensProgramadasRoute: typeof ApiPublicHooksMensagensProgramadasRoute
   ApiPublicHooksNotificarReprovacoesRoute: typeof ApiPublicHooksNotificarReprovacoesRoute
   ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
   ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
   ApiPublicHooksReenviarAlertasRoute: typeof ApiPublicHooksReenviarAlertasRoute
+  ApiPublicHooksResumoAlertasDiarioRoute: typeof ApiPublicHooksResumoAlertasDiarioRoute
   ApiPublicHooksUazapiBotRoute: typeof ApiPublicHooksUazapiBotRoute
   ApiPublicHooksUazapiFotosTokenRoute: typeof ApiPublicHooksUazapiFotosTokenRoute
 }
@@ -608,6 +636,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksUazapiBotRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/resumo-alertas-diario': {
+      id: '/api/public/hooks/resumo-alertas-diario'
+      path: '/api/public/hooks/resumo-alertas-diario'
+      fullPath: '/api/public/hooks/resumo-alertas-diario'
+      preLoaderRoute: typeof ApiPublicHooksResumoAlertasDiarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/reenviar-alertas': {
       id: '/api/public/hooks/reenviar-alertas'
       path: '/api/public/hooks/reenviar-alertas'
@@ -641,6 +676,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/mensagens-programadas'
       fullPath: '/api/public/hooks/mensagens-programadas'
       preLoaderRoute: typeof ApiPublicHooksMensagensProgramadasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/enviar-respostas-pendentes': {
+      id: '/api/public/hooks/enviar-respostas-pendentes'
+      path: '/api/public/hooks/enviar-respostas-pendentes'
+      fullPath: '/api/public/hooks/enviar-respostas-pendentes'
+      preLoaderRoute: typeof ApiPublicHooksEnviarRespostasPendentesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/ai-bot': {
@@ -749,6 +791,8 @@ const rootRouteChildren: RootRouteChildren = {
   ServicosRoute: ServicosRoute,
   FSlugRoute: FSlugRoute,
   ApiPublicHooksAiBotRoute: ApiPublicHooksAiBotRoute,
+  ApiPublicHooksEnviarRespostasPendentesRoute:
+    ApiPublicHooksEnviarRespostasPendentesRoute,
   ApiPublicHooksMensagensProgramadasRoute:
     ApiPublicHooksMensagensProgramadasRoute,
   ApiPublicHooksNotificarReprovacoesRoute:
@@ -757,6 +801,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksProcessarRelatoriosRoute:
     ApiPublicHooksProcessarRelatoriosRoute,
   ApiPublicHooksReenviarAlertasRoute: ApiPublicHooksReenviarAlertasRoute,
+  ApiPublicHooksResumoAlertasDiarioRoute:
+    ApiPublicHooksResumoAlertasDiarioRoute,
   ApiPublicHooksUazapiBotRoute: ApiPublicHooksUazapiBotRoute,
   ApiPublicHooksUazapiFotosTokenRoute: ApiPublicHooksUazapiFotosTokenRoute,
 }
