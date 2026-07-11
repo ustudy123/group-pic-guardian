@@ -17,6 +17,16 @@ function normalizarTelefone(tel: string): string {
   return (tel || "").replace(/\D/g, "");
 }
 
+// Detecta despedidas / encerramento pelo usuário. Se a mensagem dele é claramente
+// um "valeu, tchau", o bot NÃO responde — quem tem a última palavra é o encarregado.
+const REGEX_DESPEDIDA = /^\s*(?:(?:muito\s+)?obrigad[oa]s?|valeu|vlw|flw|beleza|blz|de\s+boa|tranquilo|tranquil[oa]|t[áa]\s+(?:bom|certo|ok)|ok(?:ay)?|show|entendi(?:do)?|s[ó]?\s+iss[oa]\s*mesmo|s[ó]\s+iss[oa]|por\s+enquanto\s+[ée]\s+iss[oa]|acabou|nada\s+mais|tchau|at[ée]\s+(?:mais|logo|amanh[ãa])|boa\s+(?:noite|tarde|semana)|fica\s+com\s+deus|fui|abra[çc]os?|abs)[\s.,!😊👍👌🙏✌️❤️]*$/i;
+function ehDespedidaCurta(msg: string): boolean {
+  const t = (msg || "").trim();
+  if (!t) return false;
+  if (t.length > 40) return false; // mensagem longa não é só despedida
+  return REGEX_DESPEDIDA.test(t);
+}
+
 const CRITICIDADES = ["baixa", "media", "alta", "critica"] as const;
 type Criticidade = (typeof CRITICIDADES)[number];
 
@@ -470,7 +480,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
               .ilike("telefone", `%${telefone.slice(-8)}%`)
               .eq("ativo", true)
               .maybeSingle();
-            
+
             if (!aut2) {
               console.log(
                 `[uazapi-bot] nao_autorizado tel=${telefone} variantes=${Array.from(variantes).join(",")}`,
@@ -478,6 +488,16 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
               return json({ ok: true, ignored: "nao_autorizado" });
             }
           }
+        }
+
+        // Se a mensagem do encarregado é só uma despedida ("valeu", "tchau", "beleza"),
+        // grava no histórico mas NÃO responde nem cria alerta — o bot NUNCA tem a última palavra.
+        if (ehDespedidaCurta(mensagem)) {
+          console.log(`[uazapi-bot] despedida detectada, encerrando: "${mensagem}"`);
+          await supabaseAdmin
+            .from("ai_bot_conversas")
+            .insert({ telefone, nome, role: "user", conteudo: mensagem });
+          return json({ ok: true, encerrado: true, motivo: "despedida" });
         }
 
         const [{ data: kb }, { data: exemplos }] = await Promise.all([
@@ -545,25 +565,54 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         };
         const resposta = aiJson.choices?.[0]?.message?.content?.trim() || "";
 
-        const { error: insertError } = await supabaseAdmin.from("ai_bot_conversas").insert([
-          { telefone, nome, role: "user", conteudo: mensagem },
-          { telefone, nome, role: "assistant", conteudo: resposta },
-        ]);
-        if (insertError) {
-          console.error("[uazapi-bot] erro ao salvar historico:", insertError);
-        }
+        // Grava a mensagem do usuário no histórico imediatamente.
+        // A resposta do assistant só é gravada quando REALMENTE for enviada
+        // (imediatamente aqui, ou depois pelo worker de respostas pendentes).
+        await supabaseAdmin
+          .from("ai_bot_conversas")
+          .insert({ telefone, nome, role: "user", conteudo: mensagem });
 
-        // Uazapi send/text espera o número limpo, sem @s.whatsapp.net
         const destino = telefone;
-        if (resposta) {
-          console.log(`[uazapi-bot] enviando resposta para ${destino}: ${resposta.slice(0, 50)}...`);
+        const cfg = config as Record<string, unknown>;
+        const delayMin = Math.max(0, Number(cfg.delay_resposta_min_seg ?? 0));
+        const delayMax = Math.max(delayMin, Number(cfg.delay_resposta_max_seg ?? 0));
+
+        if (resposta && delayMax > 0) {
+          // Atraso humanizado: agenda o envio via tabela; o hook /enviar-respostas-pendentes
+          // (chamado por pg_cron a cada 1 min) manda quando chegar a hora.
+          const atrasoSeg = delayMin + Math.floor(Math.random() * (delayMax - delayMin + 1));
+          const enviarEm = new Date(Date.now() + atrasoSeg * 1000).toISOString();
+          const { error: errFila } = await supabaseAdmin
+            .from("ai_bot_respostas_pendentes")
+            .insert({
+              telefone: destino,
+              nome,
+              resposta,
+              mensagem_origem: mensagem,
+              enviar_em: enviarEm,
+            });
+          if (errFila) {
+            console.error("[uazapi-bot] erro enfileirando resposta:", errFila);
+            // Fallback: envia direto
+            await enviarUazapi(destino, resposta);
+            await supabaseAdmin.from("ai_bot_conversas").insert({
+              telefone, nome, role: "assistant", conteudo: resposta,
+            });
+          } else {
+            console.log(`[uazapi-bot] resposta agendada em ${atrasoSeg}s para ${destino}`);
+          }
+        } else if (resposta) {
+          console.log(`[uazapi-bot] enviando imediato para ${destino}`);
           const ok = await enviarUazapi(destino, resposta);
-          console.log(`[uazapi-bot] status do envio: ${ok ? "sucesso" : "falha"}`);
-        } else {
-          console.log("[uazapi-bot] nenhuma resposta gerada pela AI");
+          if (ok) {
+            await supabaseAdmin.from("ai_bot_conversas").insert({
+              telefone, nome, role: "assistant", conteudo: resposta,
+            });
+          }
         }
 
-        // Alertas para o coordenador
+        // Análise de alerta. Se modo resumo diário estiver ativo, apenas grava
+        // — o hook /resumo-alertas-diario envia tudo consolidado no fim do dia.
         if (config.alertas_ativos !== false) {
           const contextoCurto = historico
             .slice(-6)
@@ -591,27 +640,33 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
               .select("id")
               .single();
 
-            const cfg = config as Record<string, unknown>;
-            const coordTels = [
-              cfg.coordenador_telefone,
-              cfg.coordenador_telefone_2,
-              cfg.coordenador_telefone_3,
-              cfg.coordenador_telefone_4,
-            ]
-              .map((t) => normalizarTelefone(String(t || "")))
-              .filter((t, i, arr) => t && arr.indexOf(t) === i);
+            const modoResumo = cfg.resumo_alertas_diario !== false;
+            // Modo resumo: só CRÍTICA vai imediato; demais entram no consolidado do dia.
+            const enviarAgora = !modoResumo || alertaInfo.criticidade === "critica";
 
-            if (coordTels.length > 0) {
-              const emoji = EMOJI_CRIT[alertaInfo.criticidade];
-              const msgCoord = `${emoji} *Alerta de obra* (${alertaInfo.criticidade.toUpperCase()})\n*Categoria:* ${alertaInfo.categoria}\n*Encarregado:* ${nome || telefone}\n\n${alertaInfo.resumo}\n\n_Mensagem original:_\n"${mensagem}"`;
-              const results = await Promise.all(
-                coordTels.map((t) => enviarUazapi(t, msgCoord)),
-              );
-              if (results.some(Boolean) && alertRow?.id) {
-                await supabaseAdmin
-                  .from("ai_bot_alertas")
-                  .update({ enviado_coordenador: true, enviado_em: new Date().toISOString() })
-                  .eq("id", alertRow.id);
+            if (enviarAgora) {
+              const coordTels = [
+                cfg.coordenador_telefone,
+                cfg.coordenador_telefone_2,
+                cfg.coordenador_telefone_3,
+                cfg.coordenador_telefone_4,
+              ]
+                .map((t) => normalizarTelefone(String(t || "")))
+                .filter((t, i, arr) => t && arr.indexOf(t) === i);
+
+              if (coordTels.length > 0) {
+                const emoji = EMOJI_CRIT[alertaInfo.criticidade];
+                const prefixo = alertaInfo.criticidade === "critica" ? "🚨 *ALERTA CRÍTICO*" : `${emoji} *Alerta de obra*`;
+                const msgCoord = `${prefixo} (${alertaInfo.criticidade.toUpperCase()})\n*Categoria:* ${alertaInfo.categoria}\n*Encarregado:* ${nome || telefone}\n\n${alertaInfo.resumo}\n\n_Mensagem original:_\n"${mensagem}"`;
+                const results = await Promise.all(
+                  coordTels.map((t) => enviarUazapi(t, msgCoord)),
+                );
+                if (results.some(Boolean) && alertRow?.id) {
+                  await supabaseAdmin
+                    .from("ai_bot_alertas")
+                    .update({ enviado_coordenador: true, enviado_em: new Date().toISOString() })
+                    .eq("id", alertRow.id);
+                }
               }
             }
           }
