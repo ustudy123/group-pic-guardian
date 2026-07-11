@@ -31,8 +31,8 @@ function json(body: unknown, status = 200) {
 
 type Periodo = "manha" | "noite";
 
-/** Hora/minuto e data atuais em America/Sao_Paulo (sem depender do TZ do servidor). */
-function agoraSaoPaulo(): { hhmm: number; dataRef: string } {
+/** Hora/minuto, data e dia-da-semana atuais em America/Sao_Paulo (sem depender do TZ do servidor). */
+function agoraSaoPaulo(): { hhmm: number; dataRef: string; diaSemana: number; ontemRef: string } {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
     year: "numeric",
@@ -41,11 +41,19 @@ function agoraSaoPaulo(): { hhmm: number; dataRef: string } {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    weekday: "short",
   });
   const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
+  // weekday em pt/en curto — resolvemos via Date puro
+  const nowBrt = new Date(`${parts.year}-${parts.month}-${parts.day}T12:00:00-03:00`);
+  const diaSemana = nowBrt.getUTCDay(); // 0=Dom .. 6=Sab
+  const ontem = new Date(nowBrt.getTime() - 24 * 3600 * 1000);
+  const ontemRef = ontem.toISOString().slice(0, 10);
   return {
     hhmm: Number(parts.hour) * 100 + Number(parts.minute),
     dataRef: `${parts.year}-${parts.month}-${parts.day}`,
+    diaSemana,
+    ontemRef,
   };
 }
 
