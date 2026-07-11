@@ -480,7 +480,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
               .ilike("telefone", `%${telefone.slice(-8)}%`)
               .eq("ativo", true)
               .maybeSingle();
-            
+
             if (!aut2) {
               console.log(
                 `[uazapi-bot] nao_autorizado tel=${telefone} variantes=${Array.from(variantes).join(",")}`,
@@ -488,6 +488,16 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
               return json({ ok: true, ignored: "nao_autorizado" });
             }
           }
+        }
+
+        // Se a mensagem do encarregado é só uma despedida ("valeu", "tchau", "beleza"),
+        // grava no histórico mas NÃO responde nem cria alerta — o bot NUNCA tem a última palavra.
+        if (ehDespedidaCurta(mensagem)) {
+          console.log(`[uazapi-bot] despedida detectada, encerrando: "${mensagem}"`);
+          await supabaseAdmin
+            .from("ai_bot_conversas")
+            .insert({ telefone, nome, role: "user", conteudo: mensagem });
+          return json({ ok: true, encerrado: true, motivo: "despedida" });
         }
 
         const [{ data: kb }, { data: exemplos }] = await Promise.all([
