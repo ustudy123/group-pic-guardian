@@ -609,7 +609,10 @@ export type Database = {
           descricao: string | null
           icone: string | null
           id: string
+          menu_icone: string | null
+          menu_ordem: number
           modelo: boolean
+          no_menu: boolean
           pasta_id: string | null
           permite_multiplas: boolean
           publico: boolean
@@ -625,7 +628,10 @@ export type Database = {
           descricao?: string | null
           icone?: string | null
           id?: string
+          menu_icone?: string | null
+          menu_ordem?: number
           modelo?: boolean
+          no_menu?: boolean
           pasta_id?: string | null
           permite_multiplas?: boolean
           publico?: boolean
@@ -641,7 +647,10 @@ export type Database = {
           descricao?: string | null
           icone?: string | null
           id?: string
+          menu_icone?: string | null
+          menu_ordem?: number
           modelo?: boolean
+          no_menu?: boolean
           pasta_id?: string | null
           permite_multiplas?: boolean
           publico?: boolean
