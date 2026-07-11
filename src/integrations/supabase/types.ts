@@ -503,7 +503,6 @@ export type Database = {
       }
       formulario_campos: {
         Row: {
-          condicao: Json | null
           config: Json
           created_at: string
           descricao: string | null
@@ -518,7 +517,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          condicao?: Json | null
           config?: Json
           created_at?: string
           descricao?: string | null
@@ -533,7 +531,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          condicao?: Json | null
           config?: Json
           created_at?: string
           descricao?: string | null
@@ -612,10 +609,7 @@ export type Database = {
           descricao: string | null
           icone: string | null
           id: string
-          menu_icone: string | null
-          menu_ordem: number
           modelo: boolean
-          no_menu: boolean
           pasta_id: string | null
           permite_multiplas: boolean
           publico: boolean
@@ -631,10 +625,7 @@ export type Database = {
           descricao?: string | null
           icone?: string | null
           id?: string
-          menu_icone?: string | null
-          menu_ordem?: number
           modelo?: boolean
-          no_menu?: boolean
           pasta_id?: string | null
           permite_multiplas?: boolean
           publico?: boolean
@@ -650,10 +641,7 @@ export type Database = {
           descricao?: string | null
           icone?: string | null
           id?: string
-          menu_icone?: string | null
-          menu_ordem?: number
           modelo?: boolean
-          no_menu?: boolean
           pasta_id?: string | null
           permite_multiplas?: boolean
           publico?: boolean
@@ -824,6 +812,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "foto_avaliacoes_correcao_foto_id_fkey"
+            columns: ["correcao_foto_id"]
+            isOneToOne: false
+            referencedRelation: "fotos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foto_avaliacoes_correcao_foto_id_fkey"
+            columns: ["correcao_foto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_fotos_completas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "foto_avaliacoes_foto_id_fkey"
             columns: ["foto_id"]
