@@ -93,6 +93,10 @@ export type Database = {
           coordenador_telefone_3: string | null
           coordenador_telefone_4: string | null
           created_at: string
+          delay_resposta_max_seg: number
+          delay_resposta_min_seg: number
+          dias_semana: number[]
+          follow_up_alertas: boolean
           id: string
           janela_manha_fim: number
           janela_manha_inicio: number
@@ -106,6 +110,8 @@ export type Database = {
           msg_noite_variacoes: string[]
           msg_programadas_ativas: boolean
           persona: string
+          resumo_alertas_diario: boolean
+          resumo_alertas_hora: number
           saudacao_inicial: string | null
           somente_autorizados: boolean
           temperatura: number
@@ -123,6 +129,10 @@ export type Database = {
           coordenador_telefone_3?: string | null
           coordenador_telefone_4?: string | null
           created_at?: string
+          delay_resposta_max_seg?: number
+          delay_resposta_min_seg?: number
+          dias_semana?: number[]
+          follow_up_alertas?: boolean
           id?: string
           janela_manha_fim?: number
           janela_manha_inicio?: number
@@ -136,6 +146,8 @@ export type Database = {
           msg_noite_variacoes?: string[]
           msg_programadas_ativas?: boolean
           persona?: string
+          resumo_alertas_diario?: boolean
+          resumo_alertas_hora?: number
           saudacao_inicial?: string | null
           somente_autorizados?: boolean
           temperatura?: number
@@ -153,6 +165,10 @@ export type Database = {
           coordenador_telefone_3?: string | null
           coordenador_telefone_4?: string | null
           created_at?: string
+          delay_resposta_max_seg?: number
+          delay_resposta_min_seg?: number
+          dias_semana?: number[]
+          follow_up_alertas?: boolean
           id?: string
           janela_manha_fim?: number
           janela_manha_inicio?: number
@@ -166,6 +182,8 @@ export type Database = {
           msg_noite_variacoes?: string[]
           msg_programadas_ativas?: boolean
           persona?: string
+          resumo_alertas_diario?: boolean
+          resumo_alertas_hora?: number
           saudacao_inicial?: string | null
           somente_autorizados?: boolean
           temperatura?: number
@@ -287,6 +305,63 @@ export type Database = {
           ordem?: number
           titulo?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_bot_respostas_pendentes: {
+        Row: {
+          created_at: string
+          enviado: boolean
+          enviado_em: string | null
+          enviar_em: string
+          id: string
+          mensagem_origem: string | null
+          nome: string | null
+          resposta: string
+          telefone: string
+          tentativas: number
+        }
+        Insert: {
+          created_at?: string
+          enviado?: boolean
+          enviado_em?: string | null
+          enviar_em: string
+          id?: string
+          mensagem_origem?: string | null
+          nome?: string | null
+          resposta: string
+          telefone: string
+          tentativas?: number
+        }
+        Update: {
+          created_at?: string
+          enviado?: boolean
+          enviado_em?: string | null
+          enviar_em?: string
+          id?: string
+          mensagem_origem?: string | null
+          nome?: string | null
+          resposta?: string
+          telefone?: string
+          tentativas?: number
+        }
+        Relationships: []
+      }
+      ai_bot_resumos_diarios: {
+        Row: {
+          data_ref: string
+          enviado_em: string
+          total_alertas: number
+        }
+        Insert: {
+          data_ref: string
+          enviado_em?: string
+          total_alertas?: number
+        }
+        Update: {
+          data_ref?: string
+          enviado_em?: string
+          total_alertas?: number
         }
         Relationships: []
       }
