@@ -226,13 +226,13 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           });
         }
 
-        const { hhmm, dataRef } = agoraSaoPaulo();
+        const { hhmm, dataRef, diaSemana, ontemRef } = agoraSaoPaulo();
 
 
         const { data: config } = await supabaseAdmin
           .from("ai_bot_config")
           .select(
-            "ativo, msg_programadas_ativas, msg_manha, msg_noite, msg_manha_variacoes, msg_noite_variacoes, janela_manha_inicio, janela_manha_fim, janela_noite_inicio, janela_noite_fim",
+            "ativo, msg_programadas_ativas, msg_manha, msg_noite, msg_manha_variacoes, msg_noite_variacoes, janela_manha_inicio, janela_manha_fim, janela_noite_inicio, janela_noite_fim, dias_semana, follow_up_alertas",
           )
           .eq("id", "default")
           .maybeSingle();
@@ -241,6 +241,12 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         if (!config.msg_programadas_ativas) {
           return json({ idle: true, motivo: "programadas_desativadas" });
         }
+
+        // Filtro por dia da semana (1=Seg .. 6=Sab, 0=Dom). Padrão: seg/qua/sex.
+        const diasPermitidos: number[] = Array.isArray((config as Record<string, unknown>).dias_semana)
+          ? ((config as Record<string, unknown>).dias_semana as number[])
+          : [1, 3, 5];
+        const isDiaProgramado = diasPermitidos.includes(diaSemana);
 
         const janelas = {
           mIni: (config.janela_manha_inicio as number) ?? 715,
@@ -290,6 +296,32 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           .eq("ativo", true);
         if (errAut) return json({ error: errAut.message }, 500);
 
+        // Follow-up: encarregados que geraram alerta ontem entram na fila HOJE,
+        // mesmo se hoje não for um dia programado.
+        const followUpAtivo = (config as Record<string, unknown>).follow_up_alertas !== false;
+        let telsFollowUp = new Set<string>();
+        if (followUpAtivo) {
+          const inicioOntemUtc = new Date(`${ontemRef}T03:00:00Z`).toISOString();
+          const inicioHojeUtc = new Date(`${dataRef}T03:00:00Z`).toISOString();
+          const { data: alertasOntem } = await supabaseAdmin
+            .from("ai_bot_alertas")
+            .select("telefone")
+            .gte("created_at", inicioOntemUtc)
+            .lt("created_at", inicioHojeUtc);
+          telsFollowUp = new Set((alertasOntem ?? []).map((a) => a.telefone));
+        }
+
+        // Se hoje NÃO é dia programado e não é teste forçado, restringe ao follow-up.
+        const forcado = body.periodo === "manha" || body.periodo === "noite";
+        const baseAutorizados = (autorizados ?? []).filter((a) => {
+          if (forcado || isDiaProgramado) return true;
+          return telsFollowUp.has(a.telefone);
+        });
+
+        if (baseAutorizados.length === 0) {
+          return json({ idle: true, motivo: isDiaProgramado ? "sem_autorizados" : "dia_nao_programado_sem_follow_up", diaSemana, diasPermitidos });
+        }
+
         // Quem já recebeu hoje neste período (idempotência)
         const { data: jaEnviados } = await supabaseAdmin
           .from("ai_bot_envios_programados")
@@ -298,7 +330,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           .eq("periodo", periodo);
 
         const enviadosSet = new Set((jaEnviados ?? []).map((e) => e.telefone));
-        const pendentes = (autorizados ?? []).filter((a) => !enviadosSet.has(a.telefone));
+        const pendentes = baseAutorizados.filter((a) => !enviadosSet.has(a.telefone));
 
         if (pendentes.length === 0) {
           return json({ idle: true, motivo: "todos_contatados", periodo, dataRef });
