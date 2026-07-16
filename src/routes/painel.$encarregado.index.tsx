@@ -17,6 +17,49 @@ type Dia = {
 };
 type Mes = { anoMes: string; label: string; dias: Dia[] };
 
+/**
+ * Conta as fotos por dia (pasta) de um encarregado.
+ *
+ * ATENÇÃO: não dá pra baixar as fotos linha a linha e contar aqui no navegador.
+ * O PostgREST corta a resposta em 1000 linhas (o .limit() do client não muda isso),
+ * então quando o mês atual passa de 1000 fotos os meses anteriores nunca chegam
+ * e somem da tela.
+ *
+ * Caminho principal: função no banco, que já devolve a contagem agregada.
+ * Fallback: pagina de 1000 em 1000 (funciona mesmo antes da migration rodar).
+ */
+async function contarFotosPorDia(encarregadoId: string): Promise<Map<string, number>> {
+  const byDay = new Map<string, number>();
+
+  const { data: agg, error: aggErr } = await (supabase as any).rpc(
+    "fotos_dias_por_encarregado",
+    { _encarregado_id: encarregadoId },
+  );
+  if (!aggErr && Array.isArray(agg)) {
+    for (const r of agg as { dia_pasta: string | null; total: number }[]) {
+      if (r.dia_pasta) byDay.set(r.dia_pasta, Number(r.total));
+    }
+    return byDay;
+  }
+
+  const PAGINA = 1000;
+  for (let inicio = 0; inicio < 500_000; inicio += PAGINA) {
+    const { data, error } = await supabase
+      .from("fotos")
+      .select("data_pasta")
+      .eq("encarregado_id", encarregadoId)
+      .order("data_envio", { ascending: false })
+      .range(inicio, inicio + PAGINA - 1);
+    if (error) throw error;
+    const linhas = data ?? [];
+    for (const f of linhas) {
+      if (f.data_pasta) byDay.set(f.data_pasta, (byDay.get(f.data_pasta) ?? 0) + 1);
+    }
+    if (linhas.length < PAGINA) break;
+  }
+  return byDay;
+}
+
 function EncarregadoPage() {
   const { encarregado } = Route.useParams();
 
@@ -31,19 +74,7 @@ function EncarregadoPage() {
       if (encErr) throw encErr;
       if (!enc) return [];
 
-      const { data: fotos, error } = await supabase
-        .from("fotos")
-        .select("data_pasta")
-        .eq("encarregado_id", enc.id)
-        .order("data_envio", { ascending: false })
-        .limit(5000);
-      if (error) throw error;
-
-      const byDay = new Map<string, number>();
-      for (const f of fotos ?? []) {
-        if (!f.data_pasta) continue;
-        byDay.set(f.data_pasta, (byDay.get(f.data_pasta) ?? 0) + 1);
-      }
+      const byDay = await contarFotosPorDia(enc.id);
 
       const byMonth = new Map<string, Dia[]>();
       for (const [dataPasta, count] of byDay.entries()) {
