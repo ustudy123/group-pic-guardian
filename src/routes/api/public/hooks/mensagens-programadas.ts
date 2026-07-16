@@ -1,9 +1,10 @@
 // Hook de mensagens programadas (check-in proativo dos encarregados).
-// Chamado pelo cron do GitHub Actions ao longo do dia (America/Sao_Paulo).
-// A janela configurada no painel (manhã/noite) define apenas QUANDO o envio do
-// período pode começar; a partir daí o período fica "aberto" (catch-up) até o
-// próximo período/fim do dia. Isso é proposital: o cron do GitHub é limitado
-// (throttling) e dispara poucas vezes ao dia, raramente dentro da janela exata.
+// Chamado pelo pg_cron do Supabase a cada 5 min dentro da janela da manhã
+// (job 'mensagens-programadas', 07:00–08:55 BRT). Antes era o cron do GitHub
+// Actions, que sofria throttling e disparava ~1x por hora em horário aleatório —
+// o "bom dia" chegava a sair 22:53. O pg_cron dispara no horário certo, então a
+// janela configurada no painel volta a valer e o escalonamento (minuto-alvo por
+// encarregado) distribui os envios dentro dela como foi desenhado.
 // A cada chamada envia para um LOTE pequeno de encarregados ainda não contatados
 // no período do dia — assim os envios saem intercalados, evitando bloqueio por spam.
 //

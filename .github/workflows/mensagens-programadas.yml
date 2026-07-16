@@ -1,21 +1,28 @@
 name: Mensagens Programadas do Bot
 
-# O cron do GitHub Actions é fortemente limitado (throttling): apesar do "*/5",
-# na prática dispara poucas vezes ao dia e quase nunca dentro da janela exata.
-# Por isso o hook usa janela com "catch-up": a janela define só QUANDO o período
-# pode começar; a partir daí o envio do período acontece na primeira execução
-# que rodar, e a idempotência garante 1 envio por período por dia.
-# Mantemos a grade densa (*/5) só para maximizar a chance de uma execução cair
-# logo após o início de cada janela. Dias: segunda a sábado (1-6).
+# AGENDAMENTO MOVIDO PARA O pg_cron (banco) — 16/07/2026.
+#
+# Motivo: o cron do GitHub Actions sofre throttling pesado. Apesar do "*/5",
+# na prática disparava ~1x por hora e em horário imprevisível. Nos últimos dias
+# programados o 1º disparo caiu 07:53, 09:09, 08:55, 08:08 e até 23:24 — ou seja,
+# o "bom dia" saía fora da janela 07:15–08:15, às vezes de madrugada. Como cada
+# execução manda para só 3 encarregados (batch), as mensagens ficavam pingando o
+# dia inteiro (teve envio às 22:53).
+#
+# O pg_cron do Supabase dispara no horário certo, então a janela do painel volta
+# a valer de verdade e o escalonamento (minuto-alvo por encarregado) funciona
+# como foi desenhado.
+#
+# O job no banco chama este mesmo endpoint:
+#   cron.schedule('mensagens-programadas', '*/5 10-11 * * *', ...)  -- 07:00–08:55 BRT
+#
+# O disparo manual abaixo (workflow_dispatch) continua servindo para teste e
+# diagnóstico. Para religar o cron do GitHub, basta descomentar o bloco schedule.
 
 on:
-  schedule:
-    # Grade densa das 09:00 UTC (06:00 BRT) às 01:55 UTC (22:55 BRT), cobrindo
-    # qualquer janela configurada no painel. O hook abre o período a partir do
-    # início da janela (catch-up) e usa idempotência, então mesmo uma execução
-    # atrasada entrega a mensagem do dia.
-    - cron: "*/5 9-23 * * 1-6"   # 06:00–20:55 BRT
-    - cron: "*/5 0-1 * * 2-6"    # 21:00–22:55 BRT (madrugada UTC = noite BRT do dia anterior)
+  # schedule:
+  #   - cron: "*/5 9-23 * * 1-6"   # 06:00–20:55 BRT
+  #   - cron: "*/5 0-1 * * 2-6"    # 21:00–22:55 BRT
   workflow_dispatch:
     inputs:
       periodo:
