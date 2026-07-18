@@ -1599,6 +1599,13 @@ export type Database = {
       }
     }
     Functions: {
+      fotos_dias_por_encarregado: {
+        Args: { _encarregado_id: string }
+        Returns: {
+          dia_pasta: string
+          total: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
