@@ -39,27 +39,13 @@ async function enviarUazapi(numero: string, mensagem: string): Promise<boolean> 
 }
 
 /** Data de hoje em America/Sao_Paulo, formato YYYY-MM-DD. */
-function hojeBRT(): string {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
+/** Formata um horário em HH:MM no fuso America/Sao_Paulo (para o cabeçalho). */
+function hhmmBRT(d: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
-
-/**
- * Data de ontem em America/Sao_Paulo, formato YYYY-MM-DD.
- * O resumo é entregue de manhã (08:30), então ele cobre o dia ANTERIOR — um dia
- * fechado. Resumir "hoje" às 08:30 pegava uma janela vazia (o expediente ainda
- * nem começou) e nunca enviava nada.
- */
-function ontemBRT(): string {
-  const d = new Date(`${hojeBRT()}T12:00:00Z`); // meio-dia evita borda de fuso
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
 }
 
 const EMOJI_CRIT: Record<string, string> = {
@@ -158,13 +144,10 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
           return json({ error: "Unauthorized" }, 401);
         }
 
-        let body: { forcar?: boolean; dataRef?: string } = {};
+        let body: { forcar?: boolean; horas?: number } = {};
         try {
           body = await request.json();
         } catch { /* vazio ok */ }
-
-        // Por padrão resume o dia anterior (dia fechado). dataRef permite reprocessar.
-        const dataRef = body.dataRef || ontemBRT();
 
         const { data: config } = await supabaseAdmin
           .from("ai_bot_config")
@@ -178,19 +161,14 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
           return json({ idle: true, motivo: "resumo_desativado" });
         }
 
-        if (!body.forcar) {
-          const { data: ja } = await supabaseAdmin
-            .from("ai_bot_resumos_diarios")
-            .select("data_ref")
-            .eq("data_ref", dataRef)
-            .maybeSingle();
-          if (ja) return json({ idle: true, motivo: "ja_enviado", dataRef });
-        }
-
-        // Janela FECHADA do dia inteiro em BRT: 00:00 (= 03:00 UTC) até 00:00 do dia seguinte.
-        const inicio = new Date(`${dataRef}T03:00:00Z`);
-        const fim = new Date(inicio);
-        fim.setUTCDate(fim.getUTCDate() + 1);
+        // Janela DESLIZANTE das últimas N horas (padrão 2). O cron roda de 2 em 2h,
+        // então cada execução cobre um intervalo distinto — sem sobreposição e sem
+        // necessidade de trava de duplicidade. Alertas críticos já foram enviados na
+        // hora, mas TAMBÉM aparecem aqui (visão consolidada do período). Se não houver
+        // alerta na janela, nada é enviado.
+        const horas = Number(body.horas) > 0 ? Number(body.horas) : 2;
+        const fim = new Date();
+        const inicio = new Date(fim.getTime() - horas * 60 * 60 * 1000);
         const inicioUtc = inicio.toISOString();
         const fimUtc = fim.toISOString();
 
@@ -202,9 +180,7 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
           .order("created_at", { ascending: true });
 
         if (!alertas || alertas.length === 0) {
-          // Sai sem gravar: gravar aqui marcava o dia como "já enviado" e bloqueava
-          // qualquer execução seguinte, queimando o resumo daquele dia.
-          return json({ idle: true, motivo: "sem_alertas", dataRef });
+          return json({ idle: true, motivo: "sem_alertas", inicio: inicioUtc, fim: fimUtc });
         }
 
         // Agrupa por encarregado (nome + telefone)
@@ -217,7 +193,7 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
         }
 
         const linhas: string[] = [];
-        linhas.push(`📋 *Resumo de alertas do dia ${dataRef.split("-").reverse().join("/")}*`);
+        linhas.push(`📋 *Alertas das últimas ${horas}h* (${hhmmBRT(inicio)}–${hhmmBRT(fim)})`);
         linhas.push(`*${porEncarregado.size}* encarregado(s) com ocorrências.`);
         linhas.push("");
 
@@ -280,9 +256,6 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
 
         if (ok > 0) {
           await supabaseAdmin
-            .from("ai_bot_resumos_diarios")
-            .upsert({ data_ref: dataRef, total_alertas: alertas.length });
-          await supabaseAdmin
             .from("ai_bot_alertas")
             .update({ enviado_coordenador: true, enviado_em: new Date().toISOString() })
             .gte("created_at", inicioUtc)
@@ -290,7 +263,12 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
             .eq("enviado_coordenador", false);
         }
 
-        return json({ dataRef, total: alertas.length, coordenadores: coordTels.length, sucesso: ok });
+        return json({
+          janela: { inicio: inicioUtc, fim: fimUtc },
+          total: alertas.length,
+          coordenadores: coordTels.length,
+          sucesso: ok,
+        });
       },
     },
   },
