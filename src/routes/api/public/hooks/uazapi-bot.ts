@@ -657,7 +657,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
               if (coordTels.length > 0) {
                 const emoji = EMOJI_CRIT[alertaInfo.criticidade];
                 const prefixo = alertaInfo.criticidade === "critica" ? "🚨 *ALERTA CRÍTICO*" : `${emoji} *Alerta de obra*`;
-                const msgCoord = `${prefixo} (${alertaInfo.criticidade.toUpperCase()})\n*Categoria:* ${alertaInfo.categoria}\n*Encarregado:* ${nome || telefone}\n\n${alertaInfo.resumo}\n\n_Mensagem original:_\n"${mensagem}"`;
+                const msgCoord = `${prefixo} (${alertaInfo.criticidade.toUpperCase()})\n*Categoria:* ${alertaInfo.categoria}\n*Encarregado:* ${nome || telefone}\n\n${alertaInfo.resumo}`;
                 const results = await Promise.all(
                   coordTels.map((t) => enviarUazapi(t, msgCoord)),
                 );

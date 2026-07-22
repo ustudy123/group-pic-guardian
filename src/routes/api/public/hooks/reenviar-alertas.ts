@@ -63,7 +63,7 @@ export const Route = createFileRoute("/api/public/hooks/reenviar-alertas")({
         const resultados: Array<{ id: string; coord: string; ok: boolean; status: number; detail: string }> = [];
         for (const a of pendentes ?? []) {
           const emoji = EMOJI_CRIT[a.criticidade] || "⚠️";
-          const msg = `${emoji} *Alerta de obra* (${String(a.criticidade).toUpperCase()})\n*Categoria:* ${a.categoria}\n*Encarregado:* ${a.nome || a.telefone}\n\n${a.resumo}\n\n_Mensagem original:_\n"${a.mensagem_origem}"`;
+          const msg = `${emoji} *Alerta de obra* (${String(a.criticidade).toUpperCase()})\n*Categoria:* ${a.categoria}\n*Encarregado:* ${a.nome || a.telefone}\n\n${a.resumo}`;
           let algumOk = false;
           for (const coord of coords) {
             const res = await enviarUazapi(coord, msg);

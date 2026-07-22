@@ -275,7 +275,7 @@ export const Route = createFileRoute("/api/public/hooks/ai-bot")({
 
             if (coordTels.length > 0) {
               const emoji = EMOJI_CRIT[alertaInfo.criticidade];
-              const msgCoord = `${emoji} *Alerta de obra* (${alertaInfo.criticidade.toUpperCase()})\n*Categoria:* ${alertaInfo.categoria}\n*Encarregado:* ${nome || telefone}\n\n${alertaInfo.resumo}\n\n_Mensagem original:_\n"${mensagem}"`;
+              const msgCoord = `${emoji} *Alerta de obra* (${alertaInfo.criticidade.toUpperCase()})\n*Categoria:* ${alertaInfo.categoria}\n*Encarregado:* ${nome || telefone}\n\n${alertaInfo.resumo}`;
               let algumOk = false;
               for (const tel of coordTels) {
                 const ok = await enviarWhatsapp(tel, msgCoord);
