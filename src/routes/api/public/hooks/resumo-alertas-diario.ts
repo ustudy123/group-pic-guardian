@@ -71,6 +71,75 @@ const EMOJI_CRIT: Record<string, string> = {
 
 const ORDEM_CRIT: Record<string, number> = { critica: 0, alta: 1, media: 2, baixa: 3 };
 
+type AlertaRow = { categoria: string; criticidade: string; resumo: string };
+type ItemConsolidado = { criticidade: string; texto: string };
+
+/**
+ * Consolida os alertas de UM encarregado num conjunto curto de problemas distintos,
+ * sem repetição (o bot gera um alerta por mensagem, então o mesmo assunto vira
+ * vários alertas quase iguais). Usa a IA; devolve null se falhar (aí cai no fallback).
+ */
+async function consolidarAlertas(
+  openaiKey: string,
+  nome: string,
+  alertas: AlertaRow[],
+): Promise<ItemConsolidado[] | null> {
+  try {
+    const lista = alertas
+      .map((a, i) => `${i + 1}. [${a.categoria}/${a.criticidade}] ${a.resumo}`)
+      .join("\n");
+    const sys =
+      "Você consolida alertas de obra de um mesmo encarregado para um resumo diário ao coordenador. " +
+      "Junte os alertas que tratam do MESMO assunto em um único item, sem repetir a mesma informação. " +
+      "Cada item deve ser uma frase curta, clara e objetiva. Use a maior criticidade entre os alertas do grupo. " +
+      "Não invente nada além do que está nos alertas. " +
+      'Responda SOMENTE JSON no formato: {"itens":[{"criticidade":"baixa|media|alta|critica","texto":"..."}]}';
+    const user = `Encarregado: ${nome}\nAlertas do dia:\n${lista}`;
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const txt = j?.choices?.[0]?.message?.content ?? "";
+    const parsed = JSON.parse(txt);
+    const arr = Array.isArray(parsed)
+      ? parsed
+      : parsed.itens || parsed.alertas || parsed.problemas || Object.values(parsed).find(Array.isArray);
+    if (!Array.isArray(arr)) return null;
+    const itens = arr
+      .map((x: any) => ({
+        criticidade: String(x?.criticidade || "media"),
+        texto: String(x?.texto || "").trim(),
+      }))
+      .filter((x: ItemConsolidado) => x.texto);
+    return itens.length ? itens : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Fallback sem IA: 1 alerta por categoria, mantendo a maior criticidade. */
+function dedupePorCategoria(alertas: AlertaRow[]): AlertaRow[] {
+  const porCat = new Map<string, AlertaRow>();
+  for (const a of alertas) {
+    const ex = porCat.get(a.categoria);
+    if (!ex || (ORDEM_CRIT[a.criticidade] ?? 9) < (ORDEM_CRIT[ex.criticidade] ?? 9)) {
+      porCat.set(a.categoria, a);
+    }
+  }
+  return [...porCat.values()];
+}
+
 export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")({
   server: {
     handlers: {
@@ -149,19 +218,40 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
 
         const linhas: string[] = [];
         linhas.push(`📋 *Resumo de alertas do dia ${dataRef.split("-").reverse().join("/")}*`);
-        linhas.push(`Total: *${alertas.length}* alerta(s) de *${porEncarregado.size}* encarregado(s).`);
+        linhas.push(`*${porEncarregado.size}* encarregado(s) com ocorrências.`);
         linhas.push("");
+
+        const openaiKey = process.env.OPENAI_API_KEY;
 
         for (const [chave, lista] of porEncarregado) {
           const [nome, tel] = chave.split("|");
           linhas.push(`👷 *${nome || tel}*`);
-          const ordenada = [...lista].sort(
-            (a, b) => (ORDEM_CRIT[a.criticidade] ?? 9) - (ORDEM_CRIT[b.criticidade] ?? 9),
-          );
-          for (const a of ordenada) {
-            const emoji = EMOJI_CRIT[a.criticidade] || "⚪";
-            linhas.push(`  ${emoji} [${a.categoria}] ${a.resumo}`);
+          linhas.push("");
+
+          const alertasEnc: AlertaRow[] = lista.map((a) => ({
+            categoria: a.categoria,
+            criticidade: a.criticidade,
+            resumo: a.resumo,
+          }));
+
+          // Consolida com IA (quando há mais de 1 alerta); senão, dedupe por categoria.
+          let itens: { emoji: string; texto: string }[] | null = null;
+          if (openaiKey && alertasEnc.length > 1) {
+            const cons = await consolidarAlertas(openaiKey, nome || tel, alertasEnc);
+            if (cons) {
+              itens = cons.map((c) => ({ emoji: EMOJI_CRIT[c.criticidade] || "⚪", texto: c.texto }));
+            }
           }
+          if (!itens) {
+            itens = dedupePorCategoria(alertasEnc)
+              .sort((a, b) => (ORDEM_CRIT[a.criticidade] ?? 9) - (ORDEM_CRIT[b.criticidade] ?? 9))
+              .map((a) => ({ emoji: EMOJI_CRIT[a.criticidade] || "⚪", texto: a.resumo }));
+          }
+
+          itens.forEach((it, idx) => {
+            linhas.push(`  ${it.emoji} ${it.texto}`);
+            if (idx < itens!.length - 1) linhas.push(""); // espaço entre um alerta e outro
+          });
           linhas.push("");
         }
 
