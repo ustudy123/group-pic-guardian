@@ -48,6 +48,21 @@ function hhmmBRT(d: Date): string {
   }).format(d);
 }
 
+/** Data de hoje (YYYY-MM-DD) no fuso America/Sao_Paulo. */
+function dataHojeBRT(): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(new Date())
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
 const EMOJI_CRIT: Record<string, string> = {
   baixa: "🟢",
   media: "🟡",
@@ -144,7 +159,7 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
           return json({ error: "Unauthorized" }, 401);
         }
 
-        let body: { forcar?: boolean; horas?: number } = {};
+        let body: { forcar?: boolean; horas?: number; janela_ini?: string; janela_fim?: string } = {};
         try {
           body = await request.json();
         } catch { /* vazio ok */ }
@@ -161,14 +176,37 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
           return json({ idle: true, motivo: "resumo_desativado" });
         }
 
-        // Janela DESLIZANTE das últimas N horas (padrão 2). O cron roda de 2 em 2h,
-        // então cada execução cobre um intervalo distinto — sem sobreposição e sem
-        // necessidade de trava de duplicidade. Alertas críticos já foram enviados na
-        // hora, mas TAMBÉM aparecem aqui (visão consolidada do período). Se não houver
-        // alerta na janela, nada é enviado.
-        const horas = Number(body.horas) > 0 ? Number(body.horas) : 2;
-        const fim = new Date();
-        const inicio = new Date(fim.getTime() - horas * 60 * 60 * 1000);
+        // Dois modos:
+        // 1) Janela FIXA por horário BRT (janela_ini/janela_fim, "HH:MM") no dia de hoje.
+        //    Usado pelo resumo das 08:30, que cobre só a manhã (ex.: 07:00–08:00).
+        // 2) Janela DESLIZANTE das últimas N horas (padrão 2). Usado pelo ciclo de 2 em 2h.
+        // O cron de 2h não se sobrepõe entre execuções; a janela fixa da manhã termina
+        // antes da 1ª janela cheia do ciclo (07:15–09:15), então não há duplicação.
+        const hhmmParaUtc = (hhmm: string): Date | null => {
+          const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+          if (!m) return null;
+          const hoje = dataHojeBRT(); // YYYY-MM-DD em BRT
+          // BRT = UTC-3 (sem horário de verão no Brasil desde 2019)
+          const hUtc = Number(m[1]) + 3;
+          return new Date(`${hoje}T${String(hUtc).padStart(2, "0")}:${m[2]}:00Z`);
+        };
+
+        let inicio: Date;
+        let fim: Date;
+        let rotulo: string;
+        if (body.janela_ini && body.janela_fim) {
+          const ini = hhmmParaUtc(body.janela_ini);
+          const f = hhmmParaUtc(body.janela_fim);
+          if (!ini || !f) return json({ error: "janela invalida (use HH:MM)" }, 400);
+          inicio = ini;
+          fim = f;
+          rotulo = `Alertas da manhã (${body.janela_ini}–${body.janela_fim})`;
+        } else {
+          const horas = Number(body.horas) > 0 ? Number(body.horas) : 2;
+          fim = new Date();
+          inicio = new Date(fim.getTime() - horas * 60 * 60 * 1000);
+          rotulo = `Alertas das últimas ${horas}h (${hhmmBRT(inicio)}–${hhmmBRT(fim)})`;
+        }
         const inicioUtc = inicio.toISOString();
         const fimUtc = fim.toISOString();
 
@@ -193,7 +231,7 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
         }
 
         const linhas: string[] = [];
-        linhas.push(`📋 *Alertas das últimas ${horas}h* (${hhmmBRT(inicio)}–${hhmmBRT(fim)})`);
+        linhas.push(`📋 *${rotulo}*`);
         linhas.push(`*${porEncarregado.size}* encarregado(s) com ocorrências.`);
         linhas.push("");
 
