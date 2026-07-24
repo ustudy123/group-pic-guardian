@@ -109,6 +109,7 @@ export type Database = {
           msg_noite: string
           msg_noite_variacoes: string[]
           msg_programadas_ativas: boolean
+          noite_ativa: boolean
           persona: string
           resumo_alertas_diario: boolean
           resumo_alertas_hora: number
@@ -145,6 +146,7 @@ export type Database = {
           msg_noite?: string
           msg_noite_variacoes?: string[]
           msg_programadas_ativas?: boolean
+          noite_ativa?: boolean
           persona?: string
           resumo_alertas_diario?: boolean
           resumo_alertas_hora?: number
@@ -181,6 +183,7 @@ export type Database = {
           msg_noite?: string
           msg_noite_variacoes?: string[]
           msg_programadas_ativas?: boolean
+          noite_ativa?: boolean
           persona?: string
           resumo_alertas_diario?: boolean
           resumo_alertas_hora?: number
