@@ -90,10 +90,10 @@ async function consolidarAlertas(
       .map((a, i) => `${i + 1}. [${a.categoria}/${a.criticidade}] ${a.resumo}`)
       .join("\n");
     const sys =
-      "Você consolida alertas de obra de um mesmo encarregado para um resumo diário ao coordenador. " +
-      "Junte os alertas que tratam do MESMO assunto em um único item, sem repetir a mesma informação. " +
-      "Cada item deve ser uma frase curta, clara e objetiva. Use a maior criticidade entre os alertas do grupo. " +
-      "Não invente nada além do que está nos alertas. " +
+      "Você consolida alertas de obra de um mesmo encarregado para um resumo ao coordenador. " +
+      "REGRA CRÍTICA: se vários alertas mencionam o MESMO assunto/pessoa/problema (ex.: mesmo motorista, mesma falta de EPI, mesma falta de material), você DEVE unificar em UM ÚNICO item, mesmo que estejam em categorias diferentes. NUNCA repita a mesma informação em itens separados. " +
+      "Cada item final deve ser uma frase curta, objetiva, sem redundância. Use a maior criticidade entre os alertas do grupo. " +
+      "Prefira poucos itens bem consolidados a muitos itens repetitivos. Não invente nada além do que está nos alertas. " +
       'Responda SOMENTE JSON no formato: {"itens":[{"criticidade":"baixa|media|alta|critica","texto":"..."}]}';
     const user = `Encarregado: ${nome}\nAlertas do dia:\n${lista}`;
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
