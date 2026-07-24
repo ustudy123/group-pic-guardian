@@ -1,0 +1,2 @@
+ALTER TABLE public.ai_bot_config ADD COLUMN IF NOT EXISTS noite_ativa boolean NOT NULL DEFAULT false;
+UPDATE public.ai_bot_config SET noite_ativa = false, follow_up_alertas = true WHERE id = 'default';
