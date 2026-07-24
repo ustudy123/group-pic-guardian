@@ -233,7 +233,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         const { data: config } = await supabaseAdmin
           .from("ai_bot_config")
           .select(
-            "ativo, msg_programadas_ativas, msg_manha, msg_noite, msg_manha_variacoes, msg_noite_variacoes, janela_manha_inicio, janela_manha_fim, janela_noite_inicio, janela_noite_fim, dias_semana, follow_up_alertas",
+            "ativo, msg_programadas_ativas, msg_manha, msg_noite, msg_manha_variacoes, msg_noite_variacoes, janela_manha_inicio, janela_manha_fim, janela_noite_inicio, janela_noite_fim, dias_semana, follow_up_alertas, noite_ativa",
           )
           .eq("id", "default")
           .maybeSingle();
@@ -248,6 +248,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           ? ((config as Record<string, unknown>).dias_semana as number[])
           : [1, 3, 5];
         const isDiaProgramado = diasPermitidos.includes(diaSemana);
+        const noiteAtiva = (config as Record<string, unknown>).noite_ativa === true;
 
         const janelas = {
           mIni: (config.janela_manha_inicio as number) ?? 715,
@@ -255,13 +256,19 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           nIni: (config.janela_noite_inicio as number) ?? 1800,
           nFim: (config.janela_noite_fim as number) ?? 1900,
         };
-        const periodo: Periodo | null =
-          body.periodo === "manha" || body.periodo === "noite"
-            ? body.periodo
-            : periodoAtual(hhmm, janelas);
+        const forcadoPeriodo = body.periodo === "manha" || body.periodo === "noite";
+        const periodo: Periodo | null = forcadoPeriodo
+          ? body.periodo!
+          : periodoAtual(hhmm, janelas);
 
         if (!periodo) {
           return json({ idle: true, motivo: "fora_da_janela", hhmm, janelas });
+        }
+        // Ajuste pedido pelo Arthur: por padrão o bot só conversa de manhã.
+        // Só envia à noite se `noite_ativa` estiver marcado explicitamente
+        // (ou se for um teste forçado com periodo=noite).
+        if (periodo === "noite" && !noiteAtiva && !forcadoPeriodo) {
+          return json({ idle: true, motivo: "noite_desativada" });
         }
 
         // Janela do período ativo (mínimo 10 min), base para escalonar os envios.
