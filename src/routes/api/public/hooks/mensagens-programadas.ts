@@ -347,7 +347,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         // dentro da janela. Como cada encarregado tem um alvo diferente, os envios
         // saem em horários distintos ao longo da janela em vez de todos juntos.
         // (Quando o período é forçado por teste manual, ignora o escalonamento.)
-        const elegiveis = forcado
+        const elegiveis = forcadoPeriodo
           ? pendentes
           : pendentes.filter(
               (a) =>
