@@ -320,9 +320,8 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         }
 
         // Se hoje NÃO é dia programado e não é teste forçado, restringe ao follow-up.
-        const forcado = body.periodo === "manha" || body.periodo === "noite";
         const baseAutorizados = (autorizados ?? []).filter((a) => {
-          if (forcado || isDiaProgramado) return true;
+          if (forcadoPeriodo || isDiaProgramado) return true;
           return telsFollowUp.has(a.telefone);
         });
 
