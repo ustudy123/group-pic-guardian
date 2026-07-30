@@ -266,7 +266,34 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
               pick<string>(d, "chatName", "senderName", "pushName") ||
               "?",
           );
-          console.warn(`[uazapi-fotos] Grupo ${chatId} (${chatName}) não cadastrado`);
+          // Registra o grupo desconhecido para aparecer em "Aguardando ativação".
+          // (Antes só logava e descartava — grupo novo nunca aparecia sozinho na tela,
+          // só via botão "Sincronizar do WhatsApp".)
+          try {
+            const { data: jaExiste } = await supabaseAdmin
+              .from("grupos")
+              .select("id, nome_exibicao")
+              .eq("whatsapp_jid", chatId)
+              .maybeSingle();
+            if (!jaExiste) {
+              await supabaseAdmin.from("grupos").insert({
+                whatsapp_jid: chatId,
+                nome_exibicao: chatName !== "?" ? chatName : chatId,
+                ativo: true,
+                ultima_foto_em: new Date().toISOString(),
+              });
+              console.log(`[uazapi-fotos] Grupo novo registrado p/ ativação: ${chatId} (${chatName})`);
+            } else if (chatName !== "?" && (jaExiste.nome_exibicao ?? "").includes("@")) {
+              // tinha sido salvo com o JID como nome; aproveita para corrigir
+              await supabaseAdmin
+                .from("grupos")
+                .update({ nome_exibicao: chatName })
+                .eq("id", jaExiste.id);
+            }
+          } catch (e) {
+            console.error("[uazapi-fotos] erro ao registrar grupo novo:", e);
+          }
+          console.warn(`[uazapi-fotos] Grupo ${chatId} (${chatName}) sem encarregado vinculado`);
           return json({ ok: true, ignored: "grupo_nao_cadastrado" });
         }
 

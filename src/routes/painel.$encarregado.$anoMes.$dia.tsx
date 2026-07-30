@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import JSZip from "jszip";
-import { Download, Loader2, Trash2, Upload, AlertTriangle } from "lucide-react";
+import { Download, Loader2, Trash2, Upload, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
@@ -193,6 +193,20 @@ function DiaPage() {
     });
     return arr;
   }, [data, busca, remetenteFiltro, horaInicio, horaFim, ordem]);
+
+  // Navegação por teclado com o lightbox aberto: ← → trocam a foto, Esc fecha.
+  useEffect(() => {
+    if (!aberta) return;
+    const onKey = (e: KeyboardEvent) => {
+      const idx = filtradas.findIndex((f) => f.id === aberta.id);
+      if (e.key === "ArrowLeft" && idx > 0) setAberta(filtradas[idx - 1]);
+      else if (e.key === "ArrowRight" && idx >= 0 && idx < filtradas.length - 1)
+        setAberta(filtradas[idx + 1]);
+      else if (e.key === "Escape") setAberta(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [aberta, filtradas]);
 
   const tituloData = useMemo(() => {
     const [y, m, d] = dataPasta.split("-");
@@ -417,14 +431,50 @@ function DiaPage() {
         ))}
       </div>
 
-      {aberta && (
+      {aberta && (() => {
+        const idx = filtradas.findIndex((f) => f.id === aberta.id);
+        const anterior = idx > 0 ? filtradas[idx - 1] : null;
+        const proxima = idx >= 0 && idx < filtradas.length - 1 ? filtradas[idx + 1] : null;
+        return (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
           onClick={() => setAberta(null)}
         >
+          {/* Setas de navegação (fora do cartão, estilo galeria) */}
+          {anterior && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setAberta(anterior); }}
+              className="absolute left-2 md:left-6 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black/50 hover:bg-black/70 text-white p-2 md:p-3"
+              title="Foto anterior (←)"
+            >
+              <ChevronLeft size={26} />
+            </button>
+          )}
+          {proxima && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setAberta(proxima); }}
+              className="absolute right-2 md:right-6 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black/50 hover:bg-black/70 text-white p-2 md:p-3"
+              title="Próxima foto (→)"
+            >
+              <ChevronRight size={26} />
+            </button>
+          )}
+
           <div
             className="max-w-5xl w-full bg-card rounded-lg overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => {
+              (e.currentTarget as any)._swipeX = e.touches[0].clientX;
+            }}
+            onTouchEnd={(e) => {
+              const x0 = (e.currentTarget as any)._swipeX;
+              if (typeof x0 !== "number") return;
+              const dx = e.changedTouches[0].clientX - x0;
+              if (Math.abs(dx) > 60) {
+                if (dx < 0 && proxima) setAberta(proxima);
+                if (dx > 0 && anterior) setAberta(anterior);
+              }
+            }}
           >
             {aberta.storage_url && (
               <img
@@ -442,6 +492,11 @@ function DiaPage() {
                       new Date(aberta.data_envio).toLocaleString("pt-BR", {
                         timeZone: "America/Sao_Paulo",
                       })}
+                    {idx >= 0 && (
+                      <span className="ml-2 text-muted-foreground/70">
+                        · {idx + 1} de {filtradas.length}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -476,7 +531,8 @@ function DiaPage() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <AlertDialog
         open={!!confirmarExcluir}
