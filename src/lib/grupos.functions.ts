@@ -60,19 +60,31 @@ export const sincronizarGruposZapi = createServerFn({ method: "POST" })
       throw new Error("UAZAPI_INSTANCE_TOKEN ausente no servidor.");
     }
 
-    const res = await fetch(`${baseUrl}/group/list`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", token },
-      body: JSON.stringify({}),
-    });
+    // A UazAPI devolve a lista de grupos em cache — um grupo criado agora
+    // (ou em que o número foi adicionado agora) só aparece pedindo
+    // atualização direto do WhatsApp. Se a instância não aceitar o
+    // parâmetro, refaz a chamada sem ele.
+    const pedirLista = async (comForce: boolean) =>
+      fetch(`${baseUrl}/group/list`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token },
+        body: JSON.stringify(comForce ? { force: true } : {}),
+      });
+
+    let res = await pedirLista(true);
+    if (!res.ok) res = await pedirLista(false);
 
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
       throw new Error(`UazAPI /group/list respondeu ${res.status}: ${txt.slice(0, 200)}`);
     }
 
-    const json = (await res.json()) as { groups?: UazapiGroup[] } | UazapiGroup[];
-    const lista: UazapiGroup[] = Array.isArray(json) ? json : (json.groups ?? []);
+    const json = (await res.json()) as
+      | { groups?: UazapiGroup[]; data?: UazapiGroup[] }
+      | UazapiGroup[];
+    const lista: UazapiGroup[] = Array.isArray(json)
+      ? json
+      : (json.groups ?? json.data ?? []);
 
     const grupos: { jid: string; nome: string }[] = [];
     const seen = new Set<string>();
