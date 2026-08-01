@@ -44,7 +44,7 @@ jobs:
     steps:
       - name: Disparar lote de mensagens
         env:
-          ENDPOINT: https://macroambiental-botgrupos.lovable.app/api/public/hooks/mensagens-programadas
+          ENDPOINT: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks/mensagens-programadas
           SECRET: ${{ secrets.AI_BOT_WEBHOOK_SECRET }}
           PERIODO: ${{ github.event.inputs.periodo }}
           NUMERO_TESTE: ${{ github.event.inputs.numero_teste }}
@@ -72,5 +72,20 @@ jobs:
           RESP=$(curl -sS -X POST "$ENDPOINT" \
             -H "Content-Type: application/json" \
             -H "X-Bot-Secret: $SECRET" \
+            -w "\n__HTTP__%{http_code}" \
             -d "$BODY")
-          echo "Resp: $RESP"
+          CODIGO=$(printf '%s' "$RESP" | sed -n 's/.*__HTTP__//p')
+          CORPO=$(printf '%s' "$RESP" | sed 's/__HTTP__[0-9]*$//')
+          echo "HTTP: $CODIGO"
+          echo "Resp: $CORPO"
+
+          # Resposta vazia = endpoint não respondeu (URL errada, deploy fora do ar).
+          # Sem esta checagem o job fica verde e o problema passa despercebido.
+          if [ -z "$(printf '%s' "$CORPO" | tr -d '[:space:]')" ]; then
+            echo "ERRO: o endpoint não devolveu nada. Confira a URL e se o deploy está no ar."
+            exit 1
+          fi
+          if [ "$CODIGO" != "200" ]; then
+            echo "ERRO: endpoint respondeu HTTP $CODIGO."
+            exit 1
+          fi
