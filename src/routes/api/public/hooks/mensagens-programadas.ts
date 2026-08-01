@@ -63,6 +63,20 @@ const JANELA_MINUTOS_MIN = 10;
 /** Quanto tempo depois do FIM da janela ainda vale enviar (cron atrasado). */
 const TOLERANCIA_ATRASO_MIN = 120;
 
+/**
+ * Teto para o espalhamento dos horários-alvo dentro da janela.
+ *
+ * O cron do banco cobre 07:00–08:55 BRT. Se a janela do painel for maior que
+ * isso (estava 07:15–12:00), os alvos sorteados depois das 08:55 caíam num
+ * horário em que o cron já não roda mais — essas pessoas NUNCA recebiam a
+ * mensagem. Limitando o espalhamento, todos os alvos ficam no começo da janela,
+ * dentro da cobertura do cron, e a janela larga continua válida como prazo.
+ */
+const ESPALHAMENTO_MAX_MIN = 90;
+
+/** Reta final: faltando isso para o fim do espalhamento, manda todo mundo que sobrou. */
+const CATCH_UP_MIN = 15;
+
 function hhmmToMinutes(n: number): number {
   const h = Math.floor(n / 100);
   const m = n % 100;
@@ -318,9 +332,12 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
             ? expandirJanelaMinima(janelas.mIni, janelas.mFim)
             : expandirJanelaMinima(janelas.nIni, janelas.nFim);
         const janelaInicioMin = hhmmToMinutes(janelaPeriodo.inicio);
-        const janelaLarguraMin = Math.max(
-          1,
-          hhmmToMinutes(janelaPeriodo.fim) - janelaInicioMin,
+        // Largura usada para sortear o horário-alvo. Limitada a
+        // ESPALHAMENTO_MAX_MIN para os alvos não caírem depois da última
+        // execução do cron (ver comentário da constante).
+        const janelaLarguraMin = Math.min(
+          Math.max(1, hhmmToMinutes(janelaPeriodo.fim) - janelaInicioMin),
+          ESPALHAMENTO_MAX_MIN,
         );
         const agoraMin = hhmmToMinutes(hhmm);
 
@@ -460,13 +477,20 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         // dentro da janela. Como cada encarregado tem um alvo diferente, os envios
         // saem em horários distintos ao longo da janela em vez de todos juntos.
         // (Quando o período é forçado por teste manual, ignora o escalonamento.)
-        const elegiveis = forcadoPeriodo
-          ? pendentes
-          : pendentes.filter(
-              (a) =>
-                agoraMin >=
-                minutoAlvo(a.telefone, dataRef, periodo, janelaInicioMin, janelaLarguraMin),
-            );
+        // Reta final do espalhamento: quem ainda não recebeu entra agora,
+        // independente do minuto-alvo. Garante que ninguém fique de fora se o
+        // cron parar antes do previsto.
+        const fimEspalhamentoMin = janelaInicioMin + janelaLarguraMin;
+        const retaFinal = agoraMin >= fimEspalhamentoMin - CATCH_UP_MIN;
+
+        const elegiveis =
+          forcadoPeriodo || retaFinal
+            ? pendentes
+            : pendentes.filter(
+                (a) =>
+                  agoraMin >=
+                  minutoAlvo(a.telefone, dataRef, periodo, janelaInicioMin, janelaLarguraMin),
+              );
 
         if (elegiveis.length === 0) {
           return json({
