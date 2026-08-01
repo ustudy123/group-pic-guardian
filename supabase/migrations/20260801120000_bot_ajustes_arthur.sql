@@ -22,59 +22,27 @@ SET persona = persona || E'\n\n## GENTILEZA E REABERTURA — REGRA ACIMA DE TODA
 WHERE id = 'default'
   AND persona NOT LIKE '%GENTILEZA E REABERTURA%';
 
--- 3) AGENDADOR — causa da mensagem de bom dia não ter saído.
--- O cron do GitHub Actions foi desativado (throttling fazia o "bom dia" sair de
--- madrugada) e o agendamento foi movido para o pg_cron, mas o job nunca chegou a
--- ser criado no banco. Sem ele, nada chama o endpoint e ninguém recebe mensagem.
+-- 3) AGENDADOR — NÃO recriar aqui.
 --
--- ⚠️ ANTES DE RODAR: troque COLOQUE_AQUI_O_SEGREDO pelo valor real do
--- AI_BOT_WEBHOOK_SECRET (o mesmo configurado nos secrets do GitHub).
-
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pg_net;
-
--- Remove agendamento anterior, se existir (evita job duplicado)
-SELECT cron.unschedule(jobid)
-FROM cron.job
-WHERE jobname = 'mensagens-programadas';
-
--- 10–11 UTC = 07:00–08:55 BRT, a cada 5 min, todos os dias.
--- O próprio endpoint decide quem recebe: os dias marcados (padrão seg/qua/sex)
--- para o check-in, e qualquer dia para quem relatou problema no dia anterior.
-SELECT cron.schedule(
-  'mensagens-programadas',
-  '*/5 10-11 * * *',
-  $$
-  SELECT net.http_post(
-    url     := 'https://macroambiental-botgrupos.lovable.app/api/public/hooks/mensagens-programadas',
-    headers := jsonb_build_object(
-                 'Content-Type', 'application/json',
-                 'X-Bot-Secret', 'COLOQUE_AQUI_O_SEGREDO'
-               ),
-    body    := jsonb_build_object('batch', 3)
-  );
-  $$
-);
-
--- Envio das respostas com atraso humanizado (1min30–3min): a cada minuto.
-SELECT cron.unschedule(jobid)
-FROM cron.job
-WHERE jobname = 'enviar-respostas-pendentes';
-
-SELECT cron.schedule(
-  'enviar-respostas-pendentes',
-  '* * * * *',
-  $$
-  SELECT net.http_post(
-    url     := 'https://macroambiental-botgrupos.lovable.app/api/public/hooks/enviar-respostas-pendentes',
-    headers := jsonb_build_object(
-                 'Content-Type', 'application/json',
-                 'X-Bot-Secret', 'COLOQUE_AQUI_O_SEGREDO'
-               ),
-    body    := '{}'::jsonb
-  );
-  $$
-);
-
--- Conferência: deve listar os dois jobs como ativos
-SELECT jobname, schedule, active FROM cron.job ORDER BY jobname;
+-- Conferido em 01/08: os jobs do pg_cron JÁ EXISTEM e estão ativos, criados
+-- manualmente no banco (por isso não havia migration com cron.schedule):
+--   mensagens-programadas       */5 10-11 * * *              (07:00–08:55 BRT)
+--   ai-bot-respostas-pendentes  * * * * *
+--   ai-bot-resumo-manha         30 11 * * 1-6
+--   ai-bot-resumo-2h            15 12,14,16,18,20 * * 1-6
+--
+-- ⚠️ Cuidado ao mexer: agendar um segundo job apontando para o mesmo endpoint
+-- (ex.: 'enviar-respostas-pendentes' junto do 'ai-bot-respostas-pendentes')
+-- coloca dois workers na mesma fila e pode entregar a MESMA resposta duas vezes
+-- para o encarregado. Se precisar alterar um job, use cron.unschedule com o
+-- nome exato do existente antes de recriar.
+--
+-- Diagnóstico quando a mensagem não sair (rode uma consulta por vez):
+--   SELECT jobname, schedule, active FROM cron.job ORDER BY jobname;
+--   SELECT jobname, command FROM cron.job WHERE jobname = 'mensagens-programadas';
+--   SELECT status, return_message, start_time
+--     FROM cron.job_run_details ORDER BY start_time DESC LIMIT 20;
+--   SELECT id, status_code, content, created
+--     FROM net._http_response ORDER BY created DESC LIMIT 20;
+-- Um status_code 401 nas respostas do pg_net indica segredo errado no job:
+-- o cron dispara, mas o endpoint recusa e ninguém recebe mensagem.
