@@ -60,6 +60,9 @@ function agoraSaoPaulo(): { hhmm: number; dataRef: string; diaSemana: number; on
 
 const JANELA_MINUTOS_MIN = 10;
 
+/** Quanto tempo depois do FIM da janela ainda vale enviar (cron atrasado). */
+const TOLERANCIA_ATRASO_MIN = 120;
+
 function hhmmToMinutes(n: number): number {
   const h = Math.floor(n / 100);
   const m = n % 100;
@@ -118,6 +121,38 @@ function personalizar(template: string, nome: string | null): string {
   }
   // sem nome cadastrado: "Bom dia {nome}," -> "Bom dia,"
   return template.replace(/\s*(\{nome\}|FULANO)\s*([,!]?)/gi, "$2");
+}
+
+/**
+ * Mensagem de retorno para quem relatou problema no último contato.
+ * Regra do Arthur: no dia seguinte o bot procura essa pessoa perguntando se o
+ * problema foi resolvido — citando o que ela relatou, e não o "bom dia" genérico.
+ */
+function mensagemFollowUp(nome: string | null, problemas: string[]): string {
+  const primeiro = (nome || "").trim().split(/\s+/)[0] || "";
+  const saudacao = primeiro ? `Bom dia, ${primeiro}!` : "Bom dia!";
+  const aberturas = [
+    `${saudacao} Ontem você comentou`,
+    `${saudacao} Voltando no assunto de ontem, você falou`,
+    `${saudacao} Sobre o que você me passou ontem —`,
+  ];
+  const abertura = aberturas[Math.floor(Math.random() * aberturas.length)];
+
+  const fechos = [
+    "Conseguiram resolver ou ainda tá parado?",
+    "Deu pra resolver ou ainda tá pendente?",
+    "Foi resolvido ou segue travado?",
+  ];
+  const fecho = fechos[Math.floor(Math.random() * fechos.length)];
+
+  if (problemas.length === 0) {
+    return `${saudacao} Ontem você relatou um problema na sua frente de serviço. ${fecho}`;
+  }
+  if (problemas.length === 1) {
+    return `${abertura} sobre ${problemas[0]}. ${fecho}`;
+  }
+  const lista = problemas.slice(0, 3).map((p) => `- ${p}`).join("\n");
+  return `${abertura} alguns pontos:\n${lista}\n\n${fecho}`;
 }
 
 async function enviarUazapi(
@@ -202,6 +237,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           batch?: number;
           dryRun?: boolean;
           testNumero?: string;
+          diagnostico?: boolean;
         } = {};
         try {
           body = await request.json();
@@ -238,8 +274,9 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           .eq("id", "default")
           .maybeSingle();
 
-        if (!config?.ativo) return json({ idle: true, motivo: "bot_inativo" });
-        if (!config.msg_programadas_ativas) {
+        if (!config) return json({ error: "config_ausente" }, 500);
+        if (!config.ativo && !body.diagnostico) return json({ idle: true, motivo: "bot_inativo" });
+        if (!config.msg_programadas_ativas && !body.diagnostico) {
           return json({ idle: true, motivo: "programadas_desativadas" });
         }
 
@@ -257,17 +294,21 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           nFim: (config.janela_noite_fim as number) ?? 1900,
         };
         const forcadoPeriodo = body.periodo === "manha" || body.periodo === "noite";
-        const periodo: Periodo | null = forcadoPeriodo
+        const periodoCalc: Periodo | null = forcadoPeriodo
           ? body.periodo!
           : periodoAtual(hhmm, janelas);
 
-        if (!periodo) {
+        // No diagnóstico seguimos o fluxo mesmo fora da janela (assume manhã),
+        // para conseguir explicar quem receberia e a que horas.
+        if (!periodoCalc && !body.diagnostico) {
           return json({ idle: true, motivo: "fora_da_janela", hhmm, janelas });
         }
+        const periodo: Periodo = periodoCalc ?? "manha";
+
         // Ajuste pedido pelo Arthur: por padrão o bot só conversa de manhã.
         // Só envia à noite se `noite_ativa` estiver marcado explicitamente
         // (ou se for um teste forçado com periodo=noite).
-        if (periodo === "noite" && !noiteAtiva && !forcadoPeriodo) {
+        if (periodo === "noite" && !noiteAtiva && !forcadoPeriodo && !body.diagnostico) {
           return json({ idle: true, motivo: "noite_desativada" });
         }
 
@@ -283,13 +324,27 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         );
         const agoraMin = hhmmToMinutes(hhmm);
 
+        // Guarda anti-horário-esquisito: a janela define quando o envio COMEÇA,
+        // mas um disparo muito atrasado (cron do GitHub sofre throttling) não
+        // pode mandar "bom dia" às 22h. Passada a janela + tolerância, pula o
+        // período — o envio volta no próximo dia programado.
+        const limiteEnvioMin = hhmmToMinutes(janelaPeriodo.fim) + TOLERANCIA_ATRASO_MIN;
+        if (!forcadoPeriodo && !body.diagnostico && agoraMin > limiteEnvioMin) {
+          return json({
+            idle: true,
+            motivo: "fora_do_horario_tolerado",
+            hhmm,
+            limite: minutesToHhmm(limiteEnvioMin),
+          });
+        }
+
         const variacoes = (
           periodo === "manha"
             ? (config.msg_manha_variacoes as string[] | null)
             : (config.msg_noite_variacoes as string[] | null)
         )?.filter((v) => v && v.trim().length > 0) ?? [];
         const fallback = (periodo === "manha" ? config.msg_manha : config.msg_noite)?.trim() || "";
-        if (variacoes.length === 0 && !fallback) {
+        if (variacoes.length === 0 && !fallback && !body.diagnostico) {
           return json({ idle: true, motivo: "template_vazio" });
         }
         const escolherTemplate = () =>
@@ -305,19 +360,28 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         if (errAut) return json({ error: errAut.message }, 500);
 
         // Follow-up: encarregados que geraram alerta ontem entram na fila HOJE,
-        // mesmo se hoje não for um dia programado.
+        // mesmo se hoje não for um dia programado. Guardamos o RESUMO do alerta
+        // para a mensagem citar o problema ("ontem você falou de X, resolveu?")
+        // em vez do "bom dia" genérico.
         const followUpAtivo = (config as Record<string, unknown>).follow_up_alertas !== false;
-        let telsFollowUp = new Set<string>();
+        const alertasPorTelefone = new Map<string, string[]>();
         if (followUpAtivo) {
           const inicioOntemUtc = new Date(`${ontemRef}T03:00:00Z`).toISOString();
           const inicioHojeUtc = new Date(`${dataRef}T03:00:00Z`).toISOString();
           const { data: alertasOntem } = await supabaseAdmin
             .from("ai_bot_alertas")
-            .select("telefone")
+            .select("telefone, resumo, categoria")
             .gte("created_at", inicioOntemUtc)
-            .lt("created_at", inicioHojeUtc);
-          telsFollowUp = new Set((alertasOntem ?? []).map((a) => a.telefone));
+            .lt("created_at", inicioHojeUtc)
+            .order("created_at", { ascending: true });
+          for (const a of alertasOntem ?? []) {
+            const lista = alertasPorTelefone.get(a.telefone) ?? [];
+            const texto = (a.resumo || a.categoria || "").trim();
+            if (texto && !lista.includes(texto)) lista.push(texto);
+            alertasPorTelefone.set(a.telefone, lista);
+          }
         }
+        const telsFollowUp = new Set(alertasPorTelefone.keys());
 
         // Se hoje NÃO é dia programado e não é teste forçado, restringe ao follow-up.
         const baseAutorizados = (autorizados ?? []).filter((a) => {
@@ -325,7 +389,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           return telsFollowUp.has(a.telefone);
         });
 
-        if (baseAutorizados.length === 0) {
+        if (baseAutorizados.length === 0 && !body.diagnostico) {
           return json({ idle: true, motivo: isDiaProgramado ? "sem_autorizados" : "dia_nao_programado_sem_follow_up", diaSemana, diasPermitidos });
         }
 
@@ -339,8 +403,57 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         const enviadosSet = new Set((jaEnviados ?? []).map((e) => e.telefone));
         const pendentes = baseAutorizados.filter((a) => !enviadosSet.has(a.telefone));
 
-        if (pendentes.length === 0) {
+        if (pendentes.length === 0 && !body.diagnostico) {
           return json({ idle: true, motivo: "todos_contatados", periodo, dataRef });
+        }
+
+        // Modo diagnóstico: explica, sem enviar nada, por que cada encarregado
+        // recebe ou não a mensagem hoje. Use { "diagnostico": true }.
+        if (body.diagnostico) {
+          const nomesDia = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+          return json({
+            diagnostico: true,
+            agora: { dataRef, hhmm, diaSemana: nomesDia[diaSemana] },
+            config: {
+              bot_ativo: config.ativo,
+              programadas_ativas: config.msg_programadas_ativas,
+              dias_programados: diasPermitidos.map((d) => nomesDia[d]),
+              hoje_e_dia_programado: isDiaProgramado,
+              follow_up_ativo: followUpAtivo,
+              noite_ativa: noiteAtiva,
+              janela_manha: `${janelas.mIni} - ${janelas.mFim}`,
+            },
+            periodo,
+            totais: {
+              autorizados_ativos: (autorizados ?? []).length,
+              na_fila_de_hoje: baseAutorizados.length,
+              ja_receberam_hoje: enviadosSet.size,
+              ainda_pendentes: pendentes.length,
+            },
+            pessoas: (autorizados ?? []).map((a) => {
+              const naFila = baseAutorizados.some((b) => b.telefone === a.telefone);
+              const alvo = minutoAlvo(
+                a.telefone,
+                dataRef,
+                periodo,
+                janelaInicioMin,
+                janelaLarguraMin,
+              );
+              return {
+                telefone: a.telefone,
+                nome: a.nome,
+                receberia_hoje: naFila,
+                motivo: !naFila
+                  ? "hoje nao e dia programado e nao houve alerta ontem"
+                  : telsFollowUp.has(a.telefone)
+                    ? "follow-up: relatou problema ontem"
+                    : "check-in do dia programado",
+                ja_recebeu_hoje: enviadosSet.has(a.telefone),
+                horario_alvo: `${String(Math.floor(alvo / 60)).padStart(2, "0")}:${String(alvo % 60).padStart(2, "0")}`,
+                ja_passou_do_horario: agoraMin >= alvo,
+              };
+            }),
+          });
         }
 
         // Escalonamento anti-spam: só envia para quem já passou do seu minuto-alvo
@@ -369,6 +482,13 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         const batch = Math.min(Math.max(Number(body.batch) || 2, 1), 10);
         const lote = embaralhar(elegiveis).slice(0, batch);
 
+        // Quem relatou problema ontem recebe o retorno sobre AQUELE problema;
+        // os demais recebem o check-in normal do dia.
+        const montarMensagem = (c: { telefone: string; nome: string | null }) =>
+          telsFollowUp.has(c.telefone)
+            ? mensagemFollowUp(c.nome, alertasPorTelefone.get(c.telefone) ?? [])
+            : personalizar(escolherTemplate(), c.nome);
+
         if (body.dryRun) {
           return json({
             dryRun: true,
@@ -376,7 +496,8 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
             dataRef,
             lote: lote.map((c) => ({
               telefone: c.telefone,
-              mensagem: personalizar(escolherTemplate(), c.nome),
+              followUp: telsFollowUp.has(c.telefone),
+              mensagem: montarMensagem(c),
             })),
             restantes: pendentes.length,
           });
@@ -396,7 +517,7 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           // não saírem todos no mesmo segundo (espaça os disparos na instância).
           if (idx > 0) await sleep(1500 + Math.floor(Math.random() * 2500));
 
-          const mensagem = personalizar(escolherTemplate(), contato.nome);
+          const mensagem = montarMensagem(contato);
 
           // Reserva a vaga ANTES de enviar (unique constraint evita duplicado
           // se duas execuções do cron rodarem ao mesmo tempo)

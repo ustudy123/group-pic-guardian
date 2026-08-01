@@ -1,28 +1,21 @@
 name: Mensagens Programadas do Bot
 
-# AGENDAMENTO MOVIDO PARA O pg_cron (banco) — 16/07/2026.
+# AGENDAMENTO PRINCIPAL: pg_cron do banco (job 'mensagens-programadas',
+# 07:00–08:55 BRT). Veja a migration 20260801120000_bot_ajustes_arthur.sql.
 #
-# Motivo: o cron do GitHub Actions sofre throttling pesado. Apesar do "*/5",
-# na prática disparava ~1x por hora e em horário imprevisível. Nos últimos dias
-# programados o 1º disparo caiu 07:53, 09:09, 08:55, 08:08 e até 23:24 — ou seja,
-# o "bom dia" saía fora da janela 07:15–08:15, às vezes de madrugada. Como cada
-# execução manda para só 3 encarregados (batch), as mensagens ficavam pingando o
-# dia inteiro (teve envio às 22:53).
+# O cron abaixo é REDE DE SEGURANÇA: se o job do banco não estiver instalado
+# (foi o que aconteceu — o agendamento saiu do GitHub e o job nunca chegou a ser
+# criado, então ninguém recebia o "bom dia"), este aqui garante o envio.
 #
-# O pg_cron do Supabase dispara no horário certo, então a janela do painel volta
-# a valer de verdade e o escalonamento (minuto-alvo por encarregado) funciona
-# como foi desenhado.
-#
-# O job no banco chama este mesmo endpoint:
-#   cron.schedule('mensagens-programadas', '*/5 10-11 * * *', ...)  -- 07:00–08:55 BRT
-#
-# O disparo manual abaixo (workflow_dispatch) continua servindo para teste e
-# diagnóstico. Para religar o cron do GitHub, basta descomentar o bloco schedule.
+# O GitHub sofre throttling e dispara em horário imprevisível — por isso o
+# endpoint agora recusa envio depois da janela + 2h (TOLERANCIA_ATRASO_MIN).
+# Assim um disparo atrasado não manda "bom dia" às 22h como já aconteceu.
+# A idempotência (telefone+período+data) impede mensagem repetida quando os dois
+# agendadores rodam no mesmo dia.
 
 on:
-  # schedule:
-  #   - cron: "*/5 9-23 * * 1-6"   # 06:00–20:55 BRT
-  #   - cron: "*/5 0-1 * * 2-6"    # 21:00–22:55 BRT
+  schedule:
+    - cron: "*/10 10-13 * * *"   # 07:00–10:59 BRT (a guarda corta após 10:15)
   workflow_dispatch:
     inputs:
       periodo:
@@ -34,6 +27,11 @@ on:
         description: "Diagnóstico: enviar 1 msg de teste para este número (ex: 5544999596898)"
         required: false
         type: string
+      diagnostico:
+        description: "Só explicar quem receberia hoje e por quê (não envia nada)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: mensagens-programadas
@@ -46,10 +44,11 @@ jobs:
     steps:
       - name: Disparar lote de mensagens
         env:
-          ENDPOINT: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks/mensagens-programadas
+          ENDPOINT: https://macroambiental-botgrupos.lovable.app/api/public/hooks/mensagens-programadas
           SECRET: ${{ secrets.AI_BOT_WEBHOOK_SECRET }}
           PERIODO: ${{ github.event.inputs.periodo }}
           NUMERO_TESTE: ${{ github.event.inputs.numero_teste }}
+          DIAGNOSTICO: ${{ github.event.inputs.diagnostico }}
         run: |
           if [ -z "$SECRET" ]; then
             echo "AI_BOT_WEBHOOK_SECRET não configurado nos secrets do repo."
@@ -60,8 +59,9 @@ jobs:
           # encarregado tem um minuto-alvo próprio), então cada execução manda só
           # quem já "venceu" o horário. Mantemos um teto baixo por execução para os
           # disparos saírem espaçados (anti-spam); a idempotência evita repetir.
-          # No teste forçado (periodo), usa batch alto para validar todos de uma vez.
-          if [ -n "$NUMERO_TESTE" ]; then
+          if [ "$DIAGNOSTICO" = "true" ]; then
+            BODY='{"diagnostico":true}'
+          elif [ -n "$NUMERO_TESTE" ]; then
             BODY="{\"testNumero\":\"$NUMERO_TESTE\"}"
           elif [ -n "$PERIODO" ]; then
             BODY="{\"batch\":10,\"periodo\":\"$PERIODO\"}"

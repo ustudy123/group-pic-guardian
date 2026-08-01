@@ -307,7 +307,7 @@ function ProgramadasTab() {
       const { data, error } = await supabase
         .from("ai_bot_config")
         .select(
-          "msg_programadas_ativas, msg_manha, msg_noite, msg_manha_variacoes, msg_noite_variacoes, janela_manha_inicio, janela_manha_fim, janela_noite_inicio, janela_noite_fim",
+          "msg_programadas_ativas, msg_manha, msg_noite, msg_manha_variacoes, msg_noite_variacoes, janela_manha_inicio, janela_manha_fim, janela_noite_inicio, janela_noite_fim, dias_semana, noite_ativa, follow_up_alertas, delay_resposta_min_seg, delay_resposta_max_seg",
         )
         .eq("id", "default")
         .maybeSingle();
@@ -326,6 +326,11 @@ function ProgramadasTab() {
     janela_manha_fim: 815,
     janela_noite_inicio: 1800,
     janela_noite_fim: 1900,
+    dias_semana: [1, 3, 5] as number[],
+    noite_ativa: false,
+    follow_up_alertas: true,
+    delay_resposta_min_seg: 90,
+    delay_resposta_max_seg: 180,
   });
 
   useEffect(() => {
@@ -341,6 +346,11 @@ function ProgramadasTab() {
         janela_manha_fim: (d.janela_manha_fim as number) ?? 815,
         janela_noite_inicio: (d.janela_noite_inicio as number) ?? 1800,
         janela_noite_fim: (d.janela_noite_fim as number) ?? 1900,
+        dias_semana: (d.dias_semana as number[]) ?? [1, 3, 5],
+        noite_ativa: (d.noite_ativa as boolean) ?? false,
+        follow_up_alertas: (d.follow_up_alertas as boolean) ?? true,
+        delay_resposta_min_seg: (d.delay_resposta_min_seg as number) ?? 90,
+        delay_resposta_max_seg: (d.delay_resposta_max_seg as number) ?? 180,
       });
     }
   }, [data]);
@@ -354,6 +364,12 @@ function ProgramadasTab() {
       }
       if (noiteMin < JANELA_MINUTOS_MIN) {
         throw new Error(`Janela da noite precisa ter pelo menos ${JANELA_MINUTOS_MIN} minutos (atual: ${noiteMin} min).`);
+      }
+      if (form.dias_semana.length === 0) {
+        throw new Error("Marque pelo menos um dia da semana para o check-in.");
+      }
+      if (form.delay_resposta_min_seg > form.delay_resposta_max_seg) {
+        throw new Error("O tempo mínimo de resposta não pode ser maior que o máximo.");
       }
       const payload = {
         ...form,
@@ -496,6 +512,120 @@ function ProgramadasTab() {
         />
         <span className="font-medium">Envio automático ativo</span>
       </label>
+
+      {/* Dias do check-in + retorno de quem relatou problema */}
+      <div className="rounded-lg border p-4 space-y-3 bg-card">
+        <h3 className="font-medium text-sm">📅 Dias do check-in</h3>
+        <p className="text-xs text-muted-foreground">
+          Nestes dias o bot puxa conversa com todo mundo perguntando como foi o dia.
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            [1, "Seg"],
+            [2, "Ter"],
+            [3, "Qua"],
+            [4, "Qui"],
+            [5, "Sex"],
+            [6, "Sáb"],
+            [0, "Dom"],
+          ].map(([dia, label]) => {
+            const ativo = form.dias_semana.includes(dia as number);
+            return (
+              <button
+                key={dia as number}
+                type="button"
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    dias_semana: ativo
+                      ? f.dias_semana.filter((d) => d !== dia)
+                      : [...f.dias_semana, dia as number].sort((a, b) => a - b),
+                  }))
+                }
+                className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
+                  ativo
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background hover:bg-accent"
+                }`}
+              >
+                {label as string}
+              </button>
+            );
+          })}
+        </div>
+
+        <label className="flex items-start gap-3 pt-2 border-t">
+          <input
+            type="checkbox"
+            checked={form.follow_up_alertas}
+            onChange={(e) => setForm((f) => ({ ...f, follow_up_alertas: e.target.checked }))}
+            className="size-4 mt-0.5"
+          />
+          <span className="text-sm">
+            <span className="font-medium">Cobrar retorno de quem relatou problema</span>
+            <span className="block text-xs text-muted-foreground">
+              No dia seguinte ao alerta, o bot procura a pessoa citando o problema e pergunta se
+              foi resolvido — mesmo que não seja um dia de check-in. Quem não relatou nada não
+              recebe mensagem fora dos dias marcados.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={form.noite_ativa}
+            onChange={(e) => setForm((f) => ({ ...f, noite_ativa: e.target.checked }))}
+            className="size-4 mt-0.5"
+          />
+          <span className="text-sm">
+            <span className="font-medium">Também conversar no período da noite</span>
+            <span className="block text-xs text-muted-foreground">
+              Desmarcado, o bot só puxa conversa de manhã.
+            </span>
+          </span>
+        </label>
+      </div>
+
+      {/* Tempo de resposta humanizado */}
+      <div className="rounded-lg border p-4 space-y-3 bg-card">
+        <h3 className="font-medium text-sm">⏱️ Tempo para responder</h3>
+        <p className="text-xs text-muted-foreground">
+          O bot espera um tempo aleatório dentro deste intervalo antes de responder, para não
+          parecer robô respondendo na hora.
+        </p>
+        <div className="flex items-center gap-2 text-sm flex-wrap">
+          <span className="text-muted-foreground">Entre</span>
+          <input
+            type="number"
+            min={0}
+            max={900}
+            value={form.delay_resposta_min_seg}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, delay_resposta_min_seg: Number(e.target.value) }))
+            }
+            className="w-20 rounded-md border border-input bg-background px-2 py-1"
+          />
+          <span className="text-muted-foreground">e</span>
+          <input
+            type="number"
+            min={0}
+            max={900}
+            value={form.delay_resposta_max_seg}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, delay_resposta_max_seg: Number(e.target.value) }))
+            }
+            className="w-20 rounded-md border border-input bg-background px-2 py-1"
+          />
+          <span className="text-muted-foreground">segundos</span>
+          <span className="text-xs text-muted-foreground">
+            ({Math.floor(form.delay_resposta_min_seg / 60)}min
+            {form.delay_resposta_min_seg % 60 ? ` ${form.delay_resposta_min_seg % 60}s` : ""} a{" "}
+            {Math.floor(form.delay_resposta_max_seg / 60)}min
+            {form.delay_resposta_max_seg % 60 ? ` ${form.delay_resposta_max_seg % 60}s` : ""})
+          </span>
+        </div>
+      </div>
 
       <div className="rounded-lg border p-4 space-y-3 bg-card">
         <div className="flex items-center justify-between flex-wrap gap-2">

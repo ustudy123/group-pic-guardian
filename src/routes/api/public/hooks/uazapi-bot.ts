@@ -27,6 +27,26 @@ function ehDespedidaCurta(msg: string): boolean {
   return REGEX_DESPEDIDA.test(t);
 }
 
+// Cumprimento puro ("oi", "bom dia", "oi, boa tarde", "e aí"). Atenção: sozinhas,
+// "boa tarde"/"boa noite" caem também no regex de despedida — por isso, quando a
+// conversa está reaberta (ver abaixo), o cumprimento tem prioridade e o bot
+// responde em vez de ficar mudo.
+const REGEX_CUMPRIMENTO =
+  /^\s*(?:(?:oi+|ol[áa]|opa|eae?|e\s*a[íi]|fala|salve|blz|boa)\b[\s,!.]*)*(?:bom\s+dia|boa\s+tarde|boa\s+noite)?[\s,!.]*(?:tudo\s+(?:bem|bom|certo)|como\s+vai)?[\s,!?.😊👍🙏]*$/i;
+function ehCumprimento(msg: string): boolean {
+  const t = (msg || "").trim();
+  if (!t || t.length > 40) return false;
+  if (!/[a-zà-ú]/i.test(t)) return false; // precisa ter alguma palavra
+  return REGEX_CUMPRIMENTO.test(t);
+}
+
+/**
+ * Tempo sem falar que caracteriza uma conversa NOVA. Se o encarregado sumiu por
+ * mais de 2h e volta falando, é assunto novo — o bot precisa acolher, não tratar
+ * como continuação de um papo que ele mesmo encerrou.
+ */
+const REABERTURA_MIN = 120;
+
 const CRITICIDADES = ["baixa", "media", "alta", "critica"] as const;
 type Criticidade = (typeof CRITICIDADES)[number];
 
@@ -490,9 +510,29 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           }
         }
 
+        // Há quanto tempo essa pessoa não fala? Se faz mais de REABERTURA_MIN,
+        // a mensagem de agora abre uma conversa NOVA (mesmo que a anterior tenha
+        // sido encerrada por ela).
+        const { data: ultimaConversa } = await supabaseAdmin
+          .from("ai_bot_conversas")
+          .select("created_at")
+          .eq("telefone", telefone)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const minutosDesdeUltima = ultimaConversa?.created_at
+          ? (Date.now() - new Date(ultimaConversa.created_at).getTime()) / 60000
+          : Number.POSITIVE_INFINITY;
+        const conversaReaberta = minutosDesdeUltima > REABERTURA_MIN;
+
+        // "oi, boa tarde" depois de a conversa ter sido encerrada de manhã é um
+        // CUMPRIMENTO, não despedida: o bot precisa responder com educação e
+        // perguntar o que a pessoa quer tratar (pedido do Arthur).
+        const ehReaberturaComCumprimento = conversaReaberta && ehCumprimento(mensagem);
+
         // Se a mensagem do encarregado é só uma despedida ("valeu", "tchau", "beleza"),
         // grava no histórico mas NÃO responde nem cria alerta — o bot NUNCA tem a última palavra.
-        if (ehDespedidaCurta(mensagem)) {
+        if (ehDespedidaCurta(mensagem) && !ehReaberturaComCumprimento) {
           console.log(`[uazapi-bot] despedida detectada, encerrando: "${mensagem}"`);
           await supabaseAdmin
             .from("ai_bot_conversas")
@@ -525,7 +565,14 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
               (kb ?? []).map((k) => `### ${k.titulo}\n${k.conteudo}`).join("\n\n")
             : "";
 
-        const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
+        // Instrução de tom obrigatória — o histórico pode conter uma conversa já
+        // encerrada, e sem isso o modelo trata o novo "oi" como insistência e
+        // responde de forma ríspida ("só estou aqui para tratar de trabalho").
+        const blocoSituacao = conversaReaberta
+          ? `\n\n## SITUAÇÃO AGORA — LEIA ANTES DE RESPONDER\nO encarregado ficou um tempo sem falar e está iniciando um contato NOVO agora. Qualquer conversa anterior no histórico já se encerrou — ela NÃO continua.\n- Cumprimente de volta com simpatia e pergunte, de forma aberta, o que ele precisa tratar. Ex.: "Opa, boa tarde! Tudo certo por aí? Em que posso ajudar?"\n- É TERMINANTEMENTE PROIBIDO reclamar do contato, cobrar objetividade ou dizer que só atende assunto de trabalho. Ele pode falar com você quando quiser.\n- Não repita perguntas que você já fez antes; comece do zero, leve.`
+          : "";
+
+        const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}\n\n## GENTILEZA — REGRA ACIMA DE TODAS\nSeja educado e acolhedor em 100% das mensagens, sem exceção. Nunca responda de forma seca, irritada ou repreendendo o encarregado — nem quando ele repetir assunto, mandar mensagem fora de hora, cumprimentar de novo ou falar de algo que não é problema de obra. Nunca diga que só está ali para tratar de trabalho nem peça que ele vá direto ao ponto. Se não entender o que ele quer, pergunte com cordialidade o que ele deseja tratar e siga a conversa a partir dali.${blocoSituacao}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
 
         const messages: Array<{ role: string; content: string }> = [
           { role: "system", content: systemPrompt },
