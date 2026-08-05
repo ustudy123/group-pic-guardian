@@ -1,4 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  aplicarRegrasContinuidade,
+  blocoContinuidade,
+  derivarEstadoSessao,
+  ehNegativaDeContinuidade,
+} from "@/lib/ai-bot-continuidade";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
