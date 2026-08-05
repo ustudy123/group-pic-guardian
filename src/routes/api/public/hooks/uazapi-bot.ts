@@ -569,15 +569,14 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             .order("ordem"),
         ]);
 
-        const { data: hist } = await supabaseAdmin
-          .from("ai_bot_conversas")
-          .select("role,conteudo")
-          .eq("telefone", telefone)
-          .order("created_at", { ascending: false })
-          .limit(config.max_historico ?? 20);
+        const maxHist = Number(config.max_historico ?? 20);
+        const historico = historicoCompletoAsc
+          .slice(-maxHist)
+          .map((m) => ({ role: m.role, conteudo: m.conteudo }));
+        console.log(
+          `[uazapi-bot] historico=${historico.length} genericFollowUpCount=${estadoSessao.genericFollowUpCount} sessaoInicio=${estadoSessao.sessaoInicio ?? "nova"}`,
+        );
 
-        const historico = (hist ?? []).reverse();
-        console.log(`[uazapi-bot] historico recuperado: ${historico.length} mensagens`);
 
         const kbBlock =
           (kb ?? []).length > 0
