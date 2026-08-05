@@ -510,35 +510,48 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           }
         }
 
-        // Há quanto tempo essa pessoa não fala? Se faz mais de REABERTURA_MIN,
-        // a mensagem de agora abre uma conversa NOVA (mesmo que a anterior tenha
-        // sido encerrada por ela).
-        const { data: ultimaConversa } = await supabaseAdmin
+        // Histórico completo recente (com data) — base para derivar o estado da sessão.
+        const { data: histBruto } = await supabaseAdmin
           .from("ai_bot_conversas")
-          .select("created_at")
+          .select("role,conteudo,created_at")
           .eq("telefone", telefone)
           .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const minutosDesdeUltima = ultimaConversa?.created_at
-          ? (Date.now() - new Date(ultimaConversa.created_at).getTime()) / 60000
-          : Number.POSITIVE_INFINITY;
-        const conversaReaberta = minutosDesdeUltima > REABERTURA_MIN;
+          .limit(Math.max(40, Number(config.max_historico ?? 20)));
+
+        const historicoCompletoAsc = (histBruto ?? []).slice().reverse() as Array<{
+          role: string;
+          conteudo: string;
+          created_at: string;
+        }>;
+
+        const estadoSessao = derivarEstadoSessao(historicoCompletoAsc);
+        const conversaReaberta = estadoSessao.conversaReaberta;
 
         // "oi, boa tarde" depois de a conversa ter sido encerrada de manhã é um
         // CUMPRIMENTO, não despedida: o bot precisa responder com educação e
         // perguntar o que a pessoa quer tratar (pedido do Arthur).
         const ehReaberturaComCumprimento = conversaReaberta && ehCumprimento(mensagem);
 
-        // Se a mensagem do encarregado é só uma despedida ("valeu", "tchau", "beleza"),
-        // grava no histórico mas NÃO responde nem cria alerta — o bot NUNCA tem a última palavra.
-        if (ehDespedidaCurta(mensagem) && !ehReaberturaComCumprimento) {
-          console.log(`[uazapi-bot] despedida detectada, encerrando: "${mensagem}"`);
+        const ultimaAssistantSessao =
+          [...estadoSessao.mensagensSessao].reverse().find((m) => m.role === "assistant")
+            ?.conteudo ?? null;
+
+        // Se a mensagem do encarregado é só uma despedida ("valeu", "tchau", "beleza")
+        // ou uma negativa de continuidade ("não", "só isso"), grava no histórico mas
+        // NÃO responde nem cria alerta — o bot NUNCA tem a última palavra.
+        const encerraAgora =
+          !ehReaberturaComCumprimento &&
+          (ehDespedidaCurta(mensagem) ||
+            ehNegativaDeContinuidade(mensagem, ultimaAssistantSessao));
+
+        if (encerraAgora) {
+          console.log(`[uazapi-bot] encerramento detectado: "${mensagem}"`);
           await supabaseAdmin
             .from("ai_bot_conversas")
             .insert({ telefone, nome, role: "user", conteudo: mensagem });
-          return json({ ok: true, encerrado: true, motivo: "despedida" });
+          return json({ ok: true, encerrado: true, motivo: "encerramento_usuario" });
         }
+
 
         const [{ data: kb }, { data: exemplos }] = await Promise.all([
           supabaseAdmin.from("ai_bot_kb").select("titulo,conteudo").eq("ativo", true).order("ordem"),
