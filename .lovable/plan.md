@@ -1,81 +1,35 @@
-## Objetivo
-Eliminar o Railway criando um endpoint webhook dentro do próprio app Lovable que replica 100% do comportamento atual visível nos logs.
+# Por que o robô respondeu "Silêncio."
 
-## O que os screenshots me revelaram
+## O que aconteceu
 
-**Do log do Railway:**
-- Quando chega foto de grupo **cadastrado** → baixa, salva com nome `{encarregado} / {data} / {hash}` e tamanho em KB
-- Quando chega de grupo **não cadastrado** → ignora e loga aviso (não cria nada)
-- Fotos chegam em rajadas (várias do mesmo grupo no mesmo segundo)
+Às 20:02 o encarregado mandou "Boa noite". Como fazia mais de 2h desde a última fala, o sistema tratou isso como um contato NOVO (reabertura) e deixou o robô responder — até aí correto.
 
-**Da Z-API:**
-- Webhook único configurado em "Ao receber": `https://bot-macro-ambiental-production.up.railway.app/webhook/zapi/123456`
-- Filtros desligados (recebe grupos, texto, imagem, vídeo, áudio, documento)
-- Instância conectada, multi-device, assinatura **expirada mas ainda PAGA/ativa** (vai cair logo)
+O problema está na instrução da persona. Ela diz, em texto:
 
-## Arquitetura proposta
+> "...encerre em silêncio — não emenda nova mensagem."
 
-```
-WhatsApp → Z-API → POST https://gestaomacroambiental.com.br/api/public/hooks/zapi-bot
-                                          ↓
-                          Lovable Server Route (TanStack)
-                                          ↓
-                ┌─────────────────────────┼─────────────────────────┐
-                ↓                         ↓                         ↓
-        eventos_raw              Storage (obras-fotos)      foto_analise_jobs
-        (auditoria)              + tabela fotos             (trigger automático)
-```
+O modelo entendeu isso como uma resposta a ser escrita e mandou literalmente a palavra **"Silêncio."**. Depois, quando o encarregado estranhou ("Está me mandando calar a boca?"), o robô pediu desculpas, e em seguida repetiu **"Silêncio."** de novo.
 
-## Implementação
+Causa raiz: o "ficar calado" está sendo pedido ao modelo por texto, quando deveria ser uma decisão do sistema. O modelo é obrigado a sempre produzir alguma resposta — se a decisão é não falar, quem tem que decidir isso é o código, não a IA.
 
-### 1. Nova rota pública: `src/routes/api/public/hooks/zapi-bot.ts`
+## Correção proposta
 
-Recebe POST da Z-API. Lógica do handler:
+1. **Filtro de resposta vazia/meta no código** (`src/routes/api/public/hooks/uazapi-bot.ts`)
+   - Antes de enviar, descartar respostas que sejam apenas marcadores de silêncio: "Silêncio", "[silêncio]", "(sem resposta)", "...", texto vazio.
+   - Nesses casos, o robô simplesmente não envia nada e a conversa fica encerrada — comportamento correto.
 
-1. **Validação leve**: token na URL (ex: `?token=XXX`) comparado com secret `ZAPI_WEBHOOK_TOKEN` (Z-API não assina HMAC, então usamos token na URL — mesma técnica do Railway hoje com `/123456`).
-2. **Insert em `eventos_raw`** sempre (auditoria completa, igual hoje).
-3. **Trigger `descobrir_grupo_de_evento`** já existe — ele auto-cria/atualiza `grupos` a partir do `eventos_raw`. Não precisa duplicar.
-4. **Se for imagem em grupo**:
-   - Buscar `encarregado` ativo pelo `grupo_whatsapp_id` (JID do grupo)
-   - Se **não achar** → só loga "grupo não cadastrado" e retorna 200 (igual Railway)
-   - Se achar → baixar imagem da URL do payload Z-API (`payload.image.imageUrl`)
-   - Upload para bucket `obras-fotos` com path `{encarregado_id}/{YYYY-MM-DD}/{messageId}.jpg`
-   - Insert em `fotos` com `status='processada'`, `storage_path`, `encarregado_id`, `tirada_em`
-   - Trigger `enfileirar_analise_foto` (já existe) cria job automaticamente
+2. **Reescrever a regra de encerramento na persona** (migration SQL)
+   - Trocar "encerre em silêncio" por uma instrução que não possa virar texto: instruir a nunca escrever palavras como "silêncio" e a, quando o assunto acabar, responder apenas com uma despedida curta e cordial ou nada.
+   - Deixar explícito: nunca comentar sobre o próprio funcionamento nem descrever o que vai fazer.
 
-### 2. Novo secret: `ZAPI_WEBHOOK_TOKEN`
-Token aleatório gerado, usado na URL pública do webhook.
+3. **"Boa noite" à noite não deve virar encerramento seco**
+   - Na reabertura de conversa, o cumprimento noturno já é tratado como saudação; garantir que a resposta seja acolhedora ("Boa noite! Tudo certo por aí?"), nunca um encerramento.
 
-### 3. Atualização no painel Z-API (você faz)
-Substituir a URL "Ao receber" por:
-```
-https://gestaomacroambiental.com.br/api/public/hooks/zapi-bot?token=XXX
-```
+4. **Repetição da mesma frase**
+   - Bloquear no código o reenvio de uma resposta idêntica à última mensagem enviada pelo robô para o mesmo contato (foi o que gerou o segundo "Silêncio." às 20:24).
 
-### 4. Cancelar Railway (depois de validar)
-Após 1-2 dias rodando estável, cancela a assinatura do Railway.
+## Detalhes técnicos
 
-## O que NÃO muda
-
-- Banco de dados, Storage, painel, encarregados, fotos antigas, análises por IA — tudo intacto
-- Fluxo de descoberta de grupos novos (trigger já faz)
-- Análise automática de fotos (trigger já faz)
-
-## Pontos que preciso confirmar com você antes de implementar
-
-1. **Formato exato do payload da Z-API para imagem**: vou assumir o padrão público (`payload.image.imageUrl` em base64 ou URL HTTPS direta). Se o Railway faz algo diferente (ex: chama outro endpoint Z-API para baixar), só vou descobrir no primeiro teste real — pode precisar de 1 ajuste rápido.
-2. **Bucket correto**: existem dois (`obras-fotos` e `fotos-obras`). Qual o Railway está usando hoje? Vou olhar uma foto existente na tabela `fotos` para descobrir o `storage_path` real.
-3. **Coluna `tirada_em` vs `momento`**: preciso checar o schema da tabela `fotos` para mapear corretamente.
-
-## Riscos
-
-- **Baixo**: se eu errar o formato do payload Z-API, fotos novas param de cair até eu ajustar. Fotos antigas continuam no banco.
-- **Zero**: nenhum dado existente é tocado.
-- **Mitigação**: deixar Railway rodando em paralelo por 1 dia. As duas pontas escrevem no mesmo banco — vai ter foto duplicada por 1 dia, depois você desliga o Railway.
-
-## Próximo passo
-Se aprovar este plano, ao entrar em build mode eu:
-1. Leio o schema real da tabela `fotos` e descubro o bucket usado
-2. Crio a rota `/api/public/hooks/zapi-bot`
-3. Crio o secret `ZAPI_WEBHOOK_TOKEN`
-4. Te entrego a URL pra colar na Z-API
+- Arquivo principal: `src/routes/api/public/hooks/uazapi-bot.ts` — adicionar `respostaEhVazia()` aplicado ao `resposta` retornado do modelo, antes de gravar em `ai_bot_conversas` e antes de enfileirar/enviar.
+- Comparar com a última linha `role="assistant"` de `ai_bot_conversas` para o mesmo telefone; se igual (normalizada), descartar.
+- Migration nova ajustando `persona` em `ai_bot_config`, substituindo o trecho "## ENCERRAMENTO — REGRA CRÍTICA" pela versão sem a palavra "silêncio".
