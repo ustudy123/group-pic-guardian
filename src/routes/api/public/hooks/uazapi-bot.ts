@@ -610,7 +610,43 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         const aiJson = (await aiResp.json()) as {
           choices?: Array<{ message?: { content?: string } }>;
         };
-        const resposta = aiJson.choices?.[0]?.message?.content?.trim() || "";
+        const respostaBruta = aiJson.choices?.[0]?.message?.content?.trim() || "";
+
+        // O silêncio é decisão do SISTEMA, não do modelo. Se o modelo devolver um
+        // marcador de silêncio (já aconteceu: ele mandou literalmente "Silêncio."
+        // por causa da instrução "encerre em silêncio" da persona), descartamos.
+        const normalizar = (t: string) =>
+          t
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[\s.,!?;:*_"'()[\]-]/g, "");
+        const MARCADORES_SILENCIO = new Set([
+          "silencio",
+          "semresposta",
+          "nenhumaresposta",
+          "naoresponder",
+          "sembotresponder",
+          "encerrar",
+          "encerrado",
+          "fim",
+          "",
+        ]);
+        const ehMarcadorSilencio = MARCADORES_SILENCIO.has(normalizar(respostaBruta));
+
+        // Nunca repetir literalmente a última coisa que o bot já disse.
+        const ultimaAssistant = [...historico].reverse().find((m) => m.role === "assistant");
+        const ehRepeticao =
+          !!ultimaAssistant &&
+          normalizar(ultimaAssistant.conteudo || "") === normalizar(respostaBruta) &&
+          normalizar(respostaBruta).length > 0;
+
+        if (ehMarcadorSilencio || ehRepeticao) {
+          console.log(
+            `[uazapi-bot] resposta descartada (${ehMarcadorSilencio ? "marcador_silencio" : "repeticao"}): "${respostaBruta.slice(0, 60)}"`,
+          );
+        }
+        const resposta = ehMarcadorSilencio || ehRepeticao ? "" : respostaBruta;
 
         // Grava a mensagem do usuário no histórico imediatamente.
         // A resposta do assistant só é gravada quando REALMENTE for enviada
@@ -618,6 +654,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         await supabaseAdmin
           .from("ai_bot_conversas")
           .insert({ telefone, nome, role: "user", conteudo: mensagem });
+
 
         const destino = telefone;
         const cfg = config as Record<string, unknown>;
