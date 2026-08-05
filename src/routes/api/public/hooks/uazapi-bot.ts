@@ -665,7 +665,17 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             `[uazapi-bot] resposta descartada (${ehMarcadorSilencio ? "marcador_silencio" : "repeticao"}): "${respostaBruta.slice(0, 60)}"`,
           );
         }
-        const resposta = ehMarcadorSilencio || ehRepeticao ? "" : respostaBruta;
+        const respostaLimpa = ehMarcadorSilencio || ehRepeticao ? "" : respostaBruta;
+
+        // Trava determinística de continuidade: mesmo que o modelo desobedeça, a
+        // pergunta genérica excedente é removida aqui (limite de 2 por sessão) e
+        // frases repetidas são trocadas por uma variação diferente.
+        const resposta = aplicarRegrasContinuidade(respostaLimpa, estadoSessao);
+        if (resposta !== respostaLimpa) {
+          console.log(
+            `[uazapi-bot] continuidade ajustada (count=${estadoSessao.genericFollowUpCount}): "${respostaLimpa.slice(0, 80)}" -> "${resposta.slice(0, 80)}"`,
+          );
+        }
 
         // Grava a mensagem do usuário no histórico imediatamente.
         // A resposta do assistant só é gravada quando REALMENTE for enviada
