@@ -1,4 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  aplicarRegrasContinuidade,
+  blocoContinuidade,
+  derivarEstadoSessao,
+  ehNegativaDeContinuidade,
+} from "@/lib/ai-bot-continuidade";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -510,35 +517,48 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           }
         }
 
-        // Há quanto tempo essa pessoa não fala? Se faz mais de REABERTURA_MIN,
-        // a mensagem de agora abre uma conversa NOVA (mesmo que a anterior tenha
-        // sido encerrada por ela).
-        const { data: ultimaConversa } = await supabaseAdmin
+        // Histórico completo recente (com data) — base para derivar o estado da sessão.
+        const { data: histBruto } = await supabaseAdmin
           .from("ai_bot_conversas")
-          .select("created_at")
+          .select("role,conteudo,created_at")
           .eq("telefone", telefone)
           .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        const minutosDesdeUltima = ultimaConversa?.created_at
-          ? (Date.now() - new Date(ultimaConversa.created_at).getTime()) / 60000
-          : Number.POSITIVE_INFINITY;
-        const conversaReaberta = minutosDesdeUltima > REABERTURA_MIN;
+          .limit(Math.max(40, Number(config.max_historico ?? 20)));
+
+        const historicoCompletoAsc = (histBruto ?? []).slice().reverse() as Array<{
+          role: string;
+          conteudo: string;
+          created_at: string;
+        }>;
+
+        const estadoSessao = derivarEstadoSessao(historicoCompletoAsc);
+        const conversaReaberta = estadoSessao.conversaReaberta;
 
         // "oi, boa tarde" depois de a conversa ter sido encerrada de manhã é um
         // CUMPRIMENTO, não despedida: o bot precisa responder com educação e
         // perguntar o que a pessoa quer tratar (pedido do Arthur).
         const ehReaberturaComCumprimento = conversaReaberta && ehCumprimento(mensagem);
 
-        // Se a mensagem do encarregado é só uma despedida ("valeu", "tchau", "beleza"),
-        // grava no histórico mas NÃO responde nem cria alerta — o bot NUNCA tem a última palavra.
-        if (ehDespedidaCurta(mensagem) && !ehReaberturaComCumprimento) {
-          console.log(`[uazapi-bot] despedida detectada, encerrando: "${mensagem}"`);
+        const ultimaAssistantSessao =
+          [...estadoSessao.mensagensSessao].reverse().find((m) => m.role === "assistant")
+            ?.conteudo ?? null;
+
+        // Se a mensagem do encarregado é só uma despedida ("valeu", "tchau", "beleza")
+        // ou uma negativa de continuidade ("não", "só isso"), grava no histórico mas
+        // NÃO responde nem cria alerta — o bot NUNCA tem a última palavra.
+        const encerraAgora =
+          !ehReaberturaComCumprimento &&
+          (ehDespedidaCurta(mensagem) ||
+            ehNegativaDeContinuidade(mensagem, ultimaAssistantSessao));
+
+        if (encerraAgora) {
+          console.log(`[uazapi-bot] encerramento detectado: "${mensagem}"`);
           await supabaseAdmin
             .from("ai_bot_conversas")
             .insert({ telefone, nome, role: "user", conteudo: mensagem });
-          return json({ ok: true, encerrado: true, motivo: "despedida" });
+          return json({ ok: true, encerrado: true, motivo: "encerramento_usuario" });
         }
+
 
         const [{ data: kb }, { data: exemplos }] = await Promise.all([
           supabaseAdmin.from("ai_bot_kb").select("titulo,conteudo").eq("ativo", true).order("ordem"),
@@ -549,15 +569,14 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             .order("ordem"),
         ]);
 
-        const { data: hist } = await supabaseAdmin
-          .from("ai_bot_conversas")
-          .select("role,conteudo")
-          .eq("telefone", telefone)
-          .order("created_at", { ascending: false })
-          .limit(config.max_historico ?? 20);
+        const maxHist = Number(config.max_historico ?? 20);
+        const historico = historicoCompletoAsc
+          .slice(-maxHist)
+          .map((m) => ({ role: m.role, conteudo: m.conteudo }));
+        console.log(
+          `[uazapi-bot] historico=${historico.length} genericFollowUpCount=${estadoSessao.genericFollowUpCount} sessaoInicio=${estadoSessao.sessaoInicio ?? "nova"}`,
+        );
 
-        const historico = (hist ?? []).reverse();
-        console.log(`[uazapi-bot] historico recuperado: ${historico.length} mensagens`);
 
         const kbBlock =
           (kb ?? []).length > 0
@@ -572,7 +591,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           ? `\n\n## SITUAÇÃO AGORA — LEIA ANTES DE RESPONDER\nO encarregado ficou um tempo sem falar e está iniciando um contato NOVO agora. Qualquer conversa anterior no histórico já se encerrou — ela NÃO continua.\n- Cumprimente de volta com simpatia e pergunte, de forma aberta, o que ele precisa tratar. Ex.: "Opa, boa tarde! Tudo certo por aí? Em que posso ajudar?"\n- É TERMINANTEMENTE PROIBIDO reclamar do contato, cobrar objetividade ou dizer que só atende assunto de trabalho. Ele pode falar com você quando quiser.\n- Não repita perguntas que você já fez antes; comece do zero, leve.`
           : "";
 
-        const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}\n\n## GENTILEZA — REGRA ACIMA DE TODAS\nSeja educado e acolhedor em 100% das mensagens, sem exceção. Nunca responda de forma seca, irritada ou repreendendo o encarregado — nem quando ele repetir assunto, mandar mensagem fora de hora, cumprimentar de novo ou falar de algo que não é problema de obra. Nunca diga que só está ali para tratar de trabalho nem peça que ele vá direto ao ponto. Se não entender o que ele quer, pergunte com cordialidade o que ele deseja tratar e siga a conversa a partir dali.${blocoSituacao}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
+        const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}\n\n## GENTILEZA — REGRA ACIMA DE TODAS\nSeja educado e acolhedor em 100% das mensagens, sem exceção. Nunca responda de forma seca, irritada ou repreendendo o encarregado — nem quando ele repetir assunto, mandar mensagem fora de hora, cumprimentar de novo ou falar de algo que não é problema de obra. Nunca diga que só está ali para tratar de trabalho nem peça que ele vá direto ao ponto. Se não entender o que ele quer, pergunte com cordialidade o que ele deseja tratar e siga a conversa a partir dali.${blocoSituacao}${blocoContinuidade(estadoSessao)}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
 
         const messages: Array<{ role: string; content: string }> = [
           { role: "system", content: systemPrompt },
@@ -646,7 +665,17 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             `[uazapi-bot] resposta descartada (${ehMarcadorSilencio ? "marcador_silencio" : "repeticao"}): "${respostaBruta.slice(0, 60)}"`,
           );
         }
-        const resposta = ehMarcadorSilencio || ehRepeticao ? "" : respostaBruta;
+        const respostaLimpa = ehMarcadorSilencio || ehRepeticao ? "" : respostaBruta;
+
+        // Trava determinística de continuidade: mesmo que o modelo desobedeça, a
+        // pergunta genérica excedente é removida aqui (limite de 2 por sessão) e
+        // frases repetidas são trocadas por uma variação diferente.
+        const resposta = aplicarRegrasContinuidade(respostaLimpa, estadoSessao);
+        if (resposta !== respostaLimpa) {
+          console.log(
+            `[uazapi-bot] continuidade ajustada (count=${estadoSessao.genericFollowUpCount}): "${respostaLimpa.slice(0, 80)}" -> "${resposta.slice(0, 80)}"`,
+          );
+        }
 
         // Grava a mensagem do usuário no histórico imediatamente.
         // A resposta do assistant só é gravada quando REALMENTE for enviada
