@@ -31,6 +31,14 @@ import {
   X,
   Lock,
 } from "lucide-react";
+import {
+  campoVisivel,
+  normalizarCondicao,
+  operadoresPara,
+  semValor,
+  type CondicaoCampo as CondicaoCampoLib,
+} from "@/lib/form-condicao";
+
 
 export const Route = createFileRoute("/painel/formularios/$id")({
   component: EditorWrapper,
