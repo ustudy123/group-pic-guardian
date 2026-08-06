@@ -496,8 +496,9 @@ function Editor() {
             const Icon = Info?.Icon ?? Type;
             const aberto = selecionado === c.id;
             const candidatos = campos.filter(
-              (x) => x.id !== c.id && x.ordem < c.ordem && (x.tipo === "escolha_unica" || x.tipo === "dropdown"),
+              (x) => x.id !== c.id && x.ordem < c.ordem && x.tipo !== "secao",
             );
+
             return (
               <div
                 key={c.id}
