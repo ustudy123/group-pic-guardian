@@ -128,20 +128,30 @@ function Respostas() {
           const open = aberta === r.id;
           return (
             <div key={r.id}>
-              <button
-                onClick={() => setAberta(open ? null : r.id)}
-                className="w-full flex items-center gap-3 p-3 hover:bg-accent/40 text-left"
-              >
-                <div className="flex-1">
-                  <div className="font-semibold text-sm">
-                    {r.respondente_nome || r.respondente_email || "Anônimo"}
+              <div className="flex items-center gap-2 pr-3">
+                <button
+                  onClick={() => setAberta(open ? null : r.id)}
+                  className="flex-1 flex items-center gap-3 p-3 hover:bg-accent/40 text-left"
+                >
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">
+                      {r.respondente_nome || r.respondente_email || "Anônimo"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(r.created_at).toLocaleString("pt-BR")}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(r.created_at).toLocaleString("pt-BR")}
-                  </div>
-                </div>
-                <div className="text-xs text-muted-foreground">{open ? "▲" : "▼"}</div>
-              </button>
+                  <div className="text-xs text-muted-foreground">{open ? "▲" : "▼"}</div>
+                </button>
+                <button
+                  onClick={() => exportar(r)}
+                  title="Baixar esta resposta no formato selecionado"
+                  className="inline-flex items-center gap-1 rounded-md border px-2 py-1.5 text-xs hover:bg-accent"
+                >
+                  <FileDown size={13} /> Baixar
+                </button>
+              </div>
+
               {open && (
                 <div className="p-4 bg-muted/30 space-y-3 text-sm">
                   {campos.map((c: any) => {
