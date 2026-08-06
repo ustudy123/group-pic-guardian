@@ -204,7 +204,7 @@ function Editor() {
           rotulo: tipoInfo?.l ?? "Campo",
           ordem: depois + 1,
           opcoes: ehEscolha(tipo) ? ["Opção 1", "Opção 2"] : [],
-          condicao: { campo_id: origem.id, operador: "igual", valor },
+          condicao: { logica: "e", regras: [{ campo_id: origem.id, operador: "igual", valor }] },
         } as any)
         .select("id")
         .single();
