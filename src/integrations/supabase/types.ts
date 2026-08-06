@@ -581,6 +581,7 @@ export type Database = {
       }
       formulario_campos: {
         Row: {
+          condicao: Json | null
           config: Json
           created_at: string
           descricao: string | null
@@ -595,6 +596,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          condicao?: Json | null
           config?: Json
           created_at?: string
           descricao?: string | null
@@ -609,6 +611,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          condicao?: Json | null
           config?: Json
           created_at?: string
           descricao?: string | null
