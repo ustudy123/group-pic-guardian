@@ -1,13 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Download, FileText, Paperclip } from "lucide-react";
+import { ArrowLeft, Download, FileText, Paperclip, FileSpreadsheet, FileDown } from "lucide-react";
 import { useMemo, useState } from "react";
 import { FORM_GRAD, FORM_SHADOW } from "@/lib/ui-form";
+import {
+  exportarCSV,
+  exportarExcel,
+  exportarPDFTabela,
+  exportarPDFDetalhado,
+} from "@/lib/exportar-respostas";
+
+type Formato = "pdf-detalhado" | "pdf-tabela" | "xlsx" | "csv";
 
 export const Route = createFileRoute("/painel/formularios/$id/respostas")({
   component: Respostas,
 });
+
 
 function Respostas() {
   const { id } = Route.useParams();
