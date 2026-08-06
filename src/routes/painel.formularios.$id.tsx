@@ -663,7 +663,7 @@ function Editor() {
                       </label>
                     )}
 
-                    {/* Lógica condicional */}
+                    {/* Lógica condicional (várias regras encadeadas) */}
                     {c.tipo !== "secao" && (
                       <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
                         <div className="flex items-center gap-1.5 text-xs font-semibold">
@@ -671,90 +671,156 @@ function Editor() {
                         </div>
                         {candidatos.length === 0 ? (
                           <p className="text-xs text-muted-foreground">
-                            Para mostrar esta pergunta só às vezes, coloque antes dela uma pergunta de escolha
-                            única ou lista suspensa.
+                            Para mostrar esta pergunta só às vezes, coloque pelo menos uma pergunta antes dela.
                           </p>
                         ) : (
-                          <>
-                            <label className="inline-flex items-center gap-2 text-xs">
-                              <input
-                                type="checkbox"
-                                checked={!!c.condicao}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    const origem = candidatos[0];
-                                    const ops = (origem.opcoes as string[]) ?? [];
-                                    updateCampo.mutate({
-                                      cid: c.id,
-                                      patch: { condicao: { campo_id: origem.id, operador: "igual", valor: ops[0] ?? "" } },
-                                    });
-                                  } else {
-                                    updateCampo.mutate({ cid: c.id, patch: { condicao: null } });
-                                  }
-                                }}
-                              />
-                              Mostrar esta pergunta só com uma condição
-                            </label>
-                            {c.condicao &&
-                              (() => {
-                                const cond = c.condicao!;
-                                const origem = campos.find((x) => x.id === cond.campo_id);
-                                const ops = (origem?.opcoes as string[]) ?? [];
-                                return (
+                          (() => {
+                            const cond = normalizarCondicao(c.condicao);
+                            const salvar = (novo: CondicaoCampo | null) =>
+                              updateCampo.mutate({
+                                cid: c.id,
+                                patch: { condicao: novo && novo.regras.length ? novo : null },
+                              });
+                            const novaRegra = (origem: Campo) => ({
+                              campo_id: origem.id,
+                              operador: (operadoresPara(origem.tipo)[0]?.v ?? "igual") as string,
+                              valor: ((origem.opcoes as string[]) ?? [])[0] ?? "",
+                            });
+                            return (
+                              <>
+                                <label className="inline-flex items-center gap-2 text-xs">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!cond}
+                                    onChange={(e) =>
+                                      salvar(
+                                        e.target.checked
+                                          ? { logica: "e", regras: [novaRegra(candidatos[0])] }
+                                          : null,
+                                      )
+                                    }
+                                  />
+                                  Mostrar esta pergunta só com condições
+                                </label>
+
+                                {cond && (
                                   <div className="space-y-2 rounded-md border bg-card p-2 text-xs">
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <span className="text-muted-foreground">Mostrar se a resposta de</span>
-                                      <select
-                                        value={cond.campo_id}
-                                        onChange={(e) => {
-                                          const novaOrigem = campos.find((x) => x.id === e.target.value);
-                                          const novasOps = (novaOrigem?.opcoes as string[]) ?? [];
-                                          updateCampo.mutate({
-                                            cid: c.id,
-                                            patch: { condicao: { ...cond, campo_id: e.target.value, valor: novasOps[0] ?? "" } },
-                                          });
-                                        }}
-                                        className="rounded-md border bg-background px-2 py-1"
-                                      >
-                                        {candidatos.map((x) => (
-                                          <option key={x.id} value={x.id}>
-                                            {x.rotulo}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <select
-                                        value={cond.operador}
-                                        onChange={(e) =>
-                                          updateCampo.mutate({ cid: c.id, patch: { condicao: { ...cond, operador: e.target.value } } })
-                                        }
-                                        className="rounded-md border bg-background px-2 py-1"
-                                      >
-                                        <option value="igual">for igual a</option>
-                                        <option value="diferente">for diferente de</option>
-                                      </select>
-                                      <select
-                                        value={cond.valor}
-                                        onChange={(e) =>
-                                          updateCampo.mutate({ cid: c.id, patch: { condicao: { ...cond, valor: e.target.value } } })
-                                        }
-                                        className="flex-1 rounded-md border bg-background px-2 py-1"
-                                      >
-                                        {ops.map((op, oi) => (
-                                          <option key={oi} value={op}>
-                                            {op}
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </div>
+                                    {cond.regras.length > 1 && (
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-muted-foreground">Mostrar quando</span>
+                                        <select
+                                          value={cond.logica}
+                                          onChange={(e) =>
+                                            salvar({ ...cond, logica: e.target.value as "e" | "ou" })
+                                          }
+                                          className="rounded-md border bg-background px-2 py-1"
+                                        >
+                                          <option value="e">todas as condições forem verdadeiras</option>
+                                          <option value="ou">qualquer condição for verdadeira</option>
+                                        </select>
+                                      </div>
+                                    )}
+
+                                    {cond.regras.map((r, ri) => {
+                                      const origem = campos.find((x) => x.id === r.campo_id);
+                                      const ops = (origem?.opcoes as string[]) ?? [];
+                                      const patchRegra = (p: Partial<typeof r>) =>
+                                        salvar({
+                                          ...cond,
+                                          regras: cond.regras.map((x, k) => (k === ri ? { ...x, ...p } : x)),
+                                        });
+                                      return (
+                                        <div key={ri} className="space-y-1.5 rounded-md border bg-muted/30 p-2">
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            <span className="text-muted-foreground">
+                                              {ri === 0 ? "Se a resposta de" : cond.logica === "ou" ? "ou a de" : "e a de"}
+                                            </span>
+                                            <select
+                                              value={r.campo_id}
+                                              onChange={(e) => {
+                                                const nova = campos.find((x) => x.id === e.target.value);
+                                                patchRegra(nova ? novaRegra(nova) : {});
+                                              }}
+                                              className="rounded-md border bg-background px-2 py-1"
+                                            >
+                                              {candidatos.map((x) => (
+                                                <option key={x.id} value={x.id}>
+                                                  {x.rotulo || "(sem título)"}
+                                                </option>
+                                              ))}
+                                            </select>
+                                            {cond.regras.length > 1 && (
+                                              <button
+                                                type="button"
+                                                title="Remover condição"
+                                                onClick={() =>
+                                                  salvar({
+                                                    ...cond,
+                                                    regras: cond.regras.filter((_, k) => k !== ri),
+                                                  })
+                                                }
+                                                className="ml-auto rounded-md border px-1.5 py-1 text-muted-foreground hover:text-destructive"
+                                              >
+                                                <X size={12} />
+                                              </button>
+                                            )}
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            <select
+                                              value={r.operador}
+                                              onChange={(e) => patchRegra({ operador: e.target.value })}
+                                              className="rounded-md border bg-background px-2 py-1"
+                                            >
+                                              {operadoresPara(origem?.tipo).map((o) => (
+                                                <option key={o.v} value={o.v}>
+                                                  {o.l}
+                                                </option>
+                                              ))}
+                                            </select>
+                                            {!semValor(r.operador) &&
+                                              (ops.length ? (
+                                                <select
+                                                  value={r.valor}
+                                                  onChange={(e) => patchRegra({ valor: e.target.value })}
+                                                  className="flex-1 rounded-md border bg-background px-2 py-1"
+                                                >
+                                                  {ops.map((op, oi) => (
+                                                    <option key={oi} value={op}>
+                                                      {op}
+                                                    </option>
+                                                  ))}
+                                                </select>
+                                              ) : (
+                                                <input
+                                                  value={r.valor}
+                                                  onChange={(e) => patchRegra({ valor: e.target.value })}
+                                                  placeholder="valor"
+                                                  className="flex-1 rounded-md border bg-background px-2 py-1"
+                                                />
+                                              ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        salvar({ ...cond, regras: [...cond.regras, novaRegra(candidatos[0])] })
+                                      }
+                                      className="inline-flex items-center gap-1 rounded-md border px-2 py-1 font-medium text-violet-700 hover:bg-accent"
+                                    >
+                                      <Plus size={12} /> Adicionar condição
+                                    </button>
                                   </div>
-                                );
-                              })()}
-                          </>
+                                )}
+                              </>
+                            );
+                          })()
                         )}
                       </div>
                     )}
+
 
                     {/* Rodapé de ações */}
                     <div className="flex items-center justify-between border-t pt-3">
