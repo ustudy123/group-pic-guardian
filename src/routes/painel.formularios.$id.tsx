@@ -187,6 +187,46 @@ function Editor() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Cria uma pergunta que só aparece quando a opção escolhida for `valor`.
+  // Ela é inserida logo depois da pergunta de origem (e das condicionais que
+  // já existirem para ela), empurrando as demais uma posição para baixo.
+  const addCampoCondicional = useMutation({
+    mutationFn: async ({ origem, valor, tipo }: { origem: Campo; valor: string; tipo: string }) => {
+      const dependentes = campos.filter((x) => x.condicao?.campo_id === origem.id);
+      const depois = dependentes.reduce((m, x) => Math.max(m, x.ordem), origem.ordem);
+      const seguintes = campos.filter((x) => x.ordem > depois).sort((a, b) => b.ordem - a.ordem);
+      for (const s of seguintes) {
+        const { error } = await supabase
+          .from("formulario_campos")
+          .update({ ordem: s.ordem + 1 })
+          .eq("id", s.id);
+        if (error) throw error;
+      }
+      const tipoInfo = TIPOS.find((t) => t.v === tipo);
+      const { data, error } = await supabase
+        .from("formulario_campos")
+        .insert({
+          formulario_id: id,
+          tipo,
+          rotulo: tipoInfo?.l ?? "Campo",
+          ordem: depois + 1,
+          opcoes: ehEscolha(tipo) ? ["Opção 1", "Opção 2"] : [],
+          condicao: { campo_id: origem.id, operador: "igual", valor },
+        } as any)
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id as string;
+    },
+    onSuccess: (cid) => {
+      qc.invalidateQueries({ queryKey: ["formulario-campos", id] });
+      setSelecionado(cid);
+      toast.success("Pergunta condicional criada.");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+
   const duplicarCampo = useMutation({
     mutationFn: async (cid: string) => {
       const c = campos.find((x) => x.id === cid);
