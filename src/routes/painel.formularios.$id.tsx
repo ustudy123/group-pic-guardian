@@ -565,9 +565,7 @@ function Editor() {
                           const filhas =
                             c.tipo === "escolha_multipla"
                               ? []
-                              : campos.filter(
-                                  (x) => x.condicao?.campo_id === c.id && x.condicao?.valor === op,
-                                );
+                              : campos.filter((x) => dependeDe(x, c.id, op));
                           return (
                             <div key={oi} className="space-y-1">
                               <div className="flex items-center gap-1">
@@ -575,17 +573,30 @@ function Editor() {
                                   value={op}
                                   onChange={(e) => {
                                     const antiga = op;
+                                    const novoValor = e.target.value;
                                     const novas = [...(c.opcoes as string[])];
-                                    novas[oi] = e.target.value;
+                                    novas[oi] = novoValor;
                                     updateCampo.mutate({ cid: c.id, patch: { opcoes: novas } });
                                     // mantém as condicionais apontando para o novo texto da opção
-                                    for (const f of filhas)
-                                      if (f.condicao?.valor === antiga)
-                                        updateCampo.mutate({
-                                          cid: f.id,
-                                          patch: { condicao: { ...f.condicao, valor: e.target.value } },
-                                        });
+                                    for (const f of filhas) {
+                                      const cf = normalizarCondicao(f.condicao);
+                                      if (!cf) continue;
+                                      updateCampo.mutate({
+                                        cid: f.id,
+                                        patch: {
+                                          condicao: {
+                                            ...cf,
+                                            regras: cf.regras.map((r) =>
+                                              r.campo_id === c.id && r.valor === antiga
+                                                ? { ...r, valor: novoValor }
+                                                : r,
+                                            ),
+                                          },
+                                        },
+                                      });
+                                    }
                                   }}
+
                                   className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm"
                                 />
                                 {c.tipo !== "escolha_multipla" && (
