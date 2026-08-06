@@ -99,23 +99,11 @@ function gerarSlug(t: string) {
   );
 }
 
-// Visibilidade condicional (mesma regra do formulário público)
-function campoVisivel(
-  c: Campo,
-  valores: Record<string, any>,
-  byId: Record<string, Campo>,
-  seen: Set<string> = new Set(),
-): boolean {
-  const cond = c?.condicao;
-  if (!cond || !cond.campo_id) return true;
-  if (seen.has(c.id)) return true;
-  seen.add(c.id);
-  const origem = byId[cond.campo_id];
-  if (origem && !campoVisivel(origem, valores, byId, seen)) return false;
-  const resp = valores[cond.campo_id];
-  if (resp === undefined || resp === null || resp === "") return false;
-  return cond.operador === "diferente" ? resp !== cond.valor : resp === cond.valor;
-}
+// Regras utilitárias sobre a condição de um campo (formato novo: lista de regras)
+const regrasDe = (c: any) => normalizarCondicao(c?.condicao)?.regras ?? [];
+const dependeDe = (c: any, origemId: string, valor?: string) =>
+  regrasDe(c).some((r) => r.campo_id === origemId && (valor === undefined || r.valor === valor));
+
 
 function Editor() {
   const { id } = Route.useParams();
