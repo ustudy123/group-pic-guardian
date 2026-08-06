@@ -568,29 +568,82 @@ function Editor() {
                     {ehEscolha(c.tipo) && (
                       <div className="space-y-1.5">
                         <span className="text-xs text-muted-foreground">Opções</span>
-                        {(c.opcoes as string[]).map((op, oi) => (
-                          <div key={oi} className="flex items-center gap-1">
-                            <input
-                              value={op}
-                              onChange={(e) => {
-                                const novas = [...(c.opcoes as string[])];
-                                novas[oi] = e.target.value;
-                                updateCampo.mutate({ cid: c.id, patch: { opcoes: novas } });
-                              }}
-                              className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm"
-                            />
-                            <button
-                              onClick={() => {
-                                const novas = (c.opcoes as string[]).filter((_, j) => j !== oi);
-                                updateCampo.mutate({ cid: c.id, patch: { opcoes: novas } });
-                              }}
-                              className="text-muted-foreground hover:text-destructive"
-                              title="Remover opção"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        ))}
+                        {(c.opcoes as string[]).map((op, oi) => {
+                          const filhas =
+                            c.tipo === "escolha_multipla"
+                              ? []
+                              : campos.filter(
+                                  (x) => x.condicao?.campo_id === c.id && x.condicao?.valor === op,
+                                );
+                          return (
+                            <div key={oi} className="space-y-1">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  value={op}
+                                  onChange={(e) => {
+                                    const antiga = op;
+                                    const novas = [...(c.opcoes as string[])];
+                                    novas[oi] = e.target.value;
+                                    updateCampo.mutate({ cid: c.id, patch: { opcoes: novas } });
+                                    // mantém as condicionais apontando para o novo texto da opção
+                                    for (const f of filhas)
+                                      if (f.condicao?.valor === antiga)
+                                        updateCampo.mutate({
+                                          cid: f.id,
+                                          patch: { condicao: { ...f.condicao, valor: e.target.value } },
+                                        });
+                                  }}
+                                  className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm"
+                                />
+                                {c.tipo !== "escolha_multipla" && (
+                                  <select
+                                    value=""
+                                    onChange={(e) => {
+                                      if (!e.target.value) return;
+                                      addCampoCondicional.mutate({ origem: c, valor: op, tipo: e.target.value });
+                                      e.currentTarget.value = "";
+                                    }}
+                                    title="Criar uma pergunta que só aparece se esta opção for escolhida"
+                                    className="rounded-md border bg-background px-2 py-1.5 text-xs text-violet-700"
+                                  >
+                                    <option value="">+ pergunta se escolher</option>
+                                    {TIPOS.filter((t) => t.v !== "secao").map((t) => (
+                                      <option key={t.v} value={t.v}>
+                                        {t.l}
+                                      </option>
+                                    ))}
+                                  </select>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    const novas = (c.opcoes as string[]).filter((_, j) => j !== oi);
+                                    updateCampo.mutate({ cid: c.id, patch: { opcoes: novas } });
+                                  }}
+                                  className="text-muted-foreground hover:text-destructive"
+                                  title="Remover opção"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                              {filhas.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 pl-2 text-xs text-muted-foreground">
+                                  <GitBranch size={11} className="text-violet-600" />
+                                  Mostra:
+                                  {filhas.map((f) => (
+                                    <button
+                                      key={f.id}
+                                      onClick={() => setSelecionado(f.id)}
+                                      className="rounded-full px-1.5 py-0.5 font-medium"
+                                      style={{ background: "rgba(124,58,237,0.12)", color: "#7c3aed" }}
+                                    >
+                                      {f.rotulo || "(sem título)"}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                         <button
                           onClick={() => {
                             const novas = [...(c.opcoes as string[]), `Opção ${(c.opcoes as string[]).length + 1}`];
