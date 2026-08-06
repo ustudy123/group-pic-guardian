@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { CheckCircle2, Paperclip, Loader2, Image as ImageIcon, X } from "lucide-react";
 import { FORM_GRAD, FORM_GRAD_BTN, FORM_BG, FORM_SHADOW } from "@/lib/ui-form";
 import { campoVisivel } from "@/lib/form-condicao";
+import { InstalarPwaModal } from "@/components/instalar-pwa-modal";
 
 export const Route = createFileRoute("/f/$slug")({
   component: FormPublico,
@@ -256,6 +257,7 @@ function FormPublico() {
 
   return (
     <div className="min-h-screen py-8 px-4" style={{ backgroundImage: FORM_BG }}>
+      <InstalarPwaModal />
       <div className="max-w-2xl mx-auto space-y-4">
         {/* Cabeçalho herói com gradiente */}
         <div
