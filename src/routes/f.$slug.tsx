@@ -5,29 +5,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CheckCircle2, Paperclip, Loader2, Image as ImageIcon, X } from "lucide-react";
 import { FORM_GRAD, FORM_GRAD_BTN, FORM_BG, FORM_SHADOW } from "@/lib/ui-form";
+import { campoVisivel } from "@/lib/form-condicao";
 
 export const Route = createFileRoute("/f/$slug")({
   component: FormPublico,
 });
 
-// Avalia se um campo deve ser exibido, dada a condição e as respostas atuais.
-// Recursivo: se a pergunta de origem também estiver oculta, este campo fica oculto.
-function campoVisivel(
-  c: any,
-  valores: Record<string, any>,
-  byId: Record<string, any>,
-  seen: Set<string> = new Set(),
-): boolean {
-  const cond = c?.condicao;
-  if (!cond || !cond.campo_id) return true;
-  if (seen.has(c.id)) return true; // proteção contra ciclo
-  seen.add(c.id);
-  const origem = byId[cond.campo_id];
-  if (origem && !campoVisivel(origem, valores, byId, seen)) return false;
-  const resp = valores[cond.campo_id];
-  if (resp === undefined || resp === null || resp === "") return false; // origem ainda não respondida
-  return cond.operador === "diferente" ? resp !== cond.valor : resp === cond.valor;
-}
 
 function FormPublico() {
   const { slug } = Route.useParams();
