@@ -58,30 +58,16 @@ function Respostas() {
     return m;
   }, [campos]);
 
-  const exportar = () => {
-    const camposExp = campos.filter((c: any) => c.tipo !== "secao");
-    const header = ["Data", "Respondente", ...camposExp.map((c: any) => c.rotulo)];
-    const linhas = respostas.map((r: any) => {
-      const dados = r.dados ?? {};
-      return [
-        new Date(r.created_at).toLocaleString("pt-BR"),
-        r.respondente_nome || r.respondente_email || "—",
-        ...camposExp.map((c: any) => {
-          const v = dados[c.id];
-          return Array.isArray(v) ? v.join("; ") : String(v ?? "");
-        }),
-      ];
-    });
-    const csv = [header, ...linhas]
-      .map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${form?.titulo ?? "respostas"}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const [formato, setFormato] = useState<Formato>("pdf-detalhado");
+
+  const exportar = (somente?: any) => {
+    const titulo = form?.titulo ?? "respostas";
+    const lista = (somente ? [somente] : respostas) as any[];
+    if (!lista.length) return;
+    if (formato === "csv") return exportarCSV(titulo, campos as any, lista);
+    if (formato === "xlsx") return exportarExcel(titulo, campos as any, lista);
+    if (formato === "pdf-tabela") return exportarPDFTabela(titulo, campos as any, lista);
+    return exportarPDFDetalhado(titulo, campos as any, lista);
   };
 
   const abrirArquivo = async (path: string) => {
@@ -99,14 +85,29 @@ function Respostas() {
         >
           <ArrowLeft size={15} /> Voltar ao editor
         </Link>
-        <button
-          onClick={exportar}
-          disabled={respostas.length === 0}
-          className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
-        >
-          <Download size={14} /> Exportar CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground">Formato</label>
+          <select
+            value={formato}
+            onChange={(e) => setFormato(e.target.value as Formato)}
+            className="rounded-lg border bg-background px-2 py-2 text-sm"
+          >
+            <option value="pdf-detalhado">PDF (uma resposta por página)</option>
+            <option value="pdf-tabela">PDF (tabela)</option>
+            <option value="xlsx">Excel (.xlsx)</option>
+            <option value="csv">CSV</option>
+          </select>
+          <button
+            onClick={() => exportar()}
+            disabled={respostas.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm hover:bg-accent disabled:opacity-50"
+          >
+            {formato === "xlsx" ? <FileSpreadsheet size={14} /> : <Download size={14} />} Exportar
+            tudo
+          </button>
+        </div>
       </div>
+
       <div className="relative overflow-hidden rounded-3xl p-5 text-white" style={{ backgroundImage: FORM_GRAD, boxShadow: FORM_SHADOW }}>
         <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
         <h1 className="relative text-2xl font-bold flex items-center gap-2">
