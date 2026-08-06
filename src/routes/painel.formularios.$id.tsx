@@ -515,7 +515,7 @@ function Editor() {
                     <div className="flex items-center gap-2">
                       <span className="truncate font-semibold">{c.rotulo || "(sem título)"}</span>
                       {c.obrigatorio && <span className="text-destructive">*</span>}
-                      {c.condicao?.campo_id && (
+                      {regrasDe(c).length > 0 && (
                         <span
                           className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-medium"
                           style={{ background: "rgba(124,58,237,0.12)", color: "#7c3aed" }}
