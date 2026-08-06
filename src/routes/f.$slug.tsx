@@ -257,6 +257,7 @@ function FormPublico() {
 
   return (
     <div className="min-h-screen py-8 px-4" style={{ backgroundImage: FORM_BG }}>
+      <InstalarPwaModal />
       <div className="max-w-2xl mx-auto space-y-4">
         {/* Cabeçalho herói com gradiente */}
         <div
