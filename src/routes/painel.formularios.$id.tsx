@@ -42,11 +42,8 @@ function EditorWrapper() {
   return <Editor />;
 }
 
-type CondicaoCampo = {
-  campo_id: string;
-  operador: "igual" | "diferente";
-  valor: string;
-};
+type CondicaoCampo = CondicaoCampoLib;
+
 
 type Campo = {
   id: string;
