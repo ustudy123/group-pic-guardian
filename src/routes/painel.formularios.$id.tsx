@@ -185,7 +185,7 @@ function Editor() {
   // já existirem para ela), empurrando as demais uma posição para baixo.
   const addCampoCondicional = useMutation({
     mutationFn: async ({ origem, valor, tipo }: { origem: Campo; valor: string; tipo: string }) => {
-      const dependentes = campos.filter((x) => x.condicao?.campo_id === origem.id);
+      const dependentes = campos.filter((x) => dependeDe(x, origem.id));
       const depois = dependentes.reduce((m, x) => Math.max(m, x.ordem), origem.ordem);
       const seguintes = campos.filter((x) => x.ordem > depois).sort((a, b) => b.ordem - a.ordem);
       for (const s of seguintes) {
