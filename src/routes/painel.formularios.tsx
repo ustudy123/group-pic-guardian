@@ -28,7 +28,8 @@ export const Route = createFileRoute("/painel/formularios")({
 function FormulariosLayout() {
   const loc = useLocation();
   const isDetail = /\/painel\/formularios\/[^/]+/.test(loc.pathname);
-  const { podeGerenciarFormularios } = useRoles();
+  useRoles();
+
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl text-white p-6 md:p-8" style={{ backgroundImage: FORM_GRAD, boxShadow: FORM_SHADOW }}>
