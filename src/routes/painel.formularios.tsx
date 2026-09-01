@@ -28,7 +28,8 @@ export const Route = createFileRoute("/painel/formularios")({
 function FormulariosLayout() {
   const loc = useLocation();
   const isDetail = /\/painel\/formularios\/[^/]+/.test(loc.pathname);
-  const { podeGerenciarFormularios } = useRoles();
+  useRoles();
+
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl text-white p-6 md:p-8" style={{ backgroundImage: FORM_GRAD, boxShadow: FORM_SHADOW }}>
@@ -46,11 +47,143 @@ function FormulariosLayout() {
           </p>
         </div>
       </div>
+      <FluxoEnvio />
       {!isDetail && <ListaFormularios />}
       <Outlet />
     </div>
   );
 }
+
+/**
+ * Explica, no topo da tela, o caminho do formulário até o encarregado.
+ * O link do encarregado é fixo (sem slug): /formularios — ele entra com o
+ * login dele e vê somente os formulários liberados para ele.
+ */
+function FluxoEnvio() {
+  const [aberto, setAberto] = useState(true);
+  const [origem, setOrigem] = useState("");
+  useEffect(() => setOrigem(window.location.origin), []);
+  const linkEncarregado = `${origem}/formularios`;
+
+  const passos = [
+    {
+      n: 1,
+      t: "Criar",
+      d: "Monte as perguntas do formulário (texto, fotos, escolhas, condicionais).",
+    },
+    {
+      n: 2,
+      t: "Publicar",
+      d: 'Clique em "Publicar" no editor. Sem publicar, ninguém consegue responder.',
+    },
+    {
+      n: 3,
+      t: "Liberar para quem vai responder",
+      d: 'No editor, em "Acesso no portal do encarregado", marque os encarregados. Sem marcar ninguém, fica liberado para todos os encarregados com login.',
+    },
+    {
+      n: 4,
+      t: "Enviar o link único",
+      d: "Mande sempre o mesmo link para todos. Cada um entra com o próprio login e vê só os formulários dele.",
+    },
+    {
+      n: 5,
+      t: "Receber respostas",
+      d: 'As respostas chegam em "Respostas" do formulário e podem ser exportadas em PDF, Excel ou CSV.',
+    },
+  ];
+
+  return (
+    <div className="rounded-2xl border bg-card p-5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
+          Como o formulário chega até o encarregado
+        </h2>
+        <button
+          onClick={() => setAberto((a) => !a)}
+          className="text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          {aberto ? "Ocultar" : "Mostrar"}
+        </button>
+      </div>
+
+      {aberto && (
+        <>
+          <div className="mt-4 grid gap-3 md:grid-cols-5">
+            {passos.map((p, i) => (
+              <div key={p.n} className="relative rounded-xl border bg-background p-3">
+                <div
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white"
+                  style={{ backgroundImage: FORM_GRAD_BTN }}
+                >
+                  {p.n}
+                </div>
+                <div className="mt-2 text-sm font-semibold">{p.t}</div>
+                <p className="mt-0.5 text-xs text-muted-foreground">{p.d}</p>
+                {i < passos.length - 1 && (
+                  <ChevronRight
+                    size={16}
+                    className="absolute -right-3 top-1/2 hidden -translate-y-1/2 text-muted-foreground md:block"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="mt-4 rounded-xl border p-4"
+            style={{ background: "rgba(124,58,237,0.06)", borderColor: "rgba(124,58,237,0.30)" }}
+          >
+            <div className="text-sm font-semibold">Link único dos encarregados</div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Este é o único link que você precisa enviar (por WhatsApp, por exemplo). Ele é fixo,
+              não muda e não tem código de formulário. Quem abrir entra com e-mail e senha e vê
+              apenas os formulários liberados para o login dele — não acessa nenhuma outra área do
+              sistema.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <code className="rounded-md border bg-background px-2 py-1 text-xs">
+                {linkEncarregado}
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(linkEncarregado);
+                  toast.success("Link copiado");
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+              >
+                <Copy size={13} /> Copiar link
+              </button>
+              <a
+                href="/formularios"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+              >
+                <Eye size={13} /> Abrir como encarregado
+              </a>
+              <button
+                onClick={() => {
+                  const msg = `Olá! Acesse os formulários de obra por aqui: ${linkEncarregado}`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+              >
+                <LinkIcon size={13} /> Enviar por WhatsApp
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Precisa de um link direto para um formulário específico (inclusive para quem não tem
+              login)? Marque "Aceitar respostas via link público" no editor e use "Copiar link" —
+              ele abre direto naquele formulário.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 
 type Pasta = { id: string; nome: string; cor: string | null; ordem: number };
 type Form = {

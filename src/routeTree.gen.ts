@@ -14,6 +14,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PainelRouteImport } from './routes/painel'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as FormulariosRouteImport } from './routes/formularios'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PainelIndexRouteImport } from './routes/painel.index'
 import { Route as PainelVistoriasRouteImport } from './routes/painel.vistorias'
@@ -67,6 +68,11 @@ const PainelRoute = PainelRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FormulariosRoute = FormulariosRouteImport.update({
+  id: '/formularios',
+  path: '/formularios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -227,6 +233,7 @@ const ApiPublicHooksUazapiFotosTokenRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/formularios': typeof FormulariosRoute
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/portal': typeof PortalRoute
@@ -263,6 +270,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/formularios': typeof FormulariosRoute
   '/login': typeof LoginRoute
   '/portal': typeof PortalRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -297,6 +305,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/formularios': typeof FormulariosRoute
   '/login': typeof LoginRoute
   '/painel': typeof PainelRouteWithChildren
   '/portal': typeof PortalRoute
@@ -335,6 +344,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/formularios'
     | '/login'
     | '/painel'
     | '/portal'
@@ -371,6 +381,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/formularios'
     | '/login'
     | '/portal'
     | '/reset-password'
@@ -404,6 +415,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/formularios'
     | '/login'
     | '/painel'
     | '/portal'
@@ -441,6 +453,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FormulariosRoute: typeof FormulariosRoute
   LoginRoute: typeof LoginRoute
   PainelRoute: typeof PainelRouteWithChildren
   PortalRoute: typeof PortalRoute
@@ -494,6 +507,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/formularios': {
+      id: '/formularios'
+      path: '/formularios'
+      fullPath: '/formularios'
+      preLoaderRoute: typeof FormulariosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -784,6 +804,7 @@ const PainelRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FormulariosRoute: FormulariosRoute,
   LoginRoute: LoginRoute,
   PainelRoute: PainelRouteWithChildren,
   PortalRoute: PortalRoute,
