@@ -432,6 +432,14 @@ function CardForm({
         </button>
       )}
       <Link
+        to="/painel/formularios/$id"
+        params={{ id: f.id }}
+        className="text-xs inline-flex items-center gap-1 rounded-md border px-2 py-1 hover:bg-accent"
+        title="Editar formulário"
+      >
+        <Pencil size={12} /> Editar
+      </Link>
+      <Link
         to="/painel/formularios/$id/respostas"
         params={{ id: f.id }}
         className="text-xs inline-flex items-center gap-1 rounded-md border px-2 py-1 hover:bg-accent"
