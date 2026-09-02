@@ -364,10 +364,23 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         if (variacoes.length === 0 && !fallback && !body.diagnostico) {
           return json({ idle: true, motivo: "template_vazio" });
         }
-        const escolherTemplate = () =>
-          variacoes.length > 0
-            ? variacoes[Math.floor(Math.random() * variacoes.length)]
-            : fallback;
+        const normalizarMsg = (t: string) =>
+          (t || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+        // Anti-repetição (pedido do Arthur): a mensagem do dia nunca pode ser
+        // igual à ÚLTIMA que a pessoa recebeu — senão parece "copiar e colar".
+        // O pool candidato exclui a última mensagem enviada àquele telefone;
+        // se só restar a própria (lista curta), usa a lista inteira mesmo.
+        const ultimaMsgPorTelefone = new Map<string, string>();
+        const escolherTemplatePara = (telefone: string): string => {
+          if (variacoes.length === 0) return fallback;
+          const ultima = ultimaMsgPorTelefone.get(telefone);
+          const candidatas = ultima
+            ? variacoes.filter((v) => normalizarMsg(v) !== normalizarMsg(ultima))
+            : variacoes;
+          const pool = candidatas.length > 0 ? candidatas : variacoes;
+          return pool[Math.floor(Math.random() * pool.length)];
+        };
 
         // Encarregados autorizados e ativos
         const { data: autorizados, error: errAut } = await supabaseAdmin
@@ -506,12 +519,32 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         const batch = Math.min(Math.max(Number(body.batch) || 2, 1), 10);
         const lote = embaralhar(elegiveis).slice(0, batch);
 
+        // Última mensagem programada que cada contato do lote recebeu (mesmo
+        // período) — base da anti-repetição definida em escolherTemplatePara.
+        {
+          const tels = lote.map((c) => c.telefone);
+          if (tels.length > 0) {
+            const { data: ultimos } = await supabaseAdmin
+              .from("ai_bot_envios_programados")
+              .select("telefone, mensagem, enviado_em")
+              .in("telefone", tels)
+              .eq("periodo", periodo)
+              .eq("sucesso", true)
+              .order("enviado_em", { ascending: false });
+            for (const e of ultimos ?? []) {
+              if (!ultimaMsgPorTelefone.has(e.telefone)) {
+                ultimaMsgPorTelefone.set(e.telefone, e.mensagem);
+              }
+            }
+          }
+        }
+
         // Quem relatou problema ontem recebe o retorno sobre AQUELE problema;
         // os demais recebem o check-in normal do dia.
         const montarMensagem = (c: { telefone: string; nome: string | null }) =>
           telsFollowUp.has(c.telefone)
             ? mensagemFollowUp(c.nome, alertasPorTelefone.get(c.telefone) ?? [])
-            : personalizar(escolherTemplate(), c.nome);
+            : personalizar(escolherTemplatePara(c.telefone), c.nome);
 
         if (body.dryRun) {
           return json({
