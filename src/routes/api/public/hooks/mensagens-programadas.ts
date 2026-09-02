@@ -364,10 +364,23 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
         if (variacoes.length === 0 && !fallback && !body.diagnostico) {
           return json({ idle: true, motivo: "template_vazio" });
         }
-        const escolherTemplate = () =>
-          variacoes.length > 0
-            ? variacoes[Math.floor(Math.random() * variacoes.length)]
-            : fallback;
+        const normalizarMsg = (t: string) =>
+          (t || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+        // Anti-repetição (pedido do Arthur): a mensagem do dia nunca pode ser
+        // igual à ÚLTIMA que a pessoa recebeu — senão parece "copiar e colar".
+        // O pool candidato exclui a última mensagem enviada àquele telefone;
+        // se só restar a própria (lista curta), usa a lista inteira mesmo.
+        const ultimaMsgPorTelefone = new Map<string, string>();
+        const escolherTemplatePara = (telefone: string): string => {
+          if (variacoes.length === 0) return fallback;
+          const ultima = ultimaMsgPorTelefone.get(telefone);
+          const candidatas = ultima
+            ? variacoes.filter((v) => normalizarMsg(v) !== normalizarMsg(ultima))
+            : variacoes;
+          const pool = candidatas.length > 0 ? candidatas : variacoes;
+          return pool[Math.floor(Math.random() * pool.length)];
+        };
 
         // Encarregados autorizados e ativos
         const { data: autorizados, error: errAut } = await supabaseAdmin
