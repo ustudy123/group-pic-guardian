@@ -60,25 +60,63 @@ export const Route = createFileRoute("/api/public/hooks/enviar-respostas-pendent
         }
 
         const agora = new Date().toISOString();
-        const { data: pendentes, error } = await supabaseAdmin
+        const sbAny = supabaseAdmin as unknown as { from: (t: string) => any };
+        const { data: pendentes, error } = await sbAny
           .from("ai_bot_respostas_pendentes")
           .select("id, telefone, nome, resposta, tentativas")
           .eq("enviado", false)
+          .eq("cancelado", false)
           .lte("enviar_em", agora)
           .lt("tentativas", 5)
           .order("enviar_em", { ascending: true })
-          .limit(20);
+          .limit(50);
 
         if (error) return json({ error: error.message }, 500);
         if (!pendentes || pendentes.length === 0) {
           return json({ idle: true });
         }
 
+        // Um contato recebe no máximo UMA mensagem por rodada: a mais antiga
+        // pendente. As demais do mesmo telefone são canceladas — era isso que
+        // fazia o robô disparar mensagens repetidas uma atrás da outra.
+        type Pend = { id: string; telefone: string; nome: string | null; resposta: string; tentativas: number };
+        const porTelefone = new Map<string, Pend>();
+        const cancelar: string[] = [];
+        for (const p of pendentes as Pend[]) {
+          if (porTelefone.has(p.telefone)) cancelar.push(p.id);
+          else porTelefone.set(p.telefone, p);
+        }
+        if (cancelar.length > 0) {
+          await sbAny
+            .from("ai_bot_respostas_pendentes")
+            .update({ cancelado: true })
+            .in("id", cancelar);
+        }
+
         const resultados: Array<{ id: string; ok: boolean }> = [];
-        for (const p of pendentes) {
+        for (const p of porTelefone.values()) {
+          // Guarda final: se a última fala do bot para esse contato já é essa
+          // mesma mensagem, não reenvia.
+          const { data: ultima } = await sbAny
+            .from("ai_bot_conversas")
+            .select("conteudo")
+            .eq("telefone", p.telefone)
+            .eq("role", "assistant")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          const norm = (t: string) => (t || "").trim().toLowerCase().replace(/\s+/g, " ");
+          if (ultima && norm(ultima.conteudo) === norm(p.resposta)) {
+            await sbAny
+              .from("ai_bot_respostas_pendentes")
+              .update({ cancelado: true })
+              .eq("id", p.id);
+            continue;
+          }
+
           const ok = await enviarUazapi(p.telefone, p.resposta);
           if (ok) {
-            await supabaseAdmin
+            await sbAny
               .from("ai_bot_respostas_pendentes")
               .update({ enviado: true, enviado_em: new Date().toISOString() })
               .eq("id", p.id);
@@ -90,13 +128,14 @@ export const Route = createFileRoute("/api/public/hooks/enviar-respostas-pendent
               conteudo: p.resposta,
             });
           } else {
-            await supabaseAdmin
+            await sbAny
               .from("ai_bot_respostas_pendentes")
               .update({ tentativas: (p.tentativas ?? 0) + 1 })
               .eq("id", p.id);
           }
           resultados.push({ id: p.id, ok });
         }
+
 
         return json({ processados: resultados.length, sucesso: resultados.filter((r) => r.ok).length });
       },
