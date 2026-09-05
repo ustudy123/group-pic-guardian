@@ -678,12 +678,48 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         ]);
         const ehMarcadorSilencio = MARCADORES_SILENCIO.has(normalizar(respostaBruta));
 
-        // Nunca repetir literalmente a última coisa que o bot já disse.
-        const ultimaAssistant = [...historico].reverse().find((m) => m.role === "assistant");
+        // Nunca repetir o que o bot já disse — nem literalmente, nem "quase igual".
+        // O caso real: 3 mensagens seguidas variando só uma expressão no meio.
+        // Comparamos por similaridade de palavras (>= 80% => é a mesma fala).
+        const tokens = (t: string) =>
+          new Set(
+            t
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/[^a-z0-9\s]/g, " ")
+              .split(/\s+/)
+              .filter((w) => w.length > 2),
+          );
+        const parecido = (a: string, b: string) => {
+          if (!a || !b) return false;
+          if (normalizar(a) === normalizar(b)) return true;
+          const A = tokens(a);
+          const B = tokens(b);
+          if (A.size < 3 || B.size < 3) return false;
+          let inter = 0;
+          for (const w of A) if (B.has(w)) inter++;
+          return inter / Math.max(A.size, B.size) >= 0.8;
+        };
+
+        // Respostas já enviadas recentemente + as que ainda estão na fila de envio
+        // (essas ainda não estão no histórico, e eram justamente a origem do eco).
+        const { data: pendentesAtuais } = await sbAny
+          .from("ai_bot_respostas_pendentes")
+          .select("id, resposta")
+          .eq("telefone", telefone)
+          .eq("enviado", false)
+          .eq("cancelado", false);
+
+        const jaDitas: string[] = [
+          ...historico
+            .filter((m) => m.role === "assistant")
+            .slice(-4)
+            .map((m) => m.conteudo || ""),
+          ...((pendentesAtuais ?? []) as Array<{ resposta: string }>).map((p) => p.resposta || ""),
+        ];
         const ehRepeticao =
-          !!ultimaAssistant &&
-          normalizar(ultimaAssistant.conteudo || "") === normalizar(respostaBruta) &&
-          normalizar(respostaBruta).length > 0;
+          normalizar(respostaBruta).length > 0 && jaDitas.some((t) => parecido(t, respostaBruta));
 
         if (ehMarcadorSilencio || ehRepeticao) {
           console.log(
@@ -691,6 +727,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           );
         }
         const respostaLimpa = ehMarcadorSilencio || ehRepeticao ? "" : respostaBruta;
+
 
         // Trava determinística de continuidade: mesmo que o modelo desobedeça, a
         // pergunta genérica excedente é removida aqui (limite de 2 por sessão) e
