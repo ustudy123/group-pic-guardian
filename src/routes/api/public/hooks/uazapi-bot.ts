@@ -425,6 +425,31 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           return json({ ok: true, ignored: "saida" });
         }
 
+        // === Anti-duplicidade de entrega ===
+        // A uazapi reenvia o MESMO webhook várias vezes (retry). Sem trava, cada
+        // reentrega gerava uma resposta — foi o que produziu 3 mensagens quase
+        // iguais seguidas. Registramos o id da mensagem; se já existe, ignoramos.
+        const sbAny = supabaseAdmin as unknown as {
+          from: (t: string) => any;
+        };
+        const msgId = String(
+          (d as Record<string, unknown>).messageid ||
+            (d as Record<string, unknown>).messageId ||
+            (d as Record<string, unknown>).id ||
+            "",
+        ).trim();
+        if (msgId) {
+          const { error: errDup } = await sbAny
+            .from("ai_bot_mensagens_processadas")
+            .insert({ message_id: msgId, telefone: String(chatid.split("@")[0] || "") });
+          if (errDup) {
+            console.log(`[uazapi-bot] ignorado: mensagem já processada (${msgId})`);
+            return json({ ok: true, ignored: "duplicada" });
+          }
+        }
+
+
+
         const messageType = String(d.messageType || "").toLowerCase();
         const isAudio =
           messageType.includes("audio") ||
