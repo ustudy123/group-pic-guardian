@@ -755,8 +755,18 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         if (resposta && delayMax > 0) {
           // Atraso humanizado: agenda o envio via tabela; o hook /enviar-respostas-pendentes
           // (chamado por pg_cron a cada 1 min) manda quando chegar a hora.
+          // Antes de agendar, cancela qualquer resposta ainda não enviada desse
+          // contato: vale só a mais recente. Sem isso, várias mensagens seguidas
+          // do encarregado viravam várias respostas disparadas de uma vez.
+          await sbAny
+            .from("ai_bot_respostas_pendentes")
+            .update({ cancelado: true })
+            .eq("telefone", destino)
+            .eq("enviado", false)
+            .eq("cancelado", false);
           const atrasoSeg = delayMin + Math.floor(Math.random() * (delayMax - delayMin + 1));
           const enviarEm = new Date(Date.now() + atrasoSeg * 1000).toISOString();
+
           const { error: errFila } = await supabaseAdmin
             .from("ai_bot_respostas_pendentes")
             .insert({
