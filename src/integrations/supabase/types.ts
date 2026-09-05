@@ -311,8 +311,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_bot_mensagens_processadas: {
+        Row: {
+          created_at: string
+          message_id: string
+          telefone: string
+        }
+        Insert: {
+          created_at?: string
+          message_id: string
+          telefone: string
+        }
+        Update: {
+          created_at?: string
+          message_id?: string
+          telefone?: string
+        }
+        Relationships: []
+      }
       ai_bot_respostas_pendentes: {
         Row: {
+          cancelado: boolean
           created_at: string
           enviado: boolean
           enviado_em: string | null
@@ -325,6 +344,7 @@ export type Database = {
           tentativas: number
         }
         Insert: {
+          cancelado?: boolean
           created_at?: string
           enviado?: boolean
           enviado_em?: string | null
@@ -337,6 +357,7 @@ export type Database = {
           tentativas?: number
         }
         Update: {
+          cancelado?: boolean
           created_at?: string
           enviado?: boolean
           enviado_em?: string | null
