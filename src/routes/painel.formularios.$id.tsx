@@ -12,6 +12,7 @@ import {
   Copy,
   ChevronUp,
   ChevronDown,
+  GripVertical,
   Type,
   AlignLeft,
   Hash,
@@ -317,6 +318,26 @@ function Editor() {
     reordenar.mutate(ids);
   };
 
+  // --- Arrastar para reordenar ---
+  // Usa o drag-and-drop nativo do navegador (sem biblioteca extra). Só a alça
+  // "⠿" inicia o arrasto, para não atrapalhar a seleção de texto nos campos.
+  const [arrastando, setArrastando] = useState<string | null>(null);
+  const [alvoDrop, setAlvoDrop] = useState<string | null>(null);
+
+  const soltarSobre = (destinoId: string) => {
+    const origemId = arrastando;
+    setArrastando(null);
+    setAlvoDrop(null);
+    if (!origemId || origemId === destinoId) return;
+    const ids = campos.map((c) => c.id);
+    const de = ids.indexOf(origemId);
+    const para = ids.indexOf(destinoId);
+    if (de < 0 || para < 0) return;
+    ids.splice(de, 1);
+    ids.splice(para, 0, origemId);
+    reordenar.mutate(ids);
+  };
+
   const publicar = async () => {
     let slug = form?.share_slug;
     if (!slug) slug = gerarSlug(form?.titulo ?? "form");
@@ -502,16 +523,51 @@ function Editor() {
             return (
               <div
                 key={c.id}
+                onDragOver={(e) => {
+                  if (!arrastando || arrastando === c.id) return;
+                  e.preventDefault(); // habilita o drop neste card
+                  setAlvoDrop(c.id);
+                }}
+                onDragLeave={() => setAlvoDrop((a) => (a === c.id ? null : a))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  soltarSobre(c.id);
+                }}
                 className={`rounded-2xl border bg-card shadow-sm transition ${
-                  aberto ? "ring-2 ring-violet-500/60" : "hover:border-violet-300"
+                  arrastando === c.id ? "opacity-40" : ""
+                } ${
+                  alvoDrop === c.id
+                    ? "border-violet-500 ring-2 ring-violet-400"
+                    : aberto
+                      ? "ring-2 ring-violet-500/60"
+                      : "hover:border-violet-300"
                 }`}
               >
                 {/* Cabeçalho do campo (sempre visível) */}
-                <button
-                  onClick={() => setSelecionado(aberto ? null : c.id)}
-                  className="flex w-full items-center gap-3 p-4 text-left"
-                >
-                  <Icon size={16} className="shrink-0 text-violet-600" />
+                <div className="flex w-full items-center gap-1 pl-2">
+                  <div
+                    draggable
+                    onDragStart={(e) => {
+                      setArrastando(c.id);
+                      e.dataTransfer.effectAllowed = "move";
+                      // Firefox só inicia o arrasto se houver dado no dataTransfer
+                      e.dataTransfer.setData("text/plain", c.id);
+                    }}
+                    onDragEnd={() => {
+                      setArrastando(null);
+                      setAlvoDrop(null);
+                    }}
+                    title="Arraste para mudar a ordem"
+                    aria-label="Arraste para mudar a ordem"
+                    className="shrink-0 cursor-grab select-none rounded-md px-1.5 py-3 text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
+                  >
+                    <GripVertical size={16} />
+                  </div>
+                  <button
+                    onClick={() => setSelecionado(aberto ? null : c.id)}
+                    className="flex flex-1 items-center gap-3 py-4 pr-4 text-left"
+                  >
+                    <Icon size={16} className="shrink-0 text-violet-600" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate font-semibold">{c.rotulo || "(sem título)"}</span>
@@ -527,11 +583,12 @@ function Editor() {
                     </div>
                     <div className="text-xs text-muted-foreground">{Info?.l}</div>
                   </div>
-                  <ChevronDown
-                    size={16}
-                    className={`shrink-0 text-muted-foreground transition ${aberto ? "rotate-180" : ""}`}
-                  />
-                </button>
+                    <ChevronDown
+                      size={16}
+                      className={`shrink-0 text-muted-foreground transition ${aberto ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                </div>
 
                 {/* Corpo: pré-visualização (fechado) ou editor (aberto) */}
                 {!aberto ? (
