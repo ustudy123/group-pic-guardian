@@ -598,7 +598,44 @@ function Editor() {
                 ) : (
                   <div className="space-y-3 border-t px-4 py-4">
                     <label className="block text-xs">
+                      <span className="text-muted-foreground">Tipo de pergunta</span>
+                      <select
+                        value={c.tipo}
+                        onChange={(e) => {
+                          const novo = e.target.value;
+                          if (novo === c.tipo) return;
+                          const dependentes = campos.filter((x) => dependeDe(x, c.id));
+                          if (
+                            ehEscolha(c.tipo) &&
+                            !ehEscolha(novo) &&
+                            dependentes.length > 0 &&
+                            !confirm(
+                              `Esta pergunta tem ${dependentes.length} pergunta(s) que aparecem conforme a resposta. Ao mudar o tipo, essas regras podem deixar de funcionar. Continuar?`,
+                            )
+                          )
+                            return;
+                          const patch: any = { tipo: novo };
+                          if (ehEscolha(novo)) {
+                            const atuais = (c.opcoes as string[]) ?? [];
+                            if (!atuais.length) patch.opcoes = ["Opção 1", "Opção 2"];
+                          } else {
+                            patch.opcoes = [];
+                          }
+                          if (novo === "secao") patch.obrigatorio = false;
+                          updateCampo.mutate({ cid: c.id, patch });
+                        }}
+                        className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                      >
+                        {TIPOS.map((t) => (
+                          <option key={t.v} value={t.v}>
+                            {t.l}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-xs">
                       <span className="text-muted-foreground">{c.tipo === "secao" ? "Título da seção" : "Pergunta"}</span>
+
                       <input
                         value={c.rotulo}
                         onChange={(e) => updateCampo.mutate({ cid: c.id, patch: { rotulo: e.target.value } })}
