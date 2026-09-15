@@ -15,6 +15,7 @@ import {
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FORM_GRAD, FORM_SHADOW } from "@/lib/ui-form";
+import { useAuth } from "@/lib/auth-context";
 import {
   exportarCSV,
   exportarExcel,
@@ -49,6 +50,7 @@ const dataSP = (iso: string) =>
 
 function Respostas() {
   const { id } = Route.useParams();
+  const { user } = useAuth();
   const [aberta, setAberta] = useState<string | null>(null);
   const [formato, setFormato] = useState<Formato>("pdf-detalhado");
   const [exportando, setExportando] = useState<string | null>(null);
@@ -186,12 +188,21 @@ function Respostas() {
     try {
       if (formato === "csv") return exportarCSV(titulo, campos as any, lista);
       if (formato === "xlsx") return exportarExcel(titulo, campos as any, lista);
-      if (formato === "pdf-tabela") return exportarPDFTabela(titulo, campos as any, lista);
-      await exportarPDFDetalhado(titulo, campos as any, lista, resolverUrls, (feitas, total) => {
+
+      const progresso = (feitas: number, total: number) => {
         if (total > 4 && feitas % 5 === 0) {
           toast.loading(`Montando PDF — ${feitas} de ${total} fotos`, { id: "pdf-fotos" });
         }
-      });
+      };
+      // Quem está gerando o relatório (vai no cabeçalho, como no modelo do Coletum)
+      const geradoPor =
+        (user?.user_metadata as any)?.display_name || user?.email || undefined;
+
+      if (formato === "pdf-tabela") {
+        await exportarPDFTabela(titulo, campos as any, lista, resolverUrls, progresso);
+      } else {
+        await exportarPDFDetalhado(titulo, campos as any, lista, resolverUrls, progresso, geradoPor);
+      }
       toast.dismiss("pdf-fotos");
     } catch (e: any) {
       toast.dismiss("pdf-fotos");
@@ -247,7 +258,7 @@ function Respostas() {
             className="rounded-lg border bg-background px-2 py-2 text-sm"
           >
             <option value="pdf-detalhado">PDF (com as fotos)</option>
-            <option value="pdf-tabela">PDF (tabela)</option>
+            <option value="pdf-tabela">PDF (tabela com miniaturas)</option>
             <option value="xlsx">Excel (.xlsx)</option>
             <option value="csv">CSV</option>
           </select>

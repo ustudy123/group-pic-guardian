@@ -94,14 +94,59 @@ export function exportarExcel(titulo: string, campos: CampoExport[], respostas: 
   );
 }
 
-/** PDF em tabela: uma linha por resposta. */
-export function exportarPDFTabela(
+/**
+ * PDF em tabela: uma linha por resposta, com MINIATURAS das fotos dentro da
+ * própria célula da pergunta (antes vinha só o nome do arquivo).
+ *
+ * `resolverUrls` é opcional — sem ele a tabela sai como antes, só com os nomes.
+ */
+export async function exportarPDFTabela(
   titulo: string,
   campos: CampoExport[],
   respostas: RespostaExport[],
+  resolverUrls?: ResolverUrls,
+  onProgresso?: (feitas: number, total: number) => void,
 ) {
-  const { header, linhas } = montarTabela(campos, respostas);
+  const { header, linhas, exportaveis } = montarTabela(campos, respostas);
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+
+  // "Data" e "Respondente" ocupam as duas primeiras colunas da tabela
+  const OFFSET_COLUNAS = 2;
+  const colunasFoto = new Map<number, CampoExport>();
+  exportaveis.forEach((c, i) => {
+    if (c.tipo === "foto" || c.tipo === "arquivo") colunasFoto.set(i + OFFSET_COLUNAS, c);
+  });
+
+  // linha:coluna -> miniaturas já carregadas
+  const miniaturas = new Map<string, { dataUrl: string; w: number; h: number }[]>();
+  const usarFotos = Boolean(resolverUrls) && colunasFoto.size > 0;
+
+  if (usarFotos) {
+    const alvos: { chave: string; arq: ArquivoResposta }[] = [];
+    respostas.forEach((r, linha) => {
+      for (const [coluna, campo] of colunasFoto) {
+        const imagens = (r.arquivos ?? []).filter((a) => a.campo_id === campo.id && ehImagem(a));
+        imagens.forEach((arq) => alvos.push({ chave: `${linha}:${coluna}`, arq }));
+      }
+    });
+    if (alvos.length > 0) {
+      const urls = await resolverUrls!(alvos.map((a) => a.arq.path));
+      let feitas = 0;
+      for (const { chave, arq } of alvos) {
+        feitas++;
+        onProgresso?.(feitas, alvos.length);
+        const url = urls[arq.path];
+        if (!url) continue;
+        // miniatura pequena: na tabela cada foto ocupa poucos milímetros
+        const img = await baixarComoJpeg(url, 0, 0.6, { w: 240, h: 180 }); // 4:3 uniforme
+        if (!img) continue;
+        const lista = miniaturas.get(chave) ?? [];
+        lista.push(img);
+        miniaturas.set(chave, lista);
+      }
+    }
+  }
+
   doc.setFontSize(14);
   doc.text(titulo, 40, 40);
   doc.setFontSize(9);
@@ -110,13 +155,64 @@ export function exportarPDFTabela(
     40,
     56,
   );
+
+  const ALTURA_MINI = 44;
+  const PADDING = 4;
+
   autoTable(doc, {
     head: [header],
     body: linhas,
     startY: 70,
-    styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
+    styles: { fontSize: 8, cellPadding: PADDING, overflow: "linebreak", valign: "middle" },
     headStyles: { fillColor: [37, 99, 235] },
     margin: { left: 40, right: 40 },
+    columnStyles: usarFotos
+      ? Object.fromEntries([...colunasFoto.keys()].map((c) => [c, { cellWidth: 146 }]))
+      : undefined,
+    didParseCell: (data: any) => {
+      if (!usarFotos || data.section !== "body") return;
+      if (!colunasFoto.has(data.column.index)) return;
+      const fotos = miniaturas.get(`${data.row.index}:${data.column.index}`);
+      if (!fotos?.length) return;
+      // o texto sai da célula: o espaço é das miniaturas, desenhadas em didDrawCell
+      data.cell.text = [];
+      data.cell.styles.minCellHeight = ALTURA_MINI + PADDING * 2;
+    },
+    didDrawCell: (data: any) => {
+      if (!usarFotos || data.section !== "body") return;
+      if (!colunasFoto.has(data.column.index)) return;
+      const fotos = miniaturas.get(`${data.row.index}:${data.column.index}`);
+      if (!fotos?.length) return;
+
+      const larguraUtil = data.cell.width - PADDING * 2;
+      let x = data.cell.x + PADDING;
+      const y = data.cell.y + PADDING;
+      let desenhadas = 0;
+
+      for (const img of fotos) {
+        const largura = (ALTURA_MINI / img.h) * img.w;
+        // guarda espaço para o "+N" quando ainda restam fotos
+        const restantes = fotos.length - desenhadas;
+        const reserva = restantes > 1 ? 12 : 0;
+        if (x + largura > data.cell.x + PADDING + larguraUtil - reserva) break;
+        try {
+          doc.addImage(img.dataUrl, "JPEG", x, y, largura, ALTURA_MINI);
+        } catch {
+          /* miniatura problemática não derruba a tabela */
+        }
+        x += largura + 3;
+        desenhadas++;
+      }
+
+      const sobraram = fotos.length - desenhadas;
+      if (sobraram > 0) {
+        doc.setFontSize(7);
+        doc.setTextColor(110);
+        doc.text(`+${sobraram}`, x, y + ALTURA_MINI / 2, { baseline: "middle" });
+        doc.setTextColor(0);
+        doc.setFontSize(8);
+      }
+    },
   });
   doc.save(`${titulo}.pdf`);
 }
@@ -125,11 +221,16 @@ export function exportarPDFTabela(
  * Baixa a imagem e devolve em JPEG já redimensionado. O redimensionamento é o
  * que mantém o PDF utilizável: foto de obra costuma ter 3–5 MB, e um relatório
  * com dezenas delas em tamanho original passaria de 100 MB.
+ *
+ * `cortar` recorta ao centro na proporção pedida e devolve exatamente esse
+ * tamanho — é o que deixa a grade de miniaturas uniforme, como no relatório do
+ * Coletum, mesmo misturando fotos em pé e deitadas.
  */
 async function baixarComoJpeg(
   url: string,
   ladoMax = 1000,
   qualidade = 0.72,
+  cortar?: { w: number; h: number },
 ): Promise<{ dataUrl: string; w: number; h: number } | null> {
   try {
     const resp = await fetch(url);
@@ -159,14 +260,34 @@ async function baixarComoJpeg(
     }
     if (!largura || !altura) return null;
 
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    if (cortar) {
+      // recorte central na proporção alvo
+      const alvo = cortar.w / cortar.h;
+      let sw = largura;
+      let sh = Math.round(largura / alvo);
+      if (sh > altura) {
+        sh = altura;
+        sw = Math.round(altura * alvo);
+      }
+      const sx = Math.round((largura - sw) / 2);
+      const sy = Math.round((altura - sh) / 2);
+      canvas.width = cortar.w;
+      canvas.height = cortar.h;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, cortar.w, cortar.h);
+      ctx.drawImage(fonte, sx, sy, sw, sh, 0, 0, cortar.w, cortar.h);
+      return { dataUrl: canvas.toDataURL("image/jpeg", qualidade), w: cortar.w, h: cortar.h };
+    }
+
     const escala = Math.min(1, ladoMax / Math.max(largura, altura));
     const w = Math.round(largura * escala);
     const h = Math.round(altura * escala);
-    const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
     ctx.fillStyle = "#ffffff"; // PNG com transparência vira fundo branco no JPEG
     ctx.fillRect(0, 0, w, h);
     ctx.drawImage(fonte, 0, 0, w, h);
@@ -176,12 +297,32 @@ async function baixarComoJpeg(
   }
 }
 
+/** Logo da empresa (public/logo-macro.png) como data URL; null se não carregar. */
+async function carregarLogo(): Promise<string | null> {
+  try {
+    const resp = await fetch("/logo-macro.png");
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
- * PDF detalhado: cada resposta em bloco pergunta/resposta, com as FOTOS
- * embutidas ao final (antes vinha só o nome do arquivo).
+ * PDF detalhado — uma resposta por relatório, no layout do "Registro
+ * fotográfico" do Coletum que a equipe já usa: cabeçalho com logo, dados em
+ * duas colunas (rótulo à esquerda, valor em caixa cinza), fotos em grade de
+ * três miniaturas por linha continuando pelas páginas seguintes, e rodapé
+ * "Página X de Y".
  *
- * `resolverUrls` é opcional: sem ele o PDF sai igual ao de antes, só com os
- * nomes — assim a função continua utilizável fora da tela de respostas.
+ * `resolverUrls` é opcional: sem ele as perguntas de foto mostram só a
+ * quantidade de arquivos.
  */
 export async function exportarPDFDetalhado(
   titulo: string,
@@ -189,131 +330,213 @@ export async function exportarPDFDetalhado(
   respostas: RespostaExport[],
   resolverUrls?: ResolverUrls,
   onProgresso?: (feitas: number, total: number) => void,
+  geradoPor?: string,
 ) {
-  const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const larguraPagina = doc.internal.pageSize.getWidth();
-  const alturaPagina = doc.internal.pageSize.getHeight();
-  const margem = 40;
+  const doc = new jsPDF({ unit: "pt", format: "a4" }); // 595 x 842
+  const PAG_LARG = doc.internal.pageSize.getWidth();
+  const PAG_ALT = doc.internal.pageSize.getHeight();
 
-  // Uma única chamada para assinar todas as fotos de todas as respostas
+  // Geometria (em pt) calcada no modelo do Coletum
+  const M_ESQ = 40;
+  const M_DIR = PAG_LARG - 40;
+  const TOPO = 40;
+  const LIMITE_INF = PAG_ALT - 52; // acima do rodapé
+  const ROTULO_FIM = 168; // borda direita do rótulo (alinhado à direita)
+  const ROTULO_LARG = ROTULO_FIM - M_ESQ;
+  const VALOR_X = 182;
+  const VALOR_LARG = M_DIR - VALOR_X;
+  const LINHA = 10; // altura de linha do texto 8pt
+  const ESPACO_LINHAS = 7;
+  const TH_W = 93;
+  const TH_H = 70;
+  const TH_GAP = 8;
+  const TH_POR_LINHA = 3;
+
+  const logo = await carregarLogo();
+
+  // Assina todas as fotos de uma vez
   let urls: Record<string, string> = {};
   const todasImagens = respostas.flatMap((r) => (r.arquivos ?? []).filter(ehImagem));
   if (resolverUrls && todasImagens.length > 0) {
     urls = await resolverUrls(todasImagens.map((a) => a.path));
   }
-
   let baixadas = 0;
+
+  const agora = new Date().toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const fmtData = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      const data = d.toLocaleDateString("pt-BR");
+      const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      return `${data} às ${hora}`;
+    } catch {
+      return iso;
+    }
+  };
+
+  let y = TOPO;
+  const novaPagina = () => {
+    doc.addPage();
+    y = TOPO;
+  };
+  const garantirEspaco = (altura: number) => {
+    if (y + altura > LIMITE_INF) novaPagina();
+  };
+
+  const texto = (t: string, x: number, yy: number, opts?: Record<string, unknown>) =>
+    doc.text(t, x, yy, opts as any);
+
+  /** Linha rótulo | caixa cinza com o valor. Devolve a altura ocupada. */
+  const linhaValor = (rotulo: string, valor: string) => {
+    doc.setFontSize(8);
+    const rotLinhas = doc.splitTextToSize(rotulo, ROTULO_LARG - 6) as string[];
+    const valLinhas = doc.splitTextToSize(valor || "—", VALOR_LARG - 10) as string[];
+    const altura = Math.max(18, Math.max(rotLinhas.length, valLinhas.length) * LINHA + 8);
+    garantirEspaco(altura);
+
+    doc.setFillColor(236, 236, 236);
+    doc.rect(VALOR_X, y, VALOR_LARG, altura, "F");
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(40);
+    texto(rotLinhas.join("\n"), ROTULO_FIM, y + 12, { align: "right" });
+    doc.setTextColor(0);
+    texto(valLinhas.join("\n"), VALOR_X + 5, y + 12);
+
+    y += altura + ESPACO_LINHAS;
+  };
+
   for (let idx = 0; idx < respostas.length; idx++) {
     const r = respostas[idx];
-    if (idx > 0) doc.addPage();
-    doc.setFontSize(14);
-    doc.text(titulo, margem, 40);
-    doc.setFontSize(9);
-    doc.text(
-      `${r.respondente_nome || r.respondente_email || "Anônimo"} — ${dataBR(r.created_at)}`,
-      margem,
-      56,
-    );
+    if (idx > 0) novaPagina();
 
-    const body: string[][] = [];
+    // --- Cabeçalho (só na primeira página da resposta) ---
+    if (logo) {
+      const lw = 110;
+      const lh = (92 / 190) * lw;
+      try {
+        doc.addImage(logo, "PNG", M_DIR - lw, 30, lw, lh);
+      } catch {
+        /* sem logo */
+      }
+    }
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    texto("MacroAmbiental", M_ESQ, 48);
+
+    doc.setFontSize(9);
+    const idCurto = String(r.id ?? "").replace(/-/g, "").slice(0, 8);
+    texto(
+      `${titulo.toUpperCase()}${idCurto ? ` - Resposta: ${idCurto}` : ""}`,
+      M_ESQ,
+      66,
+      { maxWidth: M_DIR - M_ESQ - 130 },
+    );
+    doc.setFontSize(8);
+    texto(`Criado por: ${r.respondente_nome || r.respondente_email || "—"}`, M_ESQ, 79);
+    texto(`Criado em: ${fmtData(r.created_at)}`, M_ESQ, 90);
+
+    doc.setFont("helvetica", "normal");
+    texto(`Gerado por ${geradoPor || "Macro Ambiental"} em ${agora}`, M_ESQ, 107);
+
+    y = 125;
+
+    // --- Perguntas ---
     for (const c of campos) {
       if (c.tipo === "secao") {
-        body.push([c.rotulo.toUpperCase(), ""]);
+        garantirEspaco(22);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(0);
+        texto(c.rotulo, M_ESQ, y + 10);
+        doc.setFont("helvetica", "normal");
+        y += 20;
         continue;
       }
-      // Nos campos de foto o nome do arquivo não diz nada — as imagens vêm
-      // logo abaixo, então aqui fica só a contagem.
-      if ((c.tipo === "foto" || c.tipo === "arquivo") && resolverUrls) {
-        const doCampo = (r.arquivos ?? []).filter((a) => a.campo_id === c.id);
-        const imagens = doCampo.filter(ehImagem).length;
-        const outros = doCampo.length - imagens;
-        const partes = [
-          imagens ? `${imagens} foto${imagens > 1 ? "s" : ""}` : "",
-          outros ? `${outros} arquivo${outros > 1 ? "s" : ""}` : "",
-        ].filter(Boolean);
-        body.push([c.rotulo, partes.length ? partes.join(" + ") : "—"]);
+
+      if (c.tipo !== "foto" && c.tipo !== "arquivo") {
+        linhaValor(c.rotulo, valorTexto(c, r));
         continue;
       }
-      body.push([c.rotulo, valorTexto(c, r) || "—"]);
-    }
 
-    autoTable(doc, {
-      body,
-      startY: 70,
-      styles: { fontSize: 9, cellPadding: 5, overflow: "linebreak" },
-      columnStyles: { 0: { cellWidth: 180, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
-      margin: { left: margem, right: margem },
-    });
+      // Pergunta de foto/arquivo
+      const doCampo = (r.arquivos ?? []).filter((a) => a.campo_id === c.id);
+      const imagens = resolverUrls ? doCampo.filter(ehImagem) : [];
+      const outros = doCampo.filter((a) => !imagens.includes(a));
 
-    if (!resolverUrls) continue;
+      if (imagens.length === 0) {
+        linhaValor(
+          c.rotulo,
+          doCampo.length ? doCampo.map((a) => a.nome).join("; ") : "—",
+        );
+        continue;
+      }
 
-    // --- Fotos desta resposta, agrupadas por pergunta ---
-    let y = ((doc as any).lastAutoTable?.finalY ?? 70) + 22;
-    const novaPagina = () => {
-      doc.addPage();
-      y = margem;
-    };
-
-    for (const c of campos) {
-      if (c.tipo !== "foto" && c.tipo !== "arquivo") continue;
-      const imagens = (r.arquivos ?? []).filter((a) => a.campo_id === c.id && ehImagem(a));
-      if (imagens.length === 0) continue;
-
-      if (y + 40 > alturaPagina - margem) novaPagina();
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.text(c.rotulo, margem, y);
+      // Rótulo à esquerda, alinhado ao topo da primeira linha de miniaturas
+      garantirEspaco(TH_H + 4);
       doc.setFont("helvetica", "normal");
-      y += 14;
+      doc.setFontSize(8);
+      doc.setTextColor(40);
+      const rotLinhas = doc.splitTextToSize(c.rotulo, ROTULO_LARG - 6) as string[];
+      texto(rotLinhas.join("\n"), ROTULO_FIM, y + 10, { align: "right" });
+      doc.setTextColor(0);
 
-      // duas fotos por linha
-      const colunas = 2;
-      const espaco = 12;
-      const larguraCelula = (larguraPagina - margem * 2 - espaco * (colunas - 1)) / colunas;
       let coluna = 0;
-      let alturaLinha = 0;
-
       for (const arq of imagens) {
-        const url = urls[arq.path];
         baixadas++;
         onProgresso?.(baixadas, todasImagens.length);
-        if (!url) continue;
-        const img = await baixarComoJpeg(url);
-        if (!img) continue;
+        const url = urls[arq.path];
+        const mini = url ? await baixarComoJpeg(url, 0, 0.75, { w: 372, h: 280 }) : null;
 
-        const escala = larguraCelula / img.w;
-        const alturaDesenho = Math.min(img.h * escala, 320);
-        const larguraDesenho = (alturaDesenho / img.h) * img.w;
-
-        if (coluna === 0 && y + alturaDesenho > alturaPagina - margem) novaPagina();
-
-        const x = margem + coluna * (larguraCelula + espaco);
-        try {
-          doc.addImage(img.dataUrl, "JPEG", x, y, larguraDesenho, alturaDesenho);
-        } catch {
-          /* imagem corrompida: pula sem derrubar o relatório inteiro */
+        if (coluna === 0 && y + TH_H > LIMITE_INF) {
+          // a grade continua na página seguinte, sem repetir o cabeçalho
+          novaPagina();
         }
-        alturaLinha = Math.max(alturaLinha, alturaDesenho);
+        const x = VALOR_X + coluna * (TH_W + TH_GAP);
+        if (mini) {
+          try {
+            doc.addImage(mini.dataUrl, "JPEG", x, y, TH_W, TH_H);
+          } catch {
+            /* miniatura problemática: deixa o espaço em branco */
+          }
+        } else {
+          doc.setDrawColor(200);
+          doc.rect(x, y, TH_W, TH_H);
+        }
         coluna++;
-        if (coluna >= colunas) {
-          y += alturaLinha + espaco;
+        if (coluna >= TH_POR_LINHA) {
           coluna = 0;
-          alturaLinha = 0;
+          y += TH_H + TH_GAP;
         }
       }
-      if (coluna > 0) y += alturaLinha + espaco; // fecha a linha incompleta
-    }
+      if (coluna > 0) y += TH_H + TH_GAP; // fecha a linha incompleta
+      y += ESPACO_LINHAS;
 
-    // Arquivos que não são imagem continuam listados pelo nome
-    const outros = (r.arquivos ?? []).filter((a) => !ehImagem(a));
-    if (outros.length) {
-      if (y + 30 > alturaPagina - margem) novaPagina();
-      doc.setFontSize(9);
-      doc.text(`Outros anexos: ${outros.map((a) => a.nome).join(", ")}`, margem, y, {
-        maxWidth: larguraPagina - margem * 2,
-      });
+      if (outros.length) {
+        linhaValor("Outros anexos", outros.map((a) => a.nome).join("; "));
+      }
     }
   }
+
+  // --- Rodapé em todas as páginas ---
+  const total = doc.getNumberOfPages();
+  for (let p = 1; p <= total; p++) {
+    doc.setPage(p);
+    doc.setDrawColor(200);
+    doc.line(M_ESQ, PAG_ALT - 42, M_DIR, PAG_ALT - 42);
+    doc.setFont("helvetica", "bolditalic");
+    doc.setFontSize(7);
+    doc.setTextColor(0);
+    texto(`Página ${p} de ${total}`, M_DIR, PAG_ALT - 30, { align: "right" });
+  }
+  doc.setFont("helvetica", "normal");
 
   doc.save(`${titulo}-detalhado.pdf`);
 }
