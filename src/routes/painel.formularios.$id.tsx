@@ -7,6 +7,13 @@ import { FORM_GRAD, FORM_GRAD_BTN, FORM_SHADOW } from "@/lib/ui-form";
 import { useRoles } from "@/lib/use-roles";
 import { LOGO_FORM_PATH } from "@/lib/exportar-respostas";
 import {
+  lerConfigRelatorio,
+  salvarConfigRelatorio,
+  NOME_CABECALHO_PADRAO,
+  type ConfigRelatorio,
+  type NomeModo,
+} from "@/lib/relatorio-config";
+import {
   ArrowLeft,
   Plus,
   Trash2,
@@ -1394,10 +1401,13 @@ function LogoRelatorio({ formularioId }: { formularioId: string }) {
 
   return (
     <div className="pt-3 mt-3 border-t text-sm">
-      <div className="text-sm font-medium">Logo do relatório em PDF</div>
+      <div className="text-sm font-medium">Cabeçalho do relatório em PDF</div>
       <p className="text-xs text-muted-foreground mt-0.5">
-        Aparece no cabeçalho do "PDF (com as fotos)". Sem logo próprio, usa o da Macro Ambiental.
+        Logo e nome que aparecem no topo do "PDF (com as fotos)". Sem configuração, usa o logo e o
+        nome da Macro Ambiental.
       </p>
+      <NomeCabecalhoRelatorio formularioId={formularioId} />
+      <div className="mt-3 text-xs font-medium text-muted-foreground">Logo (canto direito)</div>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <div className="flex h-14 w-36 items-center justify-center rounded-md border bg-white p-1">
           <img
@@ -1434,6 +1444,63 @@ function LogoRelatorio({ formularioId }: { formularioId: string }) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// Nome que aparece no canto esquerdo do cabeçalho do PDF: o padrão
+// ("MacroAmbiental"), outro nome (ex.: o cliente do formulário) ou nenhum.
+function NomeCabecalhoRelatorio({ formularioId }: { formularioId: string }) {
+  const qc = useQueryClient();
+  const chave = ["formulario-relatorio-config", formularioId];
+  const { data: cfg } = useQuery({ queryKey: chave, queryFn: () => lerConfigRelatorio(formularioId) });
+  const [nomeLocal, setNomeLocal] = useState<string | null>(null);
+
+  const salvar = useMutation({
+    mutationFn: (novo: ConfigRelatorio) => salvarConfigRelatorio(formularioId, novo),
+    onSuccess: () => {
+      toast.success("Cabeçalho do relatório salvo.");
+      qc.invalidateQueries({ queryKey: chave });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  if (!cfg) return null;
+  const nome = nomeLocal ?? cfg.nome;
+  const escolher = (nomeModo: NomeModo) => salvar.mutate({ nomeModo, nome });
+  const salvarNome = () => {
+    if (nome === cfg.nome) return;
+    salvar.mutate({ nomeModo: "personalizado", nome });
+  };
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="text-xs font-medium text-muted-foreground">Nome (canto esquerdo)</div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="radio" checked={cfg.nomeModo === "padrao"} onChange={() => escolher("padrao")} />
+        {NOME_CABECALHO_PADRAO} <span className="text-xs text-muted-foreground">(padrão)</span>
+      </label>
+      <label className="flex flex-wrap items-center gap-2 text-sm">
+        <input
+          type="radio"
+          checked={cfg.nomeModo === "personalizado"}
+          onChange={() => escolher("personalizado")}
+        />
+        Outro nome
+        <input
+          value={nome}
+          onChange={(e) => setNomeLocal(e.target.value)}
+          onFocus={() => cfg.nomeModo !== "personalizado" && escolher("personalizado")}
+          onBlur={salvarNome}
+          onKeyDown={(e) => e.key === "Enter" && (e.currentTarget as HTMLInputElement).blur()}
+          placeholder="Ex.: nome do cliente"
+          className="w-56 rounded-md border bg-background px-2 py-1 text-sm"
+        />
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="radio" checked={cfg.nomeModo === "nenhum"} onChange={() => escolher("nenhum")} />
+        Sem nome <span className="text-xs text-muted-foreground">(só o logo)</span>
+      </label>
     </div>
   );
 }

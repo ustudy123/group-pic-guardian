@@ -349,6 +349,7 @@ export async function exportarPDFDetalhado(
   onProgresso?: (feitas: number, total: number) => void,
   geradoPor?: string,
   logoUrl?: string | null,
+  nomeCabecalho?: string | null,
 ) {
   const doc = new jsPDF({ unit: "pt", format: "a4" }); // 595 x 842
   const PAG_LARG = doc.internal.pageSize.getWidth();
@@ -449,25 +450,35 @@ export async function exportarPDFDetalhado(
     }
     doc.setTextColor(0);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    texto("MacroAmbiental", M_ESQ, 48);
+    // Nome no canto esquerdo: padrão "MacroAmbiental", outro nome, ou nenhum
+    // (undefined = padrão; null = não imprime e o resto do cabeçalho sobe).
+    const nomeTopo = nomeCabecalho === undefined ? "MacroAmbiental" : nomeCabecalho;
+    let hy = 48;
+    if (nomeTopo) {
+      doc.setFontSize(12);
+      texto(nomeTopo, M_ESQ, hy, { maxWidth: M_DIR - M_ESQ - 130 });
+      hy += 18;
+    }
 
     doc.setFontSize(9);
     const idCurto = String(r.id ?? "").replace(/-/g, "").slice(0, 8);
     texto(
       `${titulo.toUpperCase()}${idCurto ? ` - Resposta: ${idCurto}` : ""}`,
       M_ESQ,
-      66,
+      hy,
       { maxWidth: M_DIR - M_ESQ - 130 },
     );
+    hy += 13;
     doc.setFontSize(8);
-    texto(`Criado por: ${r.respondente_nome || r.respondente_email || "—"}`, M_ESQ, 79);
-    texto(`Criado em: ${fmtData(r.created_at)}`, M_ESQ, 90);
+    texto(`Criado por: ${r.respondente_nome || r.respondente_email || "—"}`, M_ESQ, hy);
+    hy += 11;
+    texto(`Criado em: ${fmtData(r.created_at)}`, M_ESQ, hy);
+    hy += 17;
 
     doc.setFont("helvetica", "normal");
-    texto(`Gerado por ${geradoPor || "Macro Ambiental"} em ${agora}`, M_ESQ, 107);
+    texto(`Gerado por ${geradoPor || "Macro Ambiental"} em ${agora}`, M_ESQ, hy);
 
-    y = 125;
+    y = hy + 18;
 
     // --- Perguntas ---
     for (const c of campos) {

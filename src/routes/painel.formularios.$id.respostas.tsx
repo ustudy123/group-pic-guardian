@@ -16,6 +16,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FORM_GRAD, FORM_SHADOW } from "@/lib/ui-form";
 import { useAuth } from "@/lib/auth-context";
+import { lerConfigRelatorio, nomeCabecalhoDe } from "@/lib/relatorio-config";
 import {
   exportarCSV,
   exportarExcel,
@@ -203,9 +204,10 @@ function Respostas() {
         await exportarPDFTabela(titulo, campos as any, lista, resolverUrls, progresso);
       } else {
         // Logo próprio do formulário (se foi enviado no construtor); senão o padrão
-        const { data: logoAssinado } = await supabase.storage
-          .from("fotos-obras")
-          .createSignedUrl(LOGO_FORM_PATH(id), 600);
+        const [{ data: logoAssinado }, cfgRelatorio] = await Promise.all([
+          supabase.storage.from("fotos-obras").createSignedUrl(LOGO_FORM_PATH(id), 600),
+          lerConfigRelatorio(id),
+        ]);
         await exportarPDFDetalhado(
           titulo,
           campos as any,
@@ -214,6 +216,7 @@ function Respostas() {
           progresso,
           geradoPor,
           logoAssinado?.signedUrl ?? undefined,
+          nomeCabecalhoDe(cfgRelatorio),
         );
       }
       toast.dismiss("pdf-fotos");
