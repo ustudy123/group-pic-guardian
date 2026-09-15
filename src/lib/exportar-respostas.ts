@@ -297,18 +297,35 @@ async function baixarComoJpeg(
   }
 }
 
-/** Logo da empresa (public/logo-macro.png) como data URL; null se não carregar. */
-async function carregarLogo(): Promise<string | null> {
+/** Caminho, no bucket fotos-obras, do logo próprio de um formulário. */
+export const LOGO_FORM_PATH = (formularioId: string) => `formularios/${formularioId}/logo.png`;
+
+type Logo = { dataUrl: string; w: number; h: number; formato: "PNG" | "JPEG" };
+
+/**
+ * Carrega um logo (URL pública ou assinada) como data URL, medindo as
+ * dimensões para caber na caixa do cabeçalho sem distorcer. null se falhar.
+ */
+async function carregarLogo(url: string): Promise<Logo | null> {
   try {
-    const resp = await fetch("/logo-macro.png");
+    const resp = await fetch(url);
     if (!resp.ok) return null;
     const blob = await resp.blob();
-    return await new Promise<string>((resolve, reject) => {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
       const fr = new FileReader();
       fr.onload = () => resolve(String(fr.result));
       fr.onerror = reject;
       fr.readAsDataURL(blob);
     });
+    const { w, h } = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+    if (!w || !h) return null;
+    const formato: Logo["formato"] = dataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
+    return { dataUrl, w, h, formato };
   } catch {
     return null;
   }
@@ -331,6 +348,7 @@ export async function exportarPDFDetalhado(
   resolverUrls?: ResolverUrls,
   onProgresso?: (feitas: number, total: number) => void,
   geradoPor?: string,
+  logoUrl?: string | null,
 ) {
   const doc = new jsPDF({ unit: "pt", format: "a4" }); // 595 x 842
   const PAG_LARG = doc.internal.pageSize.getWidth();
@@ -352,7 +370,8 @@ export async function exportarPDFDetalhado(
   const TH_GAP = 8;
   const TH_POR_LINHA = 3;
 
-  const logo = await carregarLogo();
+  // Logo do cabeçalho: o do formulário quando houver, senão o padrão da Macro.
+  const logo = logoUrl === null ? null : await carregarLogo(logoUrl ?? "/logo-macro.png");
 
   // Assina todas as fotos de uma vez
   let urls: Record<string, string> = {};
@@ -418,10 +437,12 @@ export async function exportarPDFDetalhado(
 
     // --- Cabeçalho (só na primeira página da resposta) ---
     if (logo) {
-      const lw = 110;
-      const lh = (92 / 190) * lw;
+      // cabe numa caixa de 120x52pt mantendo a proporção, encostado à direita
+      const escala = Math.min(120 / logo.w, 52 / logo.h);
+      const lw = logo.w * escala;
+      const lh = logo.h * escala;
       try {
-        doc.addImage(logo, "PNG", M_DIR - lw, 30, lw, lh);
+        doc.addImage(logo.dataUrl, logo.formato, M_DIR - lw, 30, lw, lh);
       } catch {
         /* sem logo */
       }

@@ -21,6 +21,7 @@ import {
   exportarExcel,
   exportarPDFTabela,
   exportarPDFDetalhado,
+  LOGO_FORM_PATH,
 } from "@/lib/exportar-respostas";
 
 type Formato = "pdf-detalhado" | "pdf-tabela" | "xlsx" | "csv";
@@ -201,7 +202,19 @@ function Respostas() {
       if (formato === "pdf-tabela") {
         await exportarPDFTabela(titulo, campos as any, lista, resolverUrls, progresso);
       } else {
-        await exportarPDFDetalhado(titulo, campos as any, lista, resolverUrls, progresso, geradoPor);
+        // Logo próprio do formulário (se foi enviado no construtor); senão o padrão
+        const { data: logoAssinado } = await supabase.storage
+          .from("fotos-obras")
+          .createSignedUrl(LOGO_FORM_PATH(id), 600);
+        await exportarPDFDetalhado(
+          titulo,
+          campos as any,
+          lista,
+          resolverUrls,
+          progresso,
+          geradoPor,
+          logoAssinado?.signedUrl ?? undefined,
+        );
       }
       toast.dismiss("pdf-fotos");
     } catch (e: any) {

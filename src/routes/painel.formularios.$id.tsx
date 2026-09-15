@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FORM_GRAD, FORM_GRAD_BTN, FORM_SHADOW } from "@/lib/ui-form";
 import { useRoles } from "@/lib/use-roles";
+import { LOGO_FORM_PATH } from "@/lib/exportar-respostas";
 import {
   ArrowLeft,
   Plus,
@@ -496,6 +497,7 @@ function Editor() {
               </div>
             )}
             <AcessoRestrito formularioId={id} />
+            <LogoRelatorio formularioId={id} />
           </div>
 
           {/* Lista de campos (edição inline) */}
@@ -1325,6 +1327,113 @@ function AcessoRestrito({ formularioId }: { formularioId: string }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Converte a imagem escolhida em PNG de até 600px de largura (logo leve e com transparência). */
+async function imagemParaPngPequeno(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const escala = Math.min(1, 600 / bitmap.width);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * escala);
+  canvas.height = Math.round(bitmap.height * escala);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Falha ao converter a imagem."))), "image/png"),
+  );
+}
+
+// Logo que vai no cabeçalho do PDF deste formulário. Fica num caminho fixo no
+// storage (LOGO_FORM_PATH); sem arquivo lá, o relatório usa o logo da Macro.
+// O bucket permite inserir/apagar mas não sobrescrever, por isso apaga antes
+// de subir o novo.
+function LogoRelatorio({ formularioId }: { formularioId: string }) {
+  const qc = useQueryClient();
+  const path = LOGO_FORM_PATH(formularioId);
+  const chave = ["formulario-logo", formularioId];
+
+  const { data: urlAtual } = useQuery({
+    queryKey: chave,
+    queryFn: async () => {
+      const { data } = await supabase.storage.from("fotos-obras").createSignedUrl(path, 3600);
+      return data?.signedUrl ?? null; // null = usa o padrão
+    },
+  });
+
+  const enviar = useMutation({
+    mutationFn: async (file: File) => {
+      if (!file.type.startsWith("image/")) throw new Error("Escolha um arquivo de imagem.");
+      const png = await imagemParaPngPequeno(file);
+      await supabase.storage.from("fotos-obras").remove([path]); // pode não existir ainda
+      const { error } = await supabase.storage
+        .from("fotos-obras")
+        .upload(path, png, { contentType: "image/png" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Logo do relatório atualizado.");
+      qc.invalidateQueries({ queryKey: chave });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const remover = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.storage.from("fotos-obras").remove([path]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Voltou para o logo padrão.");
+      qc.invalidateQueries({ queryKey: chave });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const ocupado = enviar.isPending || remover.isPending;
+
+  return (
+    <div className="pt-3 mt-3 border-t text-sm">
+      <div className="text-sm font-medium">Logo do relatório em PDF</div>
+      <p className="text-xs text-muted-foreground mt-0.5">
+        Aparece no cabeçalho do "PDF (com as fotos)". Sem logo próprio, usa o da Macro Ambiental.
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <div className="flex h-14 w-36 items-center justify-center rounded-md border bg-white p-1">
+          <img
+            src={urlAtual ?? "/logo-macro.png"}
+            alt="Logo do relatório"
+            className="max-h-full max-w-full object-contain"
+          />
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {urlAtual ? "Logo próprio deste formulário" : "Padrão (Macro Ambiental)"}
+        </span>
+        <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-accent">
+          {ocupado ? "Aguarde…" : urlAtual ? "Trocar logo" : "Enviar logo"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={ocupado}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) enviar.mutate(f);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {urlAtual && (
+          <button
+            type="button"
+            onClick={() => remover.mutate()}
+            disabled={ocupado}
+            className="rounded-md border px-2 py-1 text-xs hover:bg-accent disabled:opacity-50"
+          >
+            Usar padrão
+          </button>
+        )}
+      </div>
     </div>
   );
 }
