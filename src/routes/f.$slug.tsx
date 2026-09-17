@@ -20,6 +20,9 @@ function FormPublico() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [enviado, setEnviado] = useState(false);
+  // Progresso do envio das fotos: com 100 fotos o envio leva minutos, e sem
+  // isso o encarregado não sabe se travou ou se está andando.
+  const [progresso, setProgresso] = useState<{ feitas: number; total: number } | null>(null);
   const [temRascunho, setTemRascunho] = useState(false);
   const RASCUNHO_KEY = `rascunho:formulario:${slug}`;
 
@@ -93,6 +96,13 @@ function FormPublico() {
         timeZone: "America/Sao_Paulo",
       }).format(new Date());
 
+      // Total de arquivos que realmente serão enviados (ignora campos ocultos)
+      const totalArquivos = Object.entries(arquivos)
+        .filter(([campoId]) => visivel(byId[campoId]))
+        .reduce((soma, [, files]) => soma + files.length, 0);
+      let enviados = 0;
+      if (totalArquivos > 0) setProgresso({ feitas: 0, total: totalArquivos });
+
       for (const [campoId, files] of Object.entries(arquivos)) {
         if (!visivel(byId[campoId])) continue; // não envia arquivo de campo oculto
         const rotuloCampo = byId[campoId]?.rotulo ?? "";
@@ -109,6 +119,8 @@ function FormPublico() {
             : `formularios/${data.form.id}/${uid}-${f.name}`;
           const { error } = await supabase.storage.from("fotos-obras").upload(path, f);
           if (error) throw error;
+          enviados++;
+          setProgresso({ feitas: enviados, total: totalArquivos });
           arquivosMeta.push({
             campo_id: campoId,
             path,
@@ -161,9 +173,13 @@ function FormPublico() {
       try {
         localStorage.removeItem(RASCUNHO_KEY);
       } catch {}
+      setProgresso(null);
       setEnviado(true);
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      setProgresso(null);
+      toast.error(e.message);
+    },
   });
 
   // Rascunho salvo no próprio dispositivo (sem depender de login).
@@ -354,9 +370,32 @@ function FormPublico() {
             className="flex-1 rounded-xl px-4 py-3 font-semibold text-white transition-transform hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 inline-flex items-center justify-center gap-2"
           >
             {enviar.isPending && <Loader2 size={16} className="animate-spin" />}
-            Enviar resposta
+            {progresso
+              ? `Enviando foto ${progresso.feitas + (progresso.feitas < progresso.total ? 1 : 0)} de ${progresso.total}`
+              : enviar.isPending
+                ? "Enviando..."
+                : "Enviar resposta"}
           </button>
         </div>
+
+        {progresso && (
+          <div className="rounded-xl border bg-card p-3 shadow-sm">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.round((progresso.feitas / Math.max(1, progresso.total)) * 100)}%`,
+                  backgroundImage: FORM_GRAD_BTN,
+                }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {progresso.feitas < progresso.total
+                ? `${progresso.feitas} de ${progresso.total} fotos enviadas — mantenha esta tela aberta.`
+                : "Fotos enviadas. Registrando a resposta…"}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
