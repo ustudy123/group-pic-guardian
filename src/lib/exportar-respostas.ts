@@ -138,7 +138,7 @@ export async function exportarPDFTabela(
         const url = urls[arq.path];
         if (!url) continue;
         // miniatura pequena: na tabela cada foto ocupa poucos milímetros
-        const img = await baixarComoJpeg(url, 0, 0.6, { w: 240, h: 180 }); // 4:3 uniforme
+        const img = await baixarComoJpeg(url, 0, 0.9, { w: 700, h: 525 }); // 4:3 uniforme
         if (!img) continue;
         const lista = miniaturas.get(chave) ?? [];
         lista.push(img);
@@ -218,18 +218,67 @@ export async function exportarPDFTabela(
 }
 
 /**
- * Baixa a imagem e devolve em JPEG já redimensionado. O redimensionamento é o
- * que mantém o PDF utilizável: foto de obra costuma ter 3–5 MB, e um relatório
- * com dezenas delas em tamanho original passaria de 100 MB.
+ * Desenha reduzindo em ETAPAS (metade por vez) quando a redução é grande.
  *
- * `cortar` recorta ao centro na proporção pedida e devolve exatamente esse
- * tamanho — é o que deixa a grade de miniaturas uniforme, como no relatório do
- * Coletum, mesmo misturando fotos em pé e deitadas.
+ * Reduzir uma foto de 4000px direto para ~1200px num único drawImage faz o
+ * navegador amostrar poucos pixels da origem: o resultado sai borrado e com
+ * serrilhado. Reduzir pela metade sucessivamente preserva o detalhe — é a
+ * diferença de qualidade que aparece no PDF.
+ */
+function desenharComQualidade(
+  ctx: CanvasRenderingContext2D,
+  fonte: CanvasImageSource,
+  sx: number,
+  sy: number,
+  sw: number,
+  sh: number,
+  dw: number,
+  dh: number,
+) {
+  let origem: CanvasImageSource = fonte;
+  let ox = sx;
+  let oy = sy;
+  let cw = sw;
+  let ch = sh;
+
+  while (cw >= dw * 2 && ch >= dh * 2) {
+    const tw = Math.max(dw, Math.round(cw / 2));
+    const th = Math.max(dh, Math.round(ch / 2));
+    const passo = document.createElement("canvas");
+    passo.width = tw;
+    passo.height = th;
+    const pctx = passo.getContext("2d");
+    if (!pctx) break;
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = "high";
+    pctx.drawImage(origem, ox, oy, cw, ch, 0, 0, tw, th);
+    origem = passo;
+    ox = 0;
+    oy = 0;
+    cw = tw;
+    ch = th;
+  }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(origem, ox, oy, cw, ch, 0, 0, dw, dh);
+}
+
+/**
+ * Baixa a imagem e devolve em JPEG pronto para o PDF.
+ *
+ * Referência de qualidade: o relatório do Coletum usa fotos de 1024x768px numa
+ * moldura de 93x70pt (~795 DPI). Trabalhamos nesse patamar ou acima, e NUNCA
+ * ampliamos além do que a foto original tem — ampliar não cria detalhe, só
+ * engorda o arquivo.
+ *
+ * `cortar` recorta ao centro na proporção pedida, o que deixa a grade de
+ * miniaturas uniforme mesmo misturando fotos em pé e deitadas.
  */
 async function baixarComoJpeg(
   url: string,
-  ladoMax = 1000,
-  qualidade = 0.72,
+  ladoMax = 2000,
+  qualidade = 0.92,
   cortar?: { w: number; h: number },
 ): Promise<{ dataUrl: string; w: number; h: number } | null> {
   try {
@@ -275,22 +324,26 @@ async function baixarComoJpeg(
       }
       const sx = Math.round((largura - sw) / 2);
       const sy = Math.round((altura - sh) / 2);
-      canvas.width = cortar.w;
-      canvas.height = cortar.h;
+
+      // não amplia: no máximo o que sobrou depois do recorte
+      const dw = Math.min(cortar.w, sw);
+      const dh = Math.max(1, Math.round(dw / alvo));
+      canvas.width = dw;
+      canvas.height = dh;
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, cortar.w, cortar.h);
-      ctx.drawImage(fonte, sx, sy, sw, sh, 0, 0, cortar.w, cortar.h);
-      return { dataUrl: canvas.toDataURL("image/jpeg", qualidade), w: cortar.w, h: cortar.h };
+      ctx.fillRect(0, 0, dw, dh);
+      desenharComQualidade(ctx, fonte, sx, sy, sw, sh, dw, dh);
+      return { dataUrl: canvas.toDataURL("image/jpeg", qualidade), w: dw, h: dh };
     }
 
     const escala = Math.min(1, ladoMax / Math.max(largura, altura));
-    const w = Math.round(largura * escala);
-    const h = Math.round(altura * escala);
+    const w = Math.max(1, Math.round(largura * escala));
+    const h = Math.max(1, Math.round(altura * escala));
     canvas.width = w;
     canvas.height = h;
     ctx.fillStyle = "#ffffff"; // PNG com transparência vira fundo branco no JPEG
     ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(fonte, 0, 0, w, h);
+    desenharComQualidade(ctx, fonte, 0, 0, largura, altura, w, h);
     return { dataUrl: canvas.toDataURL("image/jpeg", qualidade), w, h };
   } catch {
     return null;
@@ -525,7 +578,7 @@ export async function exportarPDFDetalhado(
         baixadas++;
         onProgresso?.(baixadas, todasImagens.length);
         const url = urls[arq.path];
-        const mini = url ? await baixarComoJpeg(url, 0, 0.75, { w: 372, h: 280 }) : null;
+        const mini = url ? await baixarComoJpeg(url, 0, 0.92, { w: 1280, h: 960 }) : null;
 
         if (coluna === 0 && y + TH_H > LIMITE_INF) {
           // a grade continua na página seguinte, sem repetir o cabeçalho
