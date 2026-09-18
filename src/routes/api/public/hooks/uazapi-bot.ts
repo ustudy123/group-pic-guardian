@@ -443,8 +443,20 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             .from("ai_bot_mensagens_processadas")
             .insert({ message_id: msgId, telefone: String(chatid.split("@")[0] || "") });
           if (errDup) {
-            console.log(`[uazapi-bot] ignorado: mensagem já processada (${msgId})`);
-            return json({ ok: true, ignored: "duplicada" });
+            // Só 23505 (unique_violation) é reentrega do mesmo webhook.
+            //
+            // Qualquer OUTRO erro aqui — tabela ausente, permissão, rede — NÃO
+            // pode calar o bot: antes, qualquer falha caía no mesmo caminho e o
+            // bot parava de responder a TODO mundo, silenciosamente. Responder
+            // duas vezes é muito menos grave do que nunca responder.
+            const codigo = (errDup as { code?: string }).code;
+            if (codigo === "23505") {
+              console.log(`[uazapi-bot] ignorado: mensagem já processada (${msgId})`);
+              return json({ ok: true, ignored: "duplicada" });
+            }
+            console.error(
+              `[uazapi-bot] anti-duplicidade indisponível (${codigo ?? "sem código"}: ${errDup.message}) — seguindo assim mesmo`,
+            );
           }
         }
 
