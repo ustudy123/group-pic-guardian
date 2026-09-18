@@ -481,7 +481,9 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         const telefone = normalizarTelefone(
           chatid.split("@")[0] || String(rootChat.phone || ""),
         );
-        const nome =
+        // Nome que veio no payload do WhatsApp (perfil do contato). Costuma vir
+        // vazio; o nome bom é o cadastrado em "Autorizados", buscado adiante.
+        const nomePerfil =
           (d.senderName || d.pushName || rootChat.name || rootChat.wa_name || "")
             ?.toString()
             .trim() || null;
@@ -523,36 +525,43 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           return json({ ok: true, ignored: "bot_inativo" });
         }
 
-        if (config.somente_autorizados) {
-          // Aceita variações com/sem código do país (ex.: 5511... vs 11...)
-          const variantes = new Set<string>([telefone]);
-          if (telefone.startsWith("55") && telefone.length > 11) {
-            variantes.add(telefone.slice(2));
-          } else if (telefone.length <= 11) {
-            variantes.add(`55${telefone}`);
-          }
-          const { data: aut } = await supabaseAdmin
+        // Cadastro do contato em "Autorizados". Buscamos SEMPRE (não só quando
+        // `somente_autorizados` está ligado) porque é daqui que sai o nome usado
+        // para tratar a pessoa — o perfil do WhatsApp quase nunca traz.
+        // Aceita variações com/sem código do país (ex.: 5511... vs 11...)
+        const variantes = new Set<string>([telefone]);
+        if (telefone.startsWith("55") && telefone.length > 11) {
+          variantes.add(telefone.slice(2));
+        } else if (telefone.length <= 11) {
+          variantes.add(`55${telefone}`);
+        }
+
+        const { data: autExato } = await supabaseAdmin
+          .from("ai_bot_autorizados")
+          .select("telefone, nome, ativo")
+          .in("telefone", Array.from(variantes))
+          .eq("ativo", true)
+          .maybeSingle();
+        let autorizado = autExato ?? null;
+        if (!autorizado) {
+          const { data: autAprox } = await supabaseAdmin
             .from("ai_bot_autorizados")
-            .select("telefone, ativo")
-            .in("telefone", Array.from(variantes))
+            .select("telefone, nome, ativo")
+            .ilike("telefone", `%${telefone.slice(-8)}%`)
             .eq("ativo", true)
             .maybeSingle();
-          if (!aut) {
-            const { data: aut2 } = await supabaseAdmin
-              .from("ai_bot_autorizados")
-              .select("telefone, ativo")
-              .ilike("telefone", `%${telefone.slice(-8)}%`)
-              .eq("ativo", true)
-              .maybeSingle();
-
-            if (!aut2) {
-              console.log(
-                `[uazapi-bot] nao_autorizado tel=${telefone} variantes=${Array.from(variantes).join(",")}`,
-              );
-              return json({ ok: true, ignored: "nao_autorizado" });
-            }
-          }
+          autorizado = autAprox ?? null;
         }
+
+        if (config.somente_autorizados && !autorizado) {
+          console.log(
+            `[uazapi-bot] nao_autorizado tel=${telefone} variantes=${Array.from(variantes).join(",")}`,
+          );
+          return json({ ok: true, ignored: "nao_autorizado" });
+        }
+
+        // O nome cadastrado tem prioridade: foi a equipe que digitou.
+        const nome = (autorizado?.nome ?? "").trim() || nomePerfil;
 
         // Histórico completo recente (com data) — base para derivar o estado da sessão.
         const { data: histBruto } = await supabaseAdmin
@@ -628,7 +637,14 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           ? `\n\n## SITUAÇÃO AGORA — LEIA ANTES DE RESPONDER\nO encarregado ficou um tempo sem falar e está iniciando um contato NOVO agora. Qualquer conversa anterior no histórico já se encerrou — ela NÃO continua.\n- Cumprimente de volta com simpatia e pergunte, de forma aberta, o que ele precisa tratar. Ex.: "Opa, boa tarde! Tudo certo por aí? Em que posso ajudar?"\n- É TERMINANTEMENTE PROIBIDO reclamar do contato, cobrar objetividade ou dizer que só atende assunto de trabalho. Ele pode falar com você quando quiser.\n- Não repita perguntas que você já fez antes; comece do zero, leve.`
           : "";
 
-        const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}\n\n## GENTILEZA — REGRA ACIMA DE TODAS\nSeja educado e acolhedor em 100% das mensagens, sem exceção. Nunca responda de forma seca, irritada ou repreendendo o encarregado — nem quando ele repetir assunto, mandar mensagem fora de hora, cumprimentar de novo ou falar de algo que não é problema de obra. Nunca diga que só está ali para tratar de trabalho nem peça que ele vá direto ao ponto. Se não entender o que ele quer, pergunte com cordialidade o que ele deseja tratar e siga a conversa a partir dali.${blocoSituacao}${blocoContinuidade(estadoSessao)}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
+        // Sem isto o modelo não tem como saber o nome de quem escreveu: a persona
+        // manda tratar pelo primeiro nome, mas o nome nunca chegava até ela.
+        const primeiroNome = (nome || "").trim().split(/\s+/)[0] || "";
+        const blocoNome = primeiroNome
+          ? `\n\n## COM QUEM VOCÊ ESTÁ FALANDO\nO nome desta pessoa é ${primeiroNome}. Trate-a pelo primeiro nome com naturalidade — no cumprimento e quando fizer sentido na conversa —, sem repetir o nome em toda mensagem.`
+          : "";
+
+        const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}${blocoNome}\n\n## GENTILEZA — REGRA ACIMA DE TODAS\nSeja educado e acolhedor em 100% das mensagens, sem exceção. Nunca responda de forma seca, irritada ou repreendendo o encarregado — nem quando ele repetir assunto, mandar mensagem fora de hora, cumprimentar de novo ou falar de algo que não é problema de obra. Nunca diga que só está ali para tratar de trabalho nem peça que ele vá direto ao ponto. Se não entender o que ele quer, pergunte com cordialidade o que ele deseja tratar e siga a conversa a partir dali.${blocoSituacao}${blocoContinuidade(estadoSessao)}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
 
         const messages: Array<{ role: string; content: string }> = [
           { role: "system", content: systemPrompt },
