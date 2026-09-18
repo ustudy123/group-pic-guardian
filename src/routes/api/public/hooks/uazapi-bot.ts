@@ -639,10 +639,25 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
 
         // Sem isto o modelo não tem como saber o nome de quem escreveu: a persona
         // manda tratar pelo primeiro nome, mas o nome nunca chegava até ela.
+        //
+        // Chamar pelo nome a cada mensagem soa robótico — exatamente o oposto do
+        // que se quer. Em vez de só pedir "não repita" (que o modelo desobedece),
+        // olhamos o histórico da sessão: se ele JÁ usou o nome, a instrução passa
+        // a ser proibitiva.
         const primeiroNome = (nome || "").trim().split(/\s+/)[0] || "";
-        const blocoNome = primeiroNome
-          ? `\n\n## COM QUEM VOCÊ ESTÁ FALANDO\nO nome desta pessoa é ${primeiroNome}. Trate-a pelo primeiro nome com naturalidade — no cumprimento e quando fizer sentido na conversa —, sem repetir o nome em toda mensagem.`
-          : "";
+        const escaparRegex = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const jaChamouPeloNome =
+          primeiroNome.length > 1 &&
+          estadoSessao.mensagensSessao.some(
+            (m) =>
+              m.role === "assistant" &&
+              new RegExp(`\\b${escaparRegex(primeiroNome)}\\b`, "i").test(m.conteudo || ""),
+          );
+        const blocoNome = !primeiroNome
+          ? ""
+          : jaChamouPeloNome
+            ? `\n\n## NOME DA PESSOA\nEla se chama ${primeiroNome}, mas você JÁ a chamou pelo nome nesta conversa. NÃO use o nome de novo agora — repetir o nome a cada mensagem soa artificial, de robô. Só volte a usar num próximo contato ou se for realmente natural.`
+            : `\n\n## NOME DA PESSOA\nEla se chama ${primeiroNome}. Você pode usar o primeiro nome UMA vez, no cumprimento, se soar natural. Depois disso siga a conversa sem repetir o nome.`;
 
         const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}${blocoNome}\n\n## GENTILEZA — REGRA ACIMA DE TODAS\nSeja educado e acolhedor em 100% das mensagens, sem exceção. Nunca responda de forma seca, irritada ou repreendendo o encarregado — nem quando ele repetir assunto, mandar mensagem fora de hora, cumprimentar de novo ou falar de algo que não é problema de obra. Nunca diga que só está ali para tratar de trabalho nem peça que ele vá direto ao ponto. Se não entender o que ele quer, pergunte com cordialidade o que ele deseja tratar e siga a conversa a partir dali.${blocoSituacao}${blocoContinuidade(estadoSessao)}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
 
