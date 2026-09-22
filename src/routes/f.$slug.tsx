@@ -378,6 +378,13 @@ function FormPublico() {
           </button>
         </div>
 
+        {enviar.isError && (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm font-medium text-destructive">
+            {(enviar.error as any)?.message ?? "Não foi possível enviar. Tente novamente."}
+          </div>
+        )}
+
+
         {progresso && (
           <div className="rounded-xl border bg-card p-3 shadow-sm">
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
