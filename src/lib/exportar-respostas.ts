@@ -350,6 +350,44 @@ async function baixarComoJpeg(
   }
 }
 
+type Miniatura = { dataUrl: string; w: number; h: number };
+
+/**
+ * Baixa/redimensiona várias fotos em paralelo (com limite de conexões
+ * simultâneas). Antes isso era feito uma foto por vez, o que deixava o PDF
+ * lento demais em respostas com dezenas de imagens.
+ */
+async function baixarEmLote(
+  paths: string[],
+  urls: Record<string, string>,
+  cortar: { w: number; h: number },
+  onProgresso?: (feitas: number, total: number) => void,
+  concorrencia = 6,
+): Promise<Map<string, Miniatura | null>> {
+  const unicos = Array.from(new Set(paths));
+  const cache = new Map<string, Miniatura | null>();
+  let feitas = 0;
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < unicos.length) {
+      const path = unicos[cursor++];
+      const url = urls[path];
+      const img = url ? await baixarComoJpeg(url, 0, 0.92, cortar) : null;
+      cache.set(path, img);
+      feitas++;
+      onProgresso?.(feitas, unicos.length);
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(concorrencia, unicos.length) }, () => worker()),
+  );
+  return cache;
+}
+
+
+
 /** Caminho, no bucket fotos-obras, do logo próprio de um formulário. */
 export const LOGO_FORM_PATH = (formularioId: string) => `formularios/${formularioId}/logo.png`;
 
