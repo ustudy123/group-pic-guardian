@@ -473,7 +473,17 @@ export async function exportarPDFDetalhado(
   if (resolverUrls && todasImagens.length > 0) {
     urls = await resolverUrls(todasImagens.map((a) => a.path));
   }
-  let baixadas = 0;
+  // Baixa/redimensiona tudo em paralelo antes de montar as páginas
+  const cacheFotos =
+    todasImagens.length > 0
+      ? await baixarEmLote(
+          todasImagens.map((a) => a.path),
+          urls,
+          { w: 1280, h: 960 },
+          onProgresso,
+        )
+      : new Map<string, Miniatura | null>();
+
 
   const agora = new Date().toLocaleString("pt-BR", {
     day: "2-digit",
