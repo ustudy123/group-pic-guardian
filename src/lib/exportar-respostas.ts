@@ -131,20 +131,22 @@ export async function exportarPDFTabela(
     });
     if (alvos.length > 0) {
       const urls = await resolverUrls!(alvos.map((a) => a.arq.path));
-      let feitas = 0;
+      // miniatura pequena (4:3 uniforme), baixadas em paralelo
+      const cache = await baixarEmLote(
+        alvos.map((a) => a.arq.path),
+        urls,
+        { w: 700, h: 525 },
+        onProgresso,
+      );
       for (const { chave, arq } of alvos) {
-        feitas++;
-        onProgresso?.(feitas, alvos.length);
-        const url = urls[arq.path];
-        if (!url) continue;
-        // miniatura pequena: na tabela cada foto ocupa poucos milímetros
-        const img = await baixarComoJpeg(url, 0, 0.9, { w: 700, h: 525 }); // 4:3 uniforme
+        const img = cache.get(arq.path);
         if (!img) continue;
         const lista = miniaturas.get(chave) ?? [];
         lista.push(img);
         miniaturas.set(chave, lista);
       }
     }
+
   }
 
   doc.setFontSize(14);
