@@ -107,11 +107,6 @@ function FormPublico() {
         if (!visivel(byId[campoId])) continue; // não envia arquivo de campo oculto
         const rotuloCampo = byId[campoId]?.rotulo ?? "";
         for (const f of files) {
-          if (!user) {
-            throw new Error(
-              `Anexos só são suportados para usuários autenticados nesta versão. Remova o arquivo do campo.`,
-            );
-          }
           const uid = `form-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
           const ehFotoDeEncarregado = !!encarregado && f.type.startsWith("image/");
           const path = ehFotoDeEncarregado
