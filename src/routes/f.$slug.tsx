@@ -12,6 +12,40 @@ export const Route = createFileRoute("/f/$slug")({
   component: FormPublico,
 });
 
+/**
+ * Reduz a foto no próprio aparelho antes de subir: 1600px no maior lado e
+ * JPEG 82%. Uma foto de celular cai de ~4 MB para ~300 KB sem perder leitura,
+ * o que corta o tempo de envio em mais de 10x em redes móveis.
+ */
+async function comprimirImagem(f: File): Promise<File> {
+  const LADO_MAX = 1600;
+  try {
+    if (typeof createImageBitmap !== "function") return f;
+    const bitmap = await createImageBitmap(f, { imageOrientation: "from-image" });
+    const escala = Math.min(1, LADO_MAX / Math.max(bitmap.width, bitmap.height));
+    // já é pequena e leve: não vale reprocessar
+    if (escala === 1 && f.size < 700_000) return f;
+    const w = Math.max(1, Math.round(bitmap.width * escala));
+    const h = Math.max(1, Math.round(bitmap.height * escala));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return f;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.82),
+    );
+    if (!blob || blob.size >= f.size) return f;
+    const nome = f.name.replace(/\.[^.]+$/, "") + ".jpg";
+    return new File([blob], nome, { type: "image/jpeg" });
+  } catch {
+    return f;
+  }
+}
+
 
 function FormPublico() {
   const { slug } = Route.useParams();
