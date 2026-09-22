@@ -12,6 +12,40 @@ export const Route = createFileRoute("/f/$slug")({
   component: FormPublico,
 });
 
+/**
+ * Reduz a foto no próprio aparelho antes de subir: 1600px no maior lado e
+ * JPEG 82%. Uma foto de celular cai de ~4 MB para ~300 KB sem perder leitura,
+ * o que corta o tempo de envio em mais de 10x em redes móveis.
+ */
+async function comprimirImagem(f: File): Promise<File> {
+  const LADO_MAX = 1600;
+  try {
+    if (typeof createImageBitmap !== "function") return f;
+    const bitmap = await createImageBitmap(f, { imageOrientation: "from-image" });
+    const escala = Math.min(1, LADO_MAX / Math.max(bitmap.width, bitmap.height));
+    // já é pequena e leve: não vale reprocessar
+    if (escala === 1 && f.size < 700_000) return f;
+    const w = Math.max(1, Math.round(bitmap.width * escala));
+    const h = Math.max(1, Math.round(bitmap.height * escala));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return f;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.82),
+    );
+    if (!blob || blob.size >= f.size) return f;
+    const nome = f.name.replace(/\.[^.]+$/, "") + ".jpg";
+    return new File([blob], nome, { type: "image/jpeg" });
+  } catch {
+    return f;
+  }
+}
+
 
 function FormPublico() {
   const { slug } = Route.useParams();
@@ -103,54 +137,73 @@ function FormPublico() {
       let enviados = 0;
       if (totalArquivos > 0) setProgresso({ feitas: 0, total: totalArquivos });
 
+      // Monta a fila de uploads e executa em paralelo (limite de conexões),
+      // comprimindo as fotos antes de subir — foto de celular tem ~4 MB e
+      // sozinha demora mais que 6 fotos reduzidas.
+      type Tarefa = { campoId: string; rotuloCampo: string; f: File };
+      const fila: Tarefa[] = [];
       for (const [campoId, files] of Object.entries(arquivos)) {
         if (!visivel(byId[campoId])) continue; // não envia arquivo de campo oculto
         const rotuloCampo = byId[campoId]?.rotulo ?? "";
-        for (const f of files) {
-          const uid = `form-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-          const ehFotoDeEncarregado = !!encarregado && f.type.startsWith("image/");
-          // Nomes com acento/espaço quebram a chave no Storage
-          const nomeSeguro = f.name
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-zA-Z0-9._-]/g, "_");
-          const path = ehFotoDeEncarregado
-            ? `${encarregado!.id}/${dataPasta}/${uid}-${nomeSeguro}`
-            : `formularios/${data.form.id}/${uid}-${nomeSeguro}`;
-          const { error } = await supabase.storage.from("fotos-obras").upload(path, f);
-          if (error) throw error;
-          enviados++;
-          setProgresso({ feitas: enviados, total: totalArquivos });
-          arquivosMeta.push({
-            campo_id: campoId,
-            path,
-            nome: f.name,
-            tipo: f.type,
-            tamanho: f.size,
-          });
-
-          if (ehFotoDeEncarregado) {
-            const { data: signed } = await supabase.storage
-              .from("fotos-obras")
-              .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-            const { error: fotoErr } = await (supabase.from("fotos") as any).insert({
-              encarregado_id: encarregado!.id,
-              message_id: uid,
-              storage_path: path,
-              storage_url: signed?.signedUrl ?? null,
-              data_envio: new Date().toISOString(),
-              data_pasta: dataPasta,
-              caption: `${data.form.titulo}${rotuloCampo ? ` — ${rotuloCampo}` : ""}`,
-              mime_type: f.type,
-              tamanho_bytes: f.size,
-              remetente_nome: encarregado!.nome,
-              status: "formulario",
-              formulario_id: data.form.id,
-            });
-            if (fotoErr) console.error("[formulario] erro ao registrar foto no acervo:", fotoErr);
-          }
-        }
+        for (const f of files) fila.push({ campoId, rotuloCampo, f });
       }
+
+      let cursor = 0;
+      const subir = async ({ campoId, rotuloCampo, f }: Tarefa) => {
+        const uid = `form-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const ehFotoDeEncarregado = !!encarregado && f.type.startsWith("image/");
+        const arquivo = f.type.startsWith("image/") ? await comprimirImagem(f) : f;
+        // Nomes com acento/espaço quebram a chave no Storage
+        const nomeSeguro = arquivo.name
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = ehFotoDeEncarregado
+          ? `${encarregado!.id}/${dataPasta}/${uid}-${nomeSeguro}`
+          : `formularios/${data.form.id}/${uid}-${nomeSeguro}`;
+        const { error } = await supabase.storage.from("fotos-obras").upload(path, arquivo);
+        if (error) throw error;
+        enviados++;
+        setProgresso({ feitas: enviados, total: totalArquivos });
+        arquivosMeta.push({
+          campo_id: campoId,
+          path,
+          nome: f.name,
+          tipo: arquivo.type,
+          tamanho: arquivo.size,
+        });
+
+        if (ehFotoDeEncarregado) {
+          const { data: signed } = await supabase.storage
+            .from("fotos-obras")
+            .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+          const { error: fotoErr } = await (supabase.from("fotos") as any).insert({
+            encarregado_id: encarregado!.id,
+            message_id: uid,
+            storage_path: path,
+            storage_url: signed?.signedUrl ?? null,
+            data_envio: new Date().toISOString(),
+            data_pasta: dataPasta,
+            caption: `${data.form.titulo}${rotuloCampo ? ` — ${rotuloCampo}` : ""}`,
+            mime_type: arquivo.type,
+            tamanho_bytes: arquivo.size,
+            remetente_nome: encarregado!.nome,
+            status: "formulario",
+            formulario_id: data.form.id,
+          });
+          if (fotoErr) console.error("[formulario] erro ao registrar foto no acervo:", fotoErr);
+        }
+      };
+
+      const trabalhador = async () => {
+        while (cursor < fila.length) {
+          await subir(fila[cursor++]);
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(4, fila.length) }, () => trabalhador()),
+      );
+
 
       // Salva apenas respostas de campos visíveis (descarta respostas de campos ocultos)
       const dadosVisiveis: Record<string, any> = {};

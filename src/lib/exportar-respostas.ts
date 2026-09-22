@@ -131,20 +131,22 @@ export async function exportarPDFTabela(
     });
     if (alvos.length > 0) {
       const urls = await resolverUrls!(alvos.map((a) => a.arq.path));
-      let feitas = 0;
+      // miniatura pequena (4:3 uniforme), baixadas em paralelo
+      const cache = await baixarEmLote(
+        alvos.map((a) => a.arq.path),
+        urls,
+        { w: 700, h: 525 },
+        onProgresso,
+      );
       for (const { chave, arq } of alvos) {
-        feitas++;
-        onProgresso?.(feitas, alvos.length);
-        const url = urls[arq.path];
-        if (!url) continue;
-        // miniatura pequena: na tabela cada foto ocupa poucos milímetros
-        const img = await baixarComoJpeg(url, 0, 0.9, { w: 700, h: 525 }); // 4:3 uniforme
+        const img = cache.get(arq.path);
         if (!img) continue;
         const lista = miniaturas.get(chave) ?? [];
         lista.push(img);
         miniaturas.set(chave, lista);
       }
     }
+
   }
 
   doc.setFontSize(14);
@@ -350,6 +352,44 @@ async function baixarComoJpeg(
   }
 }
 
+type Miniatura = { dataUrl: string; w: number; h: number };
+
+/**
+ * Baixa/redimensiona várias fotos em paralelo (com limite de conexões
+ * simultâneas). Antes isso era feito uma foto por vez, o que deixava o PDF
+ * lento demais em respostas com dezenas de imagens.
+ */
+async function baixarEmLote(
+  paths: string[],
+  urls: Record<string, string>,
+  cortar: { w: number; h: number },
+  onProgresso?: (feitas: number, total: number) => void,
+  concorrencia = 6,
+): Promise<Map<string, Miniatura | null>> {
+  const unicos = Array.from(new Set(paths));
+  const cache = new Map<string, Miniatura | null>();
+  let feitas = 0;
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < unicos.length) {
+      const path = unicos[cursor++];
+      const url = urls[path];
+      const img = url ? await baixarComoJpeg(url, 0, 0.92, cortar) : null;
+      cache.set(path, img);
+      feitas++;
+      onProgresso?.(feitas, unicos.length);
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: Math.min(concorrencia, unicos.length) }, () => worker()),
+  );
+  return cache;
+}
+
+
+
 /** Caminho, no bucket fotos-obras, do logo próprio de um formulário. */
 export const LOGO_FORM_PATH = (formularioId: string) => `formularios/${formularioId}/logo.png`;
 
@@ -433,7 +473,17 @@ export async function exportarPDFDetalhado(
   if (resolverUrls && todasImagens.length > 0) {
     urls = await resolverUrls(todasImagens.map((a) => a.path));
   }
-  let baixadas = 0;
+  // Baixa/redimensiona tudo em paralelo antes de montar as páginas
+  const cacheFotos =
+    todasImagens.length > 0
+      ? await baixarEmLote(
+          todasImagens.map((a) => a.path),
+          urls,
+          { w: 1280, h: 960 },
+          onProgresso,
+        )
+      : new Map<string, Miniatura | null>();
+
 
   const agora = new Date().toLocaleString("pt-BR", {
     day: "2-digit",
@@ -575,10 +625,8 @@ export async function exportarPDFDetalhado(
 
       let coluna = 0;
       for (const arq of imagens) {
-        baixadas++;
-        onProgresso?.(baixadas, todasImagens.length);
-        const url = urls[arq.path];
-        const mini = url ? await baixarComoJpeg(url, 0, 0.92, { w: 1280, h: 960 }) : null;
+        const mini = cacheFotos.get(arq.path) ?? null;
+
 
         if (coluna === 0 && y + TH_H > LIMITE_INF) {
           // a grade continua na página seguinte, sem repetir o cabeçalho
