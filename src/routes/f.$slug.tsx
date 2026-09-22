@@ -107,16 +107,16 @@ function FormPublico() {
         if (!visivel(byId[campoId])) continue; // não envia arquivo de campo oculto
         const rotuloCampo = byId[campoId]?.rotulo ?? "";
         for (const f of files) {
-          if (!user) {
-            throw new Error(
-              `Anexos só são suportados para usuários autenticados nesta versão. Remova o arquivo do campo.`,
-            );
-          }
           const uid = `form-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
           const ehFotoDeEncarregado = !!encarregado && f.type.startsWith("image/");
+          // Nomes com acento/espaço quebram a chave no Storage
+          const nomeSeguro = f.name
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-zA-Z0-9._-]/g, "_");
           const path = ehFotoDeEncarregado
-            ? `${encarregado!.id}/${dataPasta}/${uid}-${f.name}`
-            : `formularios/${data.form.id}/${uid}-${f.name}`;
+            ? `${encarregado!.id}/${dataPasta}/${uid}-${nomeSeguro}`
+            : `formularios/${data.form.id}/${uid}-${nomeSeguro}`;
           const { error } = await supabase.storage.from("fotos-obras").upload(path, f);
           if (error) throw error;
           enviados++;
