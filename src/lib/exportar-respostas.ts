@@ -625,10 +625,8 @@ export async function exportarPDFDetalhado(
 
       let coluna = 0;
       for (const arq of imagens) {
-        baixadas++;
-        onProgresso?.(baixadas, todasImagens.length);
-        const url = urls[arq.path];
-        const mini = url ? await baixarComoJpeg(url, 0, 0.92, { w: 1280, h: 960 }) : null;
+        const mini = cacheFotos.get(arq.path) ?? null;
+
 
         if (coluna === 0 && y + TH_H > LIMITE_INF) {
           // a grade continua na página seguinte, sem repetir o cabeçalho
