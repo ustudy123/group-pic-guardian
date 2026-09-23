@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { BotStatusIndicator } from "@/components/bot-status-indicator";
-import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye, ClipboardList, BadgeCheck } from "lucide-react";
 import { useRoles } from "@/lib/use-roles";
@@ -219,7 +218,6 @@ function PainelLayout() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Outlet />
       </main>
-      <Toaster />
     </div>
   );
 }
