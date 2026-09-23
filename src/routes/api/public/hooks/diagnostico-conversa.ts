@@ -43,6 +43,121 @@ function horaBrt(iso: string | null | undefined): string | null {
   });
 }
 
+/** Credenciais da instância do Macro I.A (as mesmas do webhook do bot). */
+function credsMacroIa() {
+  const baseUrl = (
+    process.env.UAZAPI_MACRO_IA_BASE_URL ||
+    process.env.UAZAPI_BASE_URL ||
+    "https://ipazua.uazapi.com"
+  ).replace(/\/+$/, "");
+  const token = process.env.UAZAPI_MACRO_IA_TOKEN || process.env.UAZAPI_INSTANCE_TOKEN || "";
+  return { baseUrl, token };
+}
+
+/** Timestamp da UazAPI (s ou ms) em horário de Brasília. */
+function horaDeTimestamp(v: unknown): string | null {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return horaBrt(new Date(n < 1e12 ? n * 1000 : n).toISOString());
+}
+
+/** Esconde trechos longos (tokens) de uma URL, mantendo host e rota. */
+function mascararUrl(u: unknown): string | null {
+  if (typeof u !== "string" || !u) return null;
+  try {
+    const url = new URL(u);
+    const rota = url.pathname
+      .split("/")
+      .map((seg) => (seg.length > 20 ? `${seg.slice(0, 4)}…` : seg))
+      .join("/");
+    return `${url.host}${rota}${url.search ? "?…" : ""}`;
+  } catch {
+    return "(url inválida)";
+  }
+}
+
+/**
+ * O que a própria UazAPI sabe da conversa: se a instância está conectada, para
+ * onde o webhook aponta e as últimas mensagens do chat (com status de entrega).
+ * Não devolve texto — só tipo, direção, status e tamanho.
+ */
+async function consultarUazapi(telefones: string[]): Promise<Record<string, unknown>> {
+  const { baseUrl, token } = credsMacroIa();
+  if (!token) return { erro: "token da instância ausente" };
+  const h = { "Content-Type": "application/json", token };
+  const saida: Record<string, unknown> = {};
+
+  try {
+    const r = await fetch(`${baseUrl}/instance/status`, { headers: { token } });
+    const j = (await r.json().catch(() => null)) as Record<string, any> | null;
+    saida.instancia = {
+      http: r.status,
+      conectada: Boolean(j?.status?.connected ?? j?.connected),
+      logada: Boolean(j?.status?.loggedIn ?? j?.loggedIn),
+      situacao: j?.instance?.status ?? null,
+    };
+  } catch (e) {
+    saida.instancia = { erro: String(e).slice(0, 120) };
+  }
+
+  try {
+    const r = await fetch(`${baseUrl}/webhook`, { headers: { token } });
+    const j = (await r.json().catch(() => null)) as unknown;
+    const lista = (Array.isArray(j) ? j : j ? [j] : []) as Array<Record<string, any>>;
+    saida.webhook = {
+      http: r.status,
+      itens: lista.map((w) => ({
+        ativo: w.enabled ?? null,
+        url: mascararUrl(w.url),
+        eventos: w.events ?? null,
+        exclui: w.excludeMessages ?? null,
+      })),
+    };
+  } catch (e) {
+    saida.webhook = { erro: String(e).slice(0, 120) };
+  }
+
+  const chats: Record<string, unknown> = {};
+  for (const tel of telefones) {
+    const chatid = `${tel}@s.whatsapp.net`;
+    try {
+      const r = await fetch(`${baseUrl}/message/find`, {
+        method: "POST",
+        headers: h,
+        body: JSON.stringify({ chatid, limit: 12 }),
+      });
+      const txt = await r.text();
+      if (!r.ok) {
+        chats[mascarar(tel)] = { http: r.status, erro: txt.slice(0, 150) };
+        continue;
+      }
+      const j = JSON.parse(txt) as unknown;
+      const msgs = (
+        Array.isArray(j)
+          ? j
+          : ((j as Record<string, any>)?.messages ?? (j as Record<string, any>)?.data ?? [])
+      ) as Array<Record<string, any>>;
+      chats[mascarar(tel)] = {
+        http: r.status,
+        total: msgs.length,
+        chaves: msgs[0] ? Object.keys(msgs[0]).slice(0, 40) : [],
+        mensagens: msgs.map((m) => ({
+          quando: horaDeTimestamp(m.messageTimestamp ?? m.timestamp ?? m.moment),
+          do_bot: m.fromMe ?? null,
+          pela_api: m.wasSentByApi ?? null,
+          tipo: m.messageType ?? m.type ?? null,
+          status: m.status ?? m.ack ?? null,
+          tamanho: String(m.text ?? m.content ?? "").length,
+        })),
+      };
+    } catch (e) {
+      chats[mascarar(tel)] = { erro: String(e).slice(0, 120) };
+    }
+  }
+  saida.chats = chats;
+  return saida;
+}
+
 export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
   server: {
     handlers: {
@@ -54,7 +169,7 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
           request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
         if (provided !== expected) return json({ error: "Unauthorized" }, 401);
 
-        let body: { telefone?: string; horas?: number } = {};
+        let body: { telefone?: string; horas?: number; uazapi?: boolean } = {};
         try {
           body = await request.json();
         } catch {
@@ -179,6 +294,17 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
           telefone: mascarar(m.telefone),
         }));
 
+        // Formatos com e sem o 9 (o WhatsApp de alguns DDDs usa o antigo).
+        const telsUazapi = new Set<string>();
+        for (const a of (auts ?? []) as Array<{ telefone: string }>) {
+          const d = a.telefone.replace(/\D/g, "");
+          telsUazapi.add(d);
+          if (d.length === 13 && d.startsWith("55") && d[4] === "9") {
+            telsUazapi.add(d.slice(0, 4) + d.slice(5));
+          }
+        }
+        const uazapi = body.uazapi === false ? null : await consultarUazapi([...telsUazapi]);
+
         return json({
           consultado: mascarar(telefone),
           janela_horas: horas,
@@ -189,6 +315,7 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
           respostas_na_fila: respostas,
           webhook_recebidas_geral: errProc ? { erro: errProc.message } : recebidas,
           historico_geral: historicoGeral,
+          uazapi,
           erros: {
             conversas: errConv?.message ?? null,
             fila: errFila?.message ?? null,
