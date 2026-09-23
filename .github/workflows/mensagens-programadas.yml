@@ -1,21 +1,19 @@
 name: Mensagens Programadas do Bot
 
-# AGENDAMENTO PRINCIPAL: pg_cron do banco (job 'mensagens-programadas',
-# 07:00–08:55 BRT). Veja a migration 20260801120000_bot_ajustes_arthur.sql.
+# AGENDAMENTO PRINCIPAL: o job de respostas pendentes do banco (a cada 1 min,
+# o dia todo) roda o check-in de carona — ver src/lib/mensagens-programadas.server.ts.
+# O job próprio 'mensagens-programadas' do pg_cron nunca entregou nada (este
+# workflow encontrava todo mundo ainda sem mensagem no fim da manhã) e só cobria
+# 07:00–08:55, então a mensagem da noite nunca saía.
 #
-# O cron abaixo é REDE DE SEGURANÇA: se o job do banco não estiver instalado
-# (foi o que aconteceu — o agendamento saiu do GitHub e o job nunca chegou a ser
-# criado, então ninguém recebia o "bom dia"), este aqui garante o envio.
-#
-# O GitHub sofre throttling e dispara em horário imprevisível — por isso o
-# endpoint agora recusa envio depois da janela + 2h (TOLERANCIA_ATRASO_MIN).
-# Assim um disparo atrasado não manda "bom dia" às 22h como já aconteceu.
-# A idempotência (telefone+período+data) impede mensagem repetida quando os dois
-# agendadores rodam no mesmo dia.
+# Este cron é REDE DE SEGURANÇA. O GitHub sofre throttling e dispara em horário
+# imprevisível (na prática ~1x por dia, no fim da manhã) — por isso o endpoint
+# recusa envio depois da janela + 2h (TOLERANCIA_ATRASO_MIN). A reserva por
+# telefone+período+data impede mensagem repetida quando os dois rodam no mesmo dia.
 
 on:
   schedule:
-    - cron: "*/10 10-13 * * *"   # 07:00–10:59 BRT (a guarda corta após 10:15)
+    - cron: "*/10 10-13 * * *"   # 07:00–10:59 BRT
   workflow_dispatch:
     inputs:
       periodo:

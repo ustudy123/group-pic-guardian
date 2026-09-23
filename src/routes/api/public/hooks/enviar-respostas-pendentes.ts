@@ -1,7 +1,9 @@
 // Hook chamado a cada 1 minuto (via pg_cron) para enviar as respostas do bot
 // que estavam aguardando o atraso humanizado (2-3 min por padrão).
+// De carona, roda também o check-in programado (mensagens da manhã e da noite).
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { processarMensagensProgramadas } from "@/lib/mensagens-programadas.server";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +43,33 @@ async function enviarUazapi(numero: string, mensagem: string): Promise<boolean> 
   }
 }
 
+/**
+ * Até quando (desde o início da chamada) o check-in programado pode começar um
+ * envio. O banco espera poucos segundos pela resposta; se a chamada passar
+ * disso a conexão cai e o Worker pode ser cancelado no meio de um envio.
+ */
+const PRAZO_ENVIO_PROGRAMADAS_MS = 2000;
+
+/**
+ * Check-in programado pega carona neste job: é o agendador do banco que
+ * comprovadamente chega ao servidor a cada minuto, o dia todo — as respostas do
+ * bot saem por ele. O job próprio das mensagens programadas nunca entregou nada
+ * (o GitHub, que roda uma vez por dia no fim da manhã, encontrava todo mundo
+ * ainda sem mensagem) e só cobria 07:00–08:55, então a noite nunca saía.
+ * Falha aqui não pode atrapalhar as respostas: erro vira só um campo no retorno.
+ */
+async function tickMensagensProgramadas(inicioMs: number): Promise<Record<string, unknown>> {
+  try {
+    const { body } = await processarMensagensProgramadas({
+      prazoEnvioMs: inicioMs + PRAZO_ENVIO_PROGRAMADAS_MS,
+    });
+    return body;
+  } catch (e) {
+    console.error("[respostas-pendentes] erro nas mensagens programadas:", e);
+    return { erro: String(e).slice(0, 200) };
+  }
+}
+
 export const Route = createFileRoute("/api/public/hooks/enviar-respostas-pendentes")({
   server: {
     handlers: {
@@ -59,7 +88,8 @@ export const Route = createFileRoute("/api/public/hooks/enviar-respostas-pendent
           return json({ error: "Unauthorized" }, 401);
         }
 
-        const agora = new Date().toISOString();
+        const inicio = Date.now();
+        const agora = new Date(inicio).toISOString();
         const sbAny = supabaseAdmin as unknown as { from: (t: string) => any };
         const { data: pendentes, error } = await sbAny
           .from("ai_bot_respostas_pendentes")
@@ -71,9 +101,14 @@ export const Route = createFileRoute("/api/public/hooks/enviar-respostas-pendent
           .order("enviar_em", { ascending: true })
           .limit(50);
 
-        if (error) return json({ error: error.message }, 500);
+        if (error) {
+          return json(
+            { error: error.message, programadas: await tickMensagensProgramadas(inicio) },
+            500,
+          );
+        }
         if (!pendentes || pendentes.length === 0) {
-          return json({ idle: true });
+          return json({ idle: true, programadas: await tickMensagensProgramadas(inicio) });
         }
 
         // Um contato recebe no máximo UMA mensagem por rodada: a mais antiga
@@ -137,7 +172,11 @@ export const Route = createFileRoute("/api/public/hooks/enviar-respostas-pendent
         }
 
 
-        return json({ processados: resultados.length, sucesso: resultados.filter((r) => r.ok).length });
+        return json({
+          processados: resultados.length,
+          sucesso: resultados.filter((r) => r.ok).length,
+          programadas: await tickMensagensProgramadas(inicio),
+        });
       },
     },
   },
