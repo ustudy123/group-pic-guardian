@@ -205,6 +205,29 @@ export function derivarEstadoSessao(
   };
 }
 
+// Detecta despedidas / encerramento pelo usuário. Se a mensagem dele é claramente
+// um "valeu, tchau", o bot NÃO responde — quem tem a última palavra é o encarregado.
+const REGEX_DESPEDIDA = /^\s*(?:(?:muito\s+)?obrigad[oa]s?|valeu|vlw|flw|beleza|blz|de\s+boa|tranquilo|tranquil[oa]|t[áa]\s+(?:bom|certo|ok)|ok(?:ay)?|show|entendi(?:do)?|s[ó]?\s+iss[oa]\s*mesmo|s[ó]\s+iss[oa]|por\s+enquanto\s+[ée]\s+iss[oa]|acabou|nada\s+mais|tchau|at[ée]\s+(?:mais|logo|amanh[ãa])|boa\s+(?:noite|tarde|semana)|fica\s+com\s+deus|fui|abra[çc]os?|abs)[\s.,!😊👍👌🙏✌️❤️]*$/i;
+export function ehDespedidaCurta(msg: string): boolean {
+  const t = (msg || "").trim();
+  if (!t) return false;
+  if (t.length > 40) return false; // mensagem longa não é só despedida
+  return REGEX_DESPEDIDA.test(t);
+}
+
+// Cumprimento puro ("oi", "bom dia", "oi, boa tarde", "e aí"). Atenção: sozinhas,
+// "boa tarde"/"boa noite" caem também no regex de despedida — por isso, quando a
+// conversa está reaberta (ver abaixo), o cumprimento tem prioridade e o bot
+// responde em vez de ficar mudo.
+const REGEX_CUMPRIMENTO =
+  /^\s*(?:(?:oi+|ol[áa]|opa|eae?|e\s*a[íi]|fala|salve|blz|boa)\b[\s,!.]*)*(?:bom\s+dia|boa\s+tarde|boa\s+noite)?[\s,!.]*(?:tudo\s+(?:bem|bom|certo)|como\s+vai)?[\s,!?.😊👍🙏]*$/i;
+export function ehCumprimento(msg: string): boolean {
+  const t = (msg || "").trim();
+  if (!t || t.length > 40) return false;
+  if (!/[a-zà-ú]/i.test(t)) return false; // precisa ter alguma palavra
+  return REGEX_CUMPRIMENTO.test(t);
+}
+
 /**
  * "não", "só isso", "nada mais" encerram a conversa — MAS apenas quando o bot não
  * acabou de fazer uma pergunta necessária (senão "não" é a resposta dela, ex.:

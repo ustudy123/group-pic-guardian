@@ -42,6 +42,7 @@ import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/ap
 import { Route as ApiPublicHooksNotificarReprovacoesRouteImport } from './routes/api/public/hooks/notificar-reprovacoes'
 import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes/api/public/hooks/mensagens-programadas'
 import { Route as ApiPublicHooksEnviarRespostasPendentesRouteImport } from './routes/api/public/hooks/enviar-respostas-pendentes'
+import { Route as ApiPublicHooksDiagnosticoConversaRouteImport } from './routes/api/public/hooks/diagnostico-conversa'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
 import { Route as ApiPublicHooksUazapiFotosTokenRouteImport } from './routes/api/public/hooks/uazapi-fotos.$token'
 
@@ -219,6 +220,12 @@ const ApiPublicHooksEnviarRespostasPendentesRoute =
     path: '/api/public/hooks/enviar-respostas-pendentes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksDiagnosticoConversaRoute =
+  ApiPublicHooksDiagnosticoConversaRouteImport.update({
+    id: '/api/public/hooks/diagnostico-conversa',
+    path: '/api/public/hooks/diagnostico-conversa',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksAiBotRoute = ApiPublicHooksAiBotRouteImport.update({
   id: '/api/public/hooks/ai-bot',
   path: '/api/public/hooks/ai-bot',
@@ -256,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/diagnostico-conversa': typeof ApiPublicHooksDiagnosticoConversaRoute
   '/api/public/hooks/enviar-respostas-pendentes': typeof ApiPublicHooksEnviarRespostasPendentesRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
@@ -290,6 +298,7 @@ export interface FileRoutesByTo {
   '/painel/$encarregado': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/diagnostico-conversa': typeof ApiPublicHooksDiagnosticoConversaRoute
   '/api/public/hooks/enviar-respostas-pendentes': typeof ApiPublicHooksEnviarRespostasPendentesRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
@@ -328,6 +337,7 @@ export interface FileRoutesById {
   '/painel/$encarregado/': typeof PainelEncarregadoIndexRoute
   '/painel/vistorias/': typeof PainelVistoriasIndexRoute
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
+  '/api/public/hooks/diagnostico-conversa': typeof ApiPublicHooksDiagnosticoConversaRoute
   '/api/public/hooks/enviar-respostas-pendentes': typeof ApiPublicHooksEnviarRespostasPendentesRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
@@ -367,6 +377,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/diagnostico-conversa'
     | '/api/public/hooks/enviar-respostas-pendentes'
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/notificar-reprovacoes'
@@ -401,6 +412,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/vistorias'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/diagnostico-conversa'
     | '/api/public/hooks/enviar-respostas-pendentes'
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/notificar-reprovacoes'
@@ -438,6 +450,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado/'
     | '/painel/vistorias/'
     | '/api/public/hooks/ai-bot'
+    | '/api/public/hooks/diagnostico-conversa'
     | '/api/public/hooks/enviar-respostas-pendentes'
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/notificar-reprovacoes'
@@ -461,6 +474,7 @@ export interface RootRouteChildren {
   ServicosRoute: typeof ServicosRoute
   FSlugRoute: typeof FSlugRoute
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
+  ApiPublicHooksDiagnosticoConversaRoute: typeof ApiPublicHooksDiagnosticoConversaRoute
   ApiPublicHooksEnviarRespostasPendentesRoute: typeof ApiPublicHooksEnviarRespostasPendentesRoute
   ApiPublicHooksMensagensProgramadasRoute: typeof ApiPublicHooksMensagensProgramadasRoute
   ApiPublicHooksNotificarReprovacoesRoute: typeof ApiPublicHooksNotificarReprovacoesRoute
@@ -705,6 +719,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksEnviarRespostasPendentesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/diagnostico-conversa': {
+      id: '/api/public/hooks/diagnostico-conversa'
+      path: '/api/public/hooks/diagnostico-conversa'
+      fullPath: '/api/public/hooks/diagnostico-conversa'
+      preLoaderRoute: typeof ApiPublicHooksDiagnosticoConversaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/ai-bot': {
       id: '/api/public/hooks/ai-bot'
       path: '/api/public/hooks/ai-bot'
@@ -812,6 +833,8 @@ const rootRouteChildren: RootRouteChildren = {
   ServicosRoute: ServicosRoute,
   FSlugRoute: FSlugRoute,
   ApiPublicHooksAiBotRoute: ApiPublicHooksAiBotRoute,
+  ApiPublicHooksDiagnosticoConversaRoute:
+    ApiPublicHooksDiagnosticoConversaRoute,
   ApiPublicHooksEnviarRespostasPendentesRoute:
     ApiPublicHooksEnviarRespostasPendentesRoute,
   ApiPublicHooksMensagensProgramadasRoute:

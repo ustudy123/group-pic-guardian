@@ -1,25 +1,55 @@
-name: Diagnóstico do bot (fila de respostas)
+name: Diagnóstico do bot
 
-# Chama uma vez a fila de respostas do Macro I.A — exatamente o que o job do
-# banco faz a cada minuto — e mostra o que o servidor devolveu. Serve para ver
-# se a fila está funcionando (HTTP 200) ou qual erro ela dá.
+# Diagnóstico manual do Macro I.A, sem enviar nada a ninguém.
+#   - modo "conversa": o que aconteceu com as mensagens de um contato nas
+#     últimas horas (recebida? foi para o histórico? resposta na fila? enviada?).
+#     O log deste repositório é público: a saída não traz texto de mensagem nem
+#     telefone completo.
+#   - modo "fila": chama uma vez a fila de respostas (o mesmo que o job do banco
+#     faz a cada minuto) e mostra o que o servidor devolveu.
 on:
   workflow_dispatch:
+    inputs:
+      modo:
+        description: "O que consultar"
+        required: true
+        type: choice
+        default: conversa
+        options: ["conversa", "fila"]
+      telefone:
+        description: "Telefone do contato (modo conversa) — bastam os 8 últimos dígitos"
+        required: false
+        type: string
+      horas:
+        description: "Quantas horas para trás (modo conversa)"
+        required: false
+        type: string
+        default: "6"
 
 jobs:
   diagnostico:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Consultar a fila de respostas
+      - name: Consultar
         env:
-          ENDPOINT: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks/enviar-respostas-pendentes
+          BASE: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks
           SECRET: ${{ secrets.AI_BOT_WEBHOOK_SECRET }}
+          MODO: ${{ github.event.inputs.modo }}
+          TELEFONE: ${{ github.event.inputs.telefone }}
+          HORAS: ${{ github.event.inputs.horas }}
         run: |
-          RESP=$(curl -sS -X POST "$ENDPOINT" \
+          if [ "$MODO" = "fila" ]; then
+            URL="$BASE/enviar-respostas-pendentes"; BODY='{}'
+          else
+            TEL=$(printf '%s' "$TELEFONE" | tr -cd '0-9')
+            H=$(printf '%s' "${HORAS:-6}" | tr -cd '0-9')
+            URL="$BASE/diagnostico-conversa"; BODY="{\"telefone\":\"$TEL\",\"horas\":${H:-6}}"
+          fi
+          RESP=$(curl -sS -X POST "$URL" \
             -H "Content-Type: application/json" \
             -H "X-Bot-Secret: $SECRET" \
             -w "\n__HTTP__%{http_code}" \
-            -d '{}')
+            -d "$BODY")
           echo "HTTP: $(printf '%s' "$RESP" | sed -n 's/.*__HTTP__//p')"
           echo "Resp: $(printf '%s' "$RESP" | sed 's/__HTTP__[0-9]*$//')"
