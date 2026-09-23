@@ -166,7 +166,6 @@ export const Route = createFileRoute("/api/public/hooks/ai-bot")({
             .from("ai_bot_autorizados")
             .select("telefone, ativo, nome")
             .eq("telefone", telefone)
-            .eq("ativo", true)
             .maybeSingle();
           if (!aut) return json({ resposta: null, motivo: "nao_autorizado" });
         }

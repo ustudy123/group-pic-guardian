@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Switch } from "@/components/ui/switch";
 import { Bot, ArrowLeft, Plus, Trash2, Save, MessageSquare, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/painel/ai-bot")({
@@ -961,6 +962,30 @@ function AutorizadosTab() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ai-bot-autorizados"] }),
   });
 
+  // "ativo" decide quem recebe as mensagens programadas (check-in e retorno de
+  // alertas). Pausado continua sendo atendido se escrever para o bot.
+  const alternar = useMutation({
+    mutationFn: async ({ ids, ativo }: { ids: string[]; ativo: boolean }) => {
+      const { error } = await supabase.from("ai_bot_autorizados").update({ ativo }).in("id", ids);
+      if (error) throw error;
+    },
+    onMutate: async ({ ids, ativo }) => {
+      await qc.cancelQueries({ queryKey: ["ai-bot-autorizados"] });
+      const anterior = qc.getQueryData<typeof itens>(["ai-bot-autorizados"]);
+      qc.setQueryData<typeof itens>(["ai-bot-autorizados"], (lista) =>
+        lista?.map((it) => (ids.includes(it.id) ? { ...it, ativo } : it)),
+      );
+      return { anterior };
+    },
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.anterior) qc.setQueryData(["ai-bot-autorizados"], ctx.anterior);
+      toast.error(e.message);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["ai-bot-autorizados"] }),
+  });
+
+  const totalAtivos = itens.filter((it) => it.ativo).length;
+
   return (
     <div className="space-y-5 max-w-3xl">
       <div className="rounded-lg border p-4 space-y-3 bg-card">
@@ -988,20 +1013,81 @@ function AutorizadosTab() {
         </div>
       </div>
 
+      {itens.length > 0 && (
+        <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-2">
+          <p>
+            <b>{totalAtivos}</b> de <b>{itens.length}</b> recebem as mensagens programadas.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Desligue a chave de quem não deve receber o check-in nem o retorno de alertas. Quem
+            estiver pausado continua sendo respondido normalmente se mandar mensagem para o bot.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() =>
+                alternar.mutate({
+                  ids: itens.filter((it) => !it.ativo).map((it) => it.id),
+                  ativo: true,
+                })
+              }
+              disabled={alternar.isPending || totalAtivos === itens.length}
+              className="rounded-md border bg-background px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
+            >
+              Ativar todos
+            </button>
+            <button
+              onClick={() =>
+                alternar.mutate({
+                  ids: itens.filter((it) => it.ativo).map((it) => it.id),
+                  ativo: false,
+                })
+              }
+              disabled={alternar.isPending || totalAtivos === 0}
+              className="rounded-md border bg-background px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
+            >
+              Pausar todos
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-1">
         {itens.length === 0 && <p className="text-sm text-muted-foreground">Nenhum autorizado.</p>}
         {itens.map((it) => (
-          <div key={it.id} className="flex items-center justify-between rounded-md border p-2 bg-card">
-            <div className="text-sm">
+          <div
+            key={it.id}
+            className={`flex items-center justify-between gap-3 rounded-md border p-2 bg-card ${
+              it.ativo ? "" : "bg-muted/50"
+            }`}
+          >
+            <div className={`text-sm min-w-0 ${it.ativo ? "" : "text-muted-foreground"}`}>
               <span className="font-mono">{it.telefone}</span>
-              {it.nome && <span className="text-muted-foreground"> — {it.nome}</span>}
+              {it.nome && (
+                <span className={it.ativo ? "text-muted-foreground" : ""}> — {it.nome}</span>
+              )}
             </div>
-            <button
-              onClick={() => del.mutate(it.id)}
-              className="text-red-600 hover:bg-red-50 p-1 rounded"
-            >
-              <Trash2 size={14} />
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <span
+                  className={`w-14 text-right ${
+                    it.ativo ? "text-emerald-700 font-medium" : "text-muted-foreground"
+                  }`}
+                >
+                  {it.ativo ? "Ativo" : "Pausado"}
+                </span>
+                <Switch
+                  checked={it.ativo}
+                  onCheckedChange={(v) => alternar.mutate({ ids: [it.id], ativo: v })}
+                  aria-label={`Mensagens programadas para ${it.nome || it.telefone}`}
+                />
+              </label>
+              <button
+                onClick={() => del.mutate(it.id)}
+                className="text-red-600 hover:bg-red-50 p-1 rounded"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
           </div>
         ))}
       </div>

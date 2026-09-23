@@ -382,7 +382,8 @@ export const Route = createFileRoute("/api/public/hooks/mensagens-programadas")(
           return pool[Math.floor(Math.random() * pool.length)];
         };
 
-        // Encarregados autorizados e ativos
+        // Encarregados autorizados com a chave "Ativo" ligada no painel (pausados
+        // não recebem check-in nem follow-up, mas seguem sendo atendidos pelo bot).
         const { data: autorizados, error: errAut } = await supabaseAdmin
           .from("ai_bot_autorizados")
           .select("telefone, nome")

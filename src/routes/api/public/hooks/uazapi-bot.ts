@@ -528,6 +528,8 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         // Cadastro do contato em "Autorizados". Buscamos SEMPRE (não só quando
         // `somente_autorizados` está ligado) porque é daqui que sai o nome usado
         // para tratar a pessoa — o perfil do WhatsApp quase nunca traz.
+        // A chave "ativo" do painel só pausa as mensagens programadas; quem está
+        // pausado continua cadastrado e é respondido normalmente.
         // Aceita variações com/sem código do país (ex.: 5511... vs 11...)
         const variantes = new Set<string>([telefone]);
         if (telefone.startsWith("55") && telefone.length > 11) {
@@ -540,7 +542,6 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
           .from("ai_bot_autorizados")
           .select("telefone, nome, ativo")
           .in("telefone", Array.from(variantes))
-          .eq("ativo", true)
           .maybeSingle();
         let autorizado = autExato ?? null;
         if (!autorizado) {
@@ -548,7 +549,6 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             .from("ai_bot_autorizados")
             .select("telefone, nome, ativo")
             .ilike("telefone", `%${telefone.slice(-8)}%`)
-            .eq("ativo", true)
             .maybeSingle();
           autorizado = autAprox ?? null;
         }
