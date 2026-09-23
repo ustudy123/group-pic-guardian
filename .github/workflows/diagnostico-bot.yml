@@ -1,0 +1,25 @@
+name: Diagnóstico do bot (fila de respostas)
+
+# Chama uma vez a fila de respostas do Macro I.A — exatamente o que o job do
+# banco faz a cada minuto — e mostra o que o servidor devolveu. Serve para ver
+# se a fila está funcionando (HTTP 200) ou qual erro ela dá.
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Consultar a fila de respostas
+        env:
+          ENDPOINT: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks/enviar-respostas-pendentes
+          SECRET: ${{ secrets.AI_BOT_WEBHOOK_SECRET }}
+        run: |
+          RESP=$(curl -sS -X POST "$ENDPOINT" \
+            -H "Content-Type: application/json" \
+            -H "X-Bot-Secret: $SECRET" \
+            -w "\n__HTTP__%{http_code}" \
+            -d '{}')
+          echo "HTTP: $(printf '%s' "$RESP" | sed -n 's/.*__HTTP__//p')"
+          echo "Resp: $(printf '%s' "$RESP" | sed 's/__HTTP__[0-9]*$//')"
