@@ -156,7 +156,7 @@ function FormPublico() {
         // Nomes com acento/espaço quebram a chave no Storage
         const nomeSeguro = arquivo.name
           .normalize("NFD")
-          .replace(/[̀-ͯ]/g, "")
+          .replace(/[\u0300-\u036f]/g, "")
           .replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = ehFotoDeEncarregado
           ? `${encarregado!.id}/${dataPasta}/${uid}-${nomeSeguro}`
