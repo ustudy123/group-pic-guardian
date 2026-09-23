@@ -1,4 +1,4 @@
-// Hook chamado a cada 1 minuto (via pg_cron) para enviar as respostas do bot
+// Hook chamado pelo pg_cron (job 'ai-bot-respostas-pendentes', a cada 1 min ou menos) para enviar as respostas do bot
 // que estavam aguardando o atraso humanizado (2-3 min por padrão).
 // De carona, roda também o check-in programado (mensagens da manhã e da noite).
 import { createFileRoute } from "@tanstack/react-router";
@@ -149,12 +149,32 @@ export const Route = createFileRoute("/api/public/hooks/enviar-respostas-pendent
             continue;
           }
 
+          // Reserva a resposta ANTES de enviar: se duas chamadas da fila se
+          // cruzarem (agendador em intervalo curto, disparo manual), só a que
+          // conseguir marcá-la como enviada manda de fato — a outra pula.
+          const { data: reservada, error: errReserva } = await sbAny
+            .from("ai_bot_respostas_pendentes")
+            .update({ enviado: true, enviado_em: new Date().toISOString() })
+            .eq("id", p.id)
+            .eq("enviado", false)
+            .select("id");
+          // Erro do banco ao reservar não pode travar a resposta: segue como
+          // antes (envia e marca depois). Sem erro e sem linha = outra chamada
+          // já pegou esta resposta.
+          if (errReserva) {
+            console.error("[respostas-pendentes] reserva falhou, enviando sem reserva:", errReserva);
+          } else if (!reservada || reservada.length === 0) {
+            continue;
+          }
+
           const ok = await enviarUazapi(p.telefone, p.resposta);
           if (ok) {
-            await sbAny
-              .from("ai_bot_respostas_pendentes")
-              .update({ enviado: true, enviado_em: new Date().toISOString() })
-              .eq("id", p.id);
+            if (errReserva) {
+              await sbAny
+                .from("ai_bot_respostas_pendentes")
+                .update({ enviado: true, enviado_em: new Date().toISOString() })
+                .eq("id", p.id);
+            }
             // Só grava no histórico agora, quando realmente foi entregue
             await supabaseAdmin.from("ai_bot_conversas").insert({
               telefone: p.telefone,
@@ -163,9 +183,10 @@ export const Route = createFileRoute("/api/public/hooks/enviar-respostas-pendent
               conteudo: p.resposta,
             });
           } else {
+            // Falhou: devolve para a fila, contando a tentativa.
             await sbAny
               .from("ai_bot_respostas_pendentes")
-              .update({ tentativas: (p.tentativas ?? 0) + 1 })
+              .update({ enviado: false, enviado_em: null, tentativas: (p.tentativas ?? 0) + 1 })
               .eq("id", p.id);
           }
           resultados.push({ id: p.id, ok });
