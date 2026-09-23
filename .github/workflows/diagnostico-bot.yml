@@ -5,6 +5,8 @@ name: Diagnóstico do bot
 #     últimas horas (recebida? foi para o histórico? resposta na fila? enviada?).
 #     O log deste repositório é público: a saída não traz texto de mensagem nem
 #     telefone completo.
+#   - modo "envios-do-dia": quem estava ativo, quem recebeu a mensagem
+#     programada de manhã/noite, a que horas e o status no WhatsApp.
 #   - modo "fila": chama uma vez a fila de respostas (o mesmo que o job do banco
 #     faz a cada minuto) e mostra o que o servidor devolveu.
 on:
@@ -15,9 +17,13 @@ on:
         required: true
         type: choice
         default: conversa
-        options: ["conversa", "fila"]
+        options: ["conversa", "envios-do-dia", "fila"]
       telefone:
         description: "Telefone do contato (modo conversa) — bastam os 8 últimos dígitos"
+        required: false
+        type: string
+      data:
+        description: "Dia do relatório envios-do-dia (AAAA-MM-DD; vazio = hoje)"
         required: false
         type: string
       horas:
@@ -38,9 +44,13 @@ jobs:
           MODO: ${{ github.event.inputs.modo }}
           TELEFONE: ${{ github.event.inputs.telefone }}
           HORAS: ${{ github.event.inputs.horas }}
+          DATA: ${{ github.event.inputs.data }}
         run: |
           if [ "$MODO" = "fila" ]; then
             URL="$BASE/enviar-respostas-pendentes"; BODY='{}'
+          elif [ "$MODO" = "envios-do-dia" ]; then
+            D=$(printf '%s' "$DATA" | tr -cd '0-9-')
+            URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"envios\",\"data\":\"$D\"}"
           else
             TEL=$(printf '%s' "$TELEFONE" | tr -cd '0-9')
             H=$(printf '%s' "${HORAS:-6}" | tr -cd '0-9')

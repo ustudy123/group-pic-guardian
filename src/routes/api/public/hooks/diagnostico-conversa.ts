@@ -158,6 +158,123 @@ async function consultarUazapi(telefones: string[]): Promise<Record<string, unkn
   return saida;
 }
 
+/** Última mensagem do bot no chat, segundo a UazAPI (status de entrega). */
+async function ultimaDoBotNoChat(tel: string): Promise<Record<string, unknown> | null> {
+  const { baseUrl, token } = credsMacroIa();
+  if (!token) return null;
+  const variantes = [tel];
+  if (tel.length === 13 && tel.startsWith("55") && tel[4] === "9") {
+    variantes.push(tel.slice(0, 4) + tel.slice(5));
+  }
+  for (const v of variantes) {
+    try {
+      const r = await fetch(`${baseUrl}/message/find`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token },
+        body: JSON.stringify({ chatid: `${v}@s.whatsapp.net`, limit: 10 }),
+      });
+      if (!r.ok) continue;
+      const j = (await r.json().catch(() => null)) as unknown;
+      const msgs = (
+        Array.isArray(j) ? j : ((j as Record<string, any>)?.messages ?? [])
+      ) as Array<Record<string, any>>;
+      if (msgs.length === 0) continue;
+      const doBot = msgs.find((m) => m.fromMe);
+      const doEncarregado = msgs.find((m) => !m.fromMe);
+      return {
+        bot_ultima: doBot
+          ? { quando: horaDeTimestamp(doBot.messageTimestamp), status: doBot.status ?? null }
+          : null,
+        encarregado_ultima: doEncarregado
+          ? { quando: horaDeTimestamp(doEncarregado.messageTimestamp) }
+          : null,
+      };
+    } catch {
+      /* tenta a próxima variante */
+    }
+  }
+  return { chat: "sem mensagens na UazAPI" };
+}
+
+/**
+ * Relatório do dia: quem está ativo, quem recebeu a mensagem programada de
+ * manhã/noite, a que horas, e o status de entrega no WhatsApp. Telefones
+ * mascarados e só o primeiro nome (o log do GitHub é público).
+ */
+async function relatorioEnvios(dataRef: string): Promise<Record<string, unknown>> {
+  const sbAny = supabaseAdmin as unknown as { from: (t: string) => any };
+  const { data: cfg } = await sbAny
+    .from("ai_bot_config")
+    .select(
+      "ativo, msg_programadas_ativas, dias_semana, noite_ativa, follow_up_alertas, janela_manha_inicio, janela_manha_fim, janela_noite_inicio, janela_noite_fim",
+    )
+    .eq("id", "default")
+    .maybeSingle();
+  const { data: auts } = await sbAny
+    .from("ai_bot_autorizados")
+    .select("telefone, nome, ativo")
+    .order("nome");
+  const { data: envios } = await sbAny
+    .from("ai_bot_envios_programados")
+    .select("telefone, periodo, sucesso, enviado_em")
+    .eq("data_ref", dataRef);
+  const lista = (envios ?? []) as Array<{
+    telefone: string;
+    periodo: string;
+    sucesso: boolean;
+    enviado_em: string;
+  }>;
+  const primeiroNome = (n: string | null) => (n ?? "").trim().split(/\s+/)[0] || "(sem nome)";
+  const nomesDia = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
+
+  const pessoas = [];
+  for (const a of (auts ?? []) as Array<{ telefone: string; nome: string | null; ativo: boolean }>) {
+    const deles = lista.filter((e) => e.telefone === a.telefone);
+    const manha = deles.find((e) => e.periodo === "manha");
+    const noite = deles.find((e) => e.periodo === "noite");
+    const linha: Record<string, unknown> = {
+      nome: primeiroNome(a.nome),
+      telefone: mascarar(a.telefone),
+      ativo: a.ativo,
+      manha: manha ? { hora: horaBrt(manha.enviado_em), confirmado: manha.sucesso } : null,
+      noite: noite ? { hora: horaBrt(noite.enviado_em), confirmado: noite.sucesso } : null,
+    };
+    // Status no WhatsApp só de quem estava ativo ou recebeu algo hoje.
+    if (a.ativo || deles.length > 0) {
+      linha.whatsapp = await ultimaDoBotNoChat(a.telefone.replace(/\D/g, ""));
+    }
+    pessoas.push(linha);
+  }
+  const semCadastro = lista
+    .filter((e) => !(auts ?? []).some((a: { telefone: string }) => a.telefone === e.telefone))
+    .map((e) => ({ telefone: mascarar(e.telefone), periodo: e.periodo, hora: horaBrt(e.enviado_em) }));
+
+  return {
+    relatorio: "envios",
+    data: dataRef,
+    agora: horaBrt(new Date().toISOString()),
+    config: cfg
+      ? {
+          bot_ativo: cfg.ativo,
+          programadas_ativas: cfg.msg_programadas_ativas,
+          dias: ((cfg.dias_semana ?? []) as number[]).map((d) => nomesDia[d]),
+          noite_ativa: cfg.noite_ativa,
+          retorno_de_alerta: cfg.follow_up_alertas,
+          janela_manha: `${cfg.janela_manha_inicio}-${cfg.janela_manha_fim}`,
+          janela_noite: `${cfg.janela_noite_inicio}-${cfg.janela_noite_fim}`,
+        }
+      : null,
+    totais: {
+      ativos: pessoas.filter((p) => p.ativo).length,
+      receberam_manha: lista.filter((e) => e.periodo === "manha" && e.sucesso).length,
+      receberam_noite: lista.filter((e) => e.periodo === "noite" && e.sucesso).length,
+      reservas_sem_confirmacao: lista.filter((e) => !e.sucesso).length,
+    },
+    pessoas,
+    envios_para_numero_fora_do_cadastro: semCadastro,
+  };
+}
+
 export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
   server: {
     handlers: {
@@ -169,11 +286,16 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
           request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
         if (provided !== expected) return json({ error: "Unauthorized" }, 401);
 
-        let body: { telefone?: string; horas?: number; uazapi?: boolean } = {};
+        let body: { telefone?: string; horas?: number; uazapi?: boolean; relatorio?: string; data?: string } = {};
         try {
           body = await request.json();
         } catch {
           /* sem body */
+        }
+        if (body.relatorio === "envios") {
+          const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+          const dataRef = /^\d{4}-\d{2}-\d{2}$/.test(String(body.data ?? "")) ? String(body.data) : hoje;
+          return json(await relatorioEnvios(dataRef));
         }
         const telefone = String(body.telefone ?? "").replace(/\D/g, "");
         if (telefone.length < 8) return json({ error: "informe telefone (com DDD)" }, 400);
