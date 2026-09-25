@@ -7,6 +7,8 @@ name: Diagnóstico do bot
 #     telefone completo.
 #   - modo "envios-do-dia": quem estava ativo, quem recebeu a mensagem
 #     programada de manhã/noite, a que horas e o status no WhatsApp.
+#   - modo "alertas": alertas dos últimos dias, se foram avisados aos
+#     coordenadores e se o bot procurou o encarregado na manhã seguinte.
 #   - modo "fila": chama uma vez a fila de respostas (o mesmo que o job do banco
 #     faz a cada minuto) e mostra o que o servidor devolveu.
 on:
@@ -17,7 +19,7 @@ on:
         required: true
         type: choice
         default: conversa
-        options: ["conversa", "envios-do-dia", "fila"]
+        options: ["conversa", "envios-do-dia", "alertas", "fila"]
       telefone:
         description: "Telefone do contato (modo conversa) — bastam os 8 últimos dígitos"
         required: false
@@ -27,7 +29,7 @@ on:
         required: false
         type: string
       horas:
-        description: "Quantas horas para trás (modo conversa)"
+        description: "Quantas horas para trás (modo conversa) ou quantos dias (modo alertas)"
         required: false
         type: string
         default: "6"
@@ -48,6 +50,9 @@ jobs:
         run: |
           if [ "$MODO" = "fila" ]; then
             URL="$BASE/enviar-respostas-pendentes"; BODY='{}'
+          elif [ "$MODO" = "alertas" ]; then
+            H=$(printf '%s' "${HORAS:-3}" | tr -cd '0-9')
+            URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"alertas\",\"horas\":${H:-3}}"
           elif [ "$MODO" = "envios-do-dia" ]; then
             D=$(printf '%s' "$DATA" | tr -cd '0-9-')
             URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"envios\",\"data\":\"$D\"}"

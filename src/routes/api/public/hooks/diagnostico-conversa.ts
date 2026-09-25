@@ -275,6 +275,109 @@ async function relatorioEnvios(dataRef: string): Promise<Record<string, unknown>
   };
 }
 
+/**
+ * Relatório de alertas: cada alerta dos últimos dias, se foi avisado aos
+ * coordenadores e se o bot procurou o encarregado na manhã seguinte (retorno
+ * sobre o problema). Sem texto de mensagem; telefone mascarado.
+ */
+async function relatorioAlertas(dias: number): Promise<Record<string, unknown>> {
+  const sbAny = supabaseAdmin as unknown as { from: (t: string) => any };
+  const hojeBrt = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const inicioBrt = new Date(`${hojeBrt}T00:00:00-03:00`);
+  inicioBrt.setUTCDate(inicioBrt.getUTCDate() - (dias - 1));
+  const desde = inicioBrt.toISOString();
+
+  const { data: cfg } = await sbAny
+    .from("ai_bot_config")
+    .select(
+      "alertas_ativos, resumo_alertas_diario, follow_up_alertas, coordenador_telefone, coordenador_telefone_2, coordenador_telefone_3, coordenador_telefone_4",
+    )
+    .eq("id", "default")
+    .maybeSingle();
+  const { data: alertas, error: errAl } = await sbAny
+    .from("ai_bot_alertas")
+    .select("telefone, nome, categoria, criticidade, created_at, enviado_coordenador, enviado_em, resolvido")
+    .gte("created_at", desde)
+    .order("created_at", { ascending: true });
+  const { data: envios } = await sbAny
+    .from("ai_bot_envios_programados")
+    .select("telefone, periodo, data_ref, sucesso, enviado_em, mensagem")
+    .gte("data_ref", desde.slice(0, 10));
+  const { data: auts } = await sbAny.from("ai_bot_autorizados").select("telefone, ativo");
+
+  const dataBrt = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const diaSeguinte = (d: string) => {
+    const x = new Date(`${d}T12:00:00-03:00`);
+    x.setUTCDate(x.getUTCDate() + 1);
+    return x.toISOString().slice(0, 10);
+  };
+  const fim8 = (t: string) => String(t ?? "").replace(/\D/g, "").slice(-8);
+  const primeiroNome = (n: string | null) => (n ?? "").trim().split(/\s+/)[0] || "(sem nome)";
+
+  const lista = ((alertas ?? []) as Array<Record<string, any>>).map((a) => {
+    const dia = dataBrt(a.created_at);
+    const seguinte = diaSeguinte(dia);
+    const cadastro = ((auts ?? []) as Array<{ telefone: string; ativo: boolean }>).filter(
+      (x) => fim8(x.telefone) === fim8(a.telefone),
+    );
+    const retorno = ((envios ?? []) as Array<Record<string, any>>).find(
+      (e) => e.periodo === "manha" && e.data_ref === seguinte && fim8(e.telefone) === fim8(a.telefone),
+    );
+    return {
+      quando: horaBrt(a.created_at),
+      nome: primeiroNome(a.nome),
+      telefone: mascarar(a.telefone),
+      categoria: a.categoria,
+      criticidade: a.criticidade,
+      avisado_coordenador: a.enviado_coordenador,
+      avisado_em: horaBrt(a.enviado_em),
+      resolvido: a.resolvido,
+      cadastro: cadastro.length
+        ? {
+            ativo: cadastro.some((c) => c.ativo),
+            // o retorno exige o MESMO formato de telefone do cadastro
+            mesmo_formato: cadastro.some((c) => c.telefone.replace(/\D/g, "") === String(a.telefone).replace(/\D/g, "")),
+          }
+        : "nao_cadastrado",
+      manha_seguinte: seguinte,
+      contato_manha_seguinte: retorno
+        ? {
+            hora: horaBrt(retorno.enviado_em),
+            confirmado: retorno.sucesso,
+            foi_retorno_do_problema: /ontem/i.test(String(retorno.mensagem ?? "")),
+          }
+        : seguinte > hojeBrt
+          ? "ainda_nao_chegou"
+          : null,
+    };
+  });
+
+  const coords = [
+    cfg?.coordenador_telefone,
+    cfg?.coordenador_telefone_2,
+    cfg?.coordenador_telefone_3,
+    cfg?.coordenador_telefone_4,
+  ].filter((t) => String(t ?? "").replace(/\D/g, ""));
+
+  return {
+    relatorio: "alertas",
+    desde: horaBrt(desde),
+    agora: horaBrt(new Date().toISOString()),
+    config: cfg
+      ? {
+          alertas_ativos: cfg.alertas_ativos,
+          resumo_diario: cfg.resumo_alertas_diario,
+          retorno_no_dia_seguinte: cfg.follow_up_alertas,
+          coordenadores: coords.map((t) => mascarar(String(t))),
+        }
+      : null,
+    erro: errAl?.message ?? null,
+    total: lista.length,
+    alertas: lista,
+  };
+}
+
 export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
   server: {
     handlers: {
@@ -291,6 +394,10 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
           body = await request.json();
         } catch {
           /* sem body */
+        }
+        if (body.relatorio === "alertas") {
+          const dias = Math.min(Math.max(Number(body.horas) || 3, 1), 14);
+          return json(await relatorioAlertas(dias));
         }
         if (body.relatorio === "envios") {
           const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
