@@ -210,12 +210,37 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
         const inicioUtc = inicio.toISOString();
         const fimUtc = fim.toISOString();
 
-        const { data: alertas } = await supabaseAdmin
+        const { data: alertasJanela } = await supabaseAdmin
           .from("ai_bot_alertas")
-          .select("nome, telefone, categoria, criticidade, resumo, created_at")
+          .select("id, nome, telefone, categoria, criticidade, resumo, created_at")
           .gte("created_at", inicioUtc)
           .lt("created_at", fimUtc)
           .order("created_at", { ascending: true });
+
+        // Os resumos só rodam de dia (08:30 e 09:15–17:15). Alerta criado fora
+        // disso — o check-in da noite, a madrugada — não caía em janela nenhuma
+        // e nunca chegava aos coordenadores. Entram aqui os ainda não avisados
+        // das 60h anteriores à janela (cobre o fim de semana: não há resumo
+        // aos domingos).
+        const inicioPendentes = new Date(inicio.getTime() - 60 * 60 * 60 * 1000).toISOString();
+        const { data: pendentesAntes } = await supabaseAdmin
+          .from("ai_bot_alertas")
+          .select("id, nome, telefone, categoria, criticidade, resumo, created_at")
+          .gte("created_at", inicioPendentes)
+          .lt("created_at", inicioUtc)
+          .eq("enviado_coordenador", false)
+          .order("created_at", { ascending: true });
+        const alertas = [...(pendentesAntes ?? []), ...(alertasJanela ?? [])];
+        if ((pendentesAntes ?? []).length > 0) {
+          const desdeTxt = new Date((pendentesAntes ?? [])[0].created_at).toLocaleString("pt-BR", {
+            timeZone: "America/Sao_Paulo",
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          rotulo += ` + ${(pendentesAntes ?? []).length} pendente(s) desde ${desdeTxt}`;
+        }
 
         if (!alertas || alertas.length === 0) {
           return json({ idle: true, motivo: "sem_alertas", inicio: inicioUtc, fim: fimUtc });
@@ -296,8 +321,10 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
           await supabaseAdmin
             .from("ai_bot_alertas")
             .update({ enviado_coordenador: true, enviado_em: new Date().toISOString() })
-            .gte("created_at", inicioUtc)
-            .lt("created_at", fimUtc)
+            .in(
+              "id",
+              alertas.map((a) => a.id),
+            )
             .eq("enviado_coordenador", false);
         }
 

@@ -370,6 +370,11 @@ export async function processarMensagensProgramadas(
   // "Bom dia" e já foi feita de manhã — à noite vale só o check-in dos dias
   // marcados.
   const followUpAtivo = (config as Record<string, unknown>).follow_up_alertas !== false;
+  // Chave = 8 últimos dígitos: o alerta grava o telefone como o WhatsApp manda
+  // (com ou sem o 9 extra) e o cadastro pode estar no outro formato. Com a
+  // chave exata, quem estava cadastrado no formato diferente nunca recebia o
+  // retorno (aconteceu com um encarregado em 24/09).
+  const chaveTel = (t: string) => String(t ?? "").replace(/\D/g, "").slice(-8);
   const alertasPorTelefone = new Map<string, string[]>();
   if (followUpAtivo && periodo === "manha") {
     const inicioOntemUtc = new Date(`${ontemRef}T03:00:00Z`).toISOString();
@@ -381,18 +386,19 @@ export async function processarMensagensProgramadas(
       .lt("created_at", inicioHojeUtc)
       .order("created_at", { ascending: true });
     for (const a of alertasOntem ?? []) {
-      const lista = alertasPorTelefone.get(a.telefone) ?? [];
+      const lista = alertasPorTelefone.get(chaveTel(a.telefone)) ?? [];
       const texto = (a.resumo || a.categoria || "").trim();
       if (texto && !lista.includes(texto)) lista.push(texto);
-      alertasPorTelefone.set(a.telefone, lista);
+      alertasPorTelefone.set(chaveTel(a.telefone), lista);
     }
   }
-  const telsFollowUp = new Set(alertasPorTelefone.keys());
+  const chavesFollowUp = new Set(alertasPorTelefone.keys());
+  const temFollowUp = (telefone: string) => chavesFollowUp.has(chaveTel(telefone));
 
   // Se hoje NÃO é dia programado e não é teste forçado, restringe ao follow-up.
   const baseAutorizados = (autorizados ?? []).filter((a) => {
     if (forcadoPeriodo || isDiaProgramado) return true;
-    return telsFollowUp.has(a.telefone);
+    return temFollowUp(a.telefone);
   });
 
   if (baseAutorizados.length === 0 && !opcoes.diagnostico) {
@@ -481,7 +487,7 @@ export async function processarMensagensProgramadas(
             ? periodo === "noite"
               ? "hoje nao e dia programado (retorno de alerta so de manha)"
               : "hoje nao e dia programado e nao houve alerta ontem"
-            : telsFollowUp.has(a.telefone)
+            : temFollowUp(a.telefone)
               ? "follow-up: relatou problema ontem"
               : "check-in do dia programado",
           ja_recebeu_hoje: enviadosSet.has(a.telefone),
@@ -554,8 +560,8 @@ export async function processarMensagensProgramadas(
   // Quem relatou problema ontem recebe o retorno sobre AQUELE problema;
   // os demais recebem o check-in normal do dia.
   const montarMensagem = (c: { telefone: string; nome: string | null }) =>
-    telsFollowUp.has(c.telefone)
-      ? mensagemFollowUp(c.nome, alertasPorTelefone.get(c.telefone) ?? [])
+    temFollowUp(c.telefone)
+      ? mensagemFollowUp(c.nome, alertasPorTelefone.get(chaveTel(c.telefone)) ?? [])
       : personalizar(escolherTemplatePara(c.telefone), c.nome);
 
   if (opcoes.dryRun) {
@@ -565,7 +571,7 @@ export async function processarMensagensProgramadas(
       dataRef,
       lote: lote.map((c) => ({
         telefone: c.telefone,
-        followUp: telsFollowUp.has(c.telefone),
+        followUp: temFollowUp(c.telefone),
         mensagem: montarMensagem(c),
       })),
       restantes: pendentes.length,
