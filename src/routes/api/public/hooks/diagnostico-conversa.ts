@@ -441,6 +441,37 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
         } catch {
           /* sem body */
         }
+        if (body.relatorio === "ajustar-bucket") {
+          // Tipos aceitos no bucket fotos-obras. Antes eram só JPG/PNG/WEBP/GIF,
+          // o que derrubava o envio de foto HEIC do iPhone, PDF, vídeo e
+          // documento nos formulários (e a config JSON do cabeçalho do PDF).
+          const extras = [
+            "image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif",
+            "application/pdf", "video/mp4", "video/quicktime", "video/3gpp",
+            "application/json", "text/plain",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          ];
+          const { data: antes, error: e1 } = await supabaseAdmin.storage.getBucket("fotos-obras");
+          if (e1 || !antes) return json({ error: e1?.message ?? "bucket nao encontrado" }, 500);
+          const tipos = Array.from(new Set([...(antes.allowed_mime_types ?? []), ...extras]));
+          const { error: e2 } = await supabaseAdmin.storage.updateBucket("fotos-obras", {
+            public: antes.public,
+            allowedMimeTypes: tipos,
+            fileSizeLimit: antes.file_size_limit ?? undefined,
+          });
+          const { data: depois } = await supabaseAdmin.storage.getBucket("fotos-obras");
+          return json({
+            ajustado: !e2,
+            erro: e2?.message ?? null,
+            publico: antes.public,
+            antes: antes.allowed_mime_types,
+            depois: depois?.allowed_mime_types,
+            tamanho_maximo_bytes: depois?.file_size_limit,
+          });
+        }
         if (body.relatorio === "erros") {
           const dias = Math.min(Math.max(Number(body.horas) || 3, 1), 14);
           return json(await relatorioErrosCliente(dias));

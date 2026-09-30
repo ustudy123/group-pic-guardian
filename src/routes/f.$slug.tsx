@@ -24,8 +24,11 @@ async function comprimirImagem(f: File): Promise<File> {
     if (typeof createImageBitmap !== "function") return f;
     const bitmap = await createImageBitmap(f, { imageOrientation: "from-image" });
     const escala = Math.min(1, LADO_MAX / Math.max(bitmap.width, bitmap.height));
+    // HEIC (padrão da câmera do iPhone) sempre vira JPG: é o formato que
+    // todo navegador e o PDF conseguem abrir.
+    const ehHeic = /hei[cf]/i.test(f.type) || /\.hei[cf]$/i.test(f.name);
     // já é pequena e leve: não vale reprocessar
-    if (escala === 1 && f.size < 700_000) return f;
+    if (escala === 1 && f.size < 700_000 && !ehHeic) return f;
     const w = Math.max(1, Math.round(bitmap.width * escala));
     const h = Math.max(1, Math.round(bitmap.height * escala));
     const canvas = document.createElement("canvas");
@@ -72,8 +75,13 @@ function mensagemDeErro(e: unknown): string {
     return "A internet falhou durante o envio. Suas respostas continuam aqui: confira a conexão e toque em Enviar resposta de novo.";
   }
   const msg = String((e as { message?: unknown } | null)?.message ?? "");
+  const arquivo = (e as { arquivo?: string } | null)?.arquivo;
+  const qual = arquivo ? `O arquivo "${arquivo}"` : "Um dos arquivos";
   if (/exceeded the maximum allowed size|payload too large|413/i.test(msg)) {
-    return "Um dos arquivos é grande demais para enviar. Remova-o (ou envie um menor) e tente de novo.";
+    return `${qual} é grande demais para enviar (máximo 50 MB). Remova-o ou envie um menor e tente de novo.`;
+  }
+  if (/mime type .* not supported|invalid mime/i.test(msg)) {
+    return `${qual} está num formato que o sistema não aceita. Envie fotos (JPG/PNG), PDF, vídeo MP4 ou documento do Word/Excel.`;
   }
   return msg || "Não foi possível enviar. Tente novamente.";
 }
@@ -204,11 +212,20 @@ function FormPublico() {
         const path = ehFotoDeEncarregado
           ? `${encarregado!.id}/${dataPasta}/${uid}-${nomeSeguro}`
           : `formularios/${data.form.id}/${uid}-${nomeSeguro}`;
-        await comRetentativas(async () => {
-          const { error } = await supabase.storage.from("fotos-obras").upload(path, arquivo);
-          // "já existe" = uma tentativa anterior subiu e só a resposta se perdeu
-          if (error && !/already exists|duplicate/i.test(error.message)) throw error;
-        });
+        try {
+          await comRetentativas(async () => {
+            const { error } = await supabase.storage.from("fotos-obras").upload(path, arquivo);
+            // "já existe" = uma tentativa anterior subiu e só a resposta se perdeu
+            if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+          });
+        } catch (e) {
+          // guarda qual arquivo falhou, para a mensagem dizer ao encarregado
+          throw Object.assign(new Error(String((e as Error)?.message ?? e)), {
+            arquivo: f.name,
+            tipo: arquivo.type,
+            mb: Math.round(arquivo.size / 1e5) / 10,
+          });
+        }
         enviados++;
         setProgresso({ feitas: enviados, total: totalArquivos });
         arquivosMeta.push({
@@ -290,6 +307,7 @@ function FormPublico() {
     onError: (e: any) => {
       const arquivosTotais = Object.values(arquivos).flat();
       reportarErroCliente("envio-formulario", e, {
+        arquivo_com_erro: e?.arquivo ? { tipo: e.tipo, mb: e.mb } : null,
         formulario: data?.form?.id,
         arquivos: arquivosTotais.length,
         mb: Math.round(arquivosTotais.reduce((s, f) => s + f.size, 0) / 1e5) / 10,

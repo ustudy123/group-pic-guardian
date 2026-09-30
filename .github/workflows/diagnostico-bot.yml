@@ -21,7 +21,7 @@ on:
         required: true
         type: choice
         default: conversa
-        options: ["conversa", "envios-do-dia", "alertas", "erros-do-site", "teste-registro-de-erro", "fila"]
+        options: ["conversa", "envios-do-dia", "alertas", "erros-do-site", "teste-registro-de-erro", "ajustar-tipos-de-arquivo", "fila"]
       telefone:
         description: "Telefone do contato (modo conversa) — bastam os 8 últimos dígitos"
         required: false
@@ -52,6 +52,8 @@ jobs:
         run: |
           if [ "$MODO" = "fila" ]; then
             URL="$BASE/enviar-respostas-pendentes"; BODY='{}'
+          elif [ "$MODO" = "ajustar-tipos-de-arquivo" ]; then
+            URL="$BASE/diagnostico-conversa"; BODY='{"relatorio":"ajustar-bucket"}'
           elif [ "$MODO" = "teste-registro-de-erro" ]; then
             URL="$BASE/erro-cliente"; BODY='{"origem":"teste-automatico","mensagem":"erro de teste do workflow","caminho":"/f/teste","navegador":"GitHub Actions"}'
           elif [ "$MODO" = "erros-do-site" ]; then
