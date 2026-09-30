@@ -41,6 +41,7 @@ import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/
 import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
 import { Route as ApiPublicHooksNotificarReprovacoesRouteImport } from './routes/api/public/hooks/notificar-reprovacoes'
 import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes/api/public/hooks/mensagens-programadas'
+import { Route as ApiPublicHooksErroClienteRouteImport } from './routes/api/public/hooks/erro-cliente'
 import { Route as ApiPublicHooksEnviarRespostasPendentesRouteImport } from './routes/api/public/hooks/enviar-respostas-pendentes'
 import { Route as ApiPublicHooksDiagnosticoConversaRouteImport } from './routes/api/public/hooks/diagnostico-conversa'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
@@ -214,6 +215,12 @@ const ApiPublicHooksMensagensProgramadasRoute =
     path: '/api/public/hooks/mensagens-programadas',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksErroClienteRoute =
+  ApiPublicHooksErroClienteRouteImport.update({
+    id: '/api/public/hooks/erro-cliente',
+    path: '/api/public/hooks/erro-cliente',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksEnviarRespostasPendentesRoute =
   ApiPublicHooksEnviarRespostasPendentesRouteImport.update({
     id: '/api/public/hooks/enviar-respostas-pendentes',
@@ -265,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
   '/api/public/hooks/diagnostico-conversa': typeof ApiPublicHooksDiagnosticoConversaRoute
   '/api/public/hooks/enviar-respostas-pendentes': typeof ApiPublicHooksEnviarRespostasPendentesRoute
+  '/api/public/hooks/erro-cliente': typeof ApiPublicHooksErroClienteRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
@@ -300,6 +308,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
   '/api/public/hooks/diagnostico-conversa': typeof ApiPublicHooksDiagnosticoConversaRoute
   '/api/public/hooks/enviar-respostas-pendentes': typeof ApiPublicHooksEnviarRespostasPendentesRoute
+  '/api/public/hooks/erro-cliente': typeof ApiPublicHooksErroClienteRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
@@ -339,6 +348,7 @@ export interface FileRoutesById {
   '/api/public/hooks/ai-bot': typeof ApiPublicHooksAiBotRoute
   '/api/public/hooks/diagnostico-conversa': typeof ApiPublicHooksDiagnosticoConversaRoute
   '/api/public/hooks/enviar-respostas-pendentes': typeof ApiPublicHooksEnviarRespostasPendentesRoute
+  '/api/public/hooks/erro-cliente': typeof ApiPublicHooksErroClienteRoute
   '/api/public/hooks/mensagens-programadas': typeof ApiPublicHooksMensagensProgramadasRoute
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
@@ -379,6 +389,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/ai-bot'
     | '/api/public/hooks/diagnostico-conversa'
     | '/api/public/hooks/enviar-respostas-pendentes'
+    | '/api/public/hooks/erro-cliente'
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
@@ -414,6 +425,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/ai-bot'
     | '/api/public/hooks/diagnostico-conversa'
     | '/api/public/hooks/enviar-respostas-pendentes'
+    | '/api/public/hooks/erro-cliente'
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
@@ -452,6 +464,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/ai-bot'
     | '/api/public/hooks/diagnostico-conversa'
     | '/api/public/hooks/enviar-respostas-pendentes'
+    | '/api/public/hooks/erro-cliente'
     | '/api/public/hooks/mensagens-programadas'
     | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
@@ -476,6 +489,7 @@ export interface RootRouteChildren {
   ApiPublicHooksAiBotRoute: typeof ApiPublicHooksAiBotRoute
   ApiPublicHooksDiagnosticoConversaRoute: typeof ApiPublicHooksDiagnosticoConversaRoute
   ApiPublicHooksEnviarRespostasPendentesRoute: typeof ApiPublicHooksEnviarRespostasPendentesRoute
+  ApiPublicHooksErroClienteRoute: typeof ApiPublicHooksErroClienteRoute
   ApiPublicHooksMensagensProgramadasRoute: typeof ApiPublicHooksMensagensProgramadasRoute
   ApiPublicHooksNotificarReprovacoesRoute: typeof ApiPublicHooksNotificarReprovacoesRoute
   ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
@@ -712,6 +726,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksMensagensProgramadasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/erro-cliente': {
+      id: '/api/public/hooks/erro-cliente'
+      path: '/api/public/hooks/erro-cliente'
+      fullPath: '/api/public/hooks/erro-cliente'
+      preLoaderRoute: typeof ApiPublicHooksErroClienteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/enviar-respostas-pendentes': {
       id: '/api/public/hooks/enviar-respostas-pendentes'
       path: '/api/public/hooks/enviar-respostas-pendentes'
@@ -837,6 +858,7 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicHooksDiagnosticoConversaRoute,
   ApiPublicHooksEnviarRespostasPendentesRoute:
     ApiPublicHooksEnviarRespostasPendentesRoute,
+  ApiPublicHooksErroClienteRoute: ApiPublicHooksErroClienteRoute,
   ApiPublicHooksMensagensProgramadasRoute:
     ApiPublicHooksMensagensProgramadasRoute,
   ApiPublicHooksNotificarReprovacoesRoute:

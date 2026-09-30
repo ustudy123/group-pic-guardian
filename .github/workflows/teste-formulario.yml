@@ -28,6 +28,11 @@ jobs:
           npm i --no-save playwright@1.48.2 >/dev/null 2>&1
           npx playwright install --with-deps webkit chromium >/dev/null 2>&1
           HOSTS=gestaomacroambiental.com.br,project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app node .github/scripts/teste-formulario.mjs
+      - name: Registro de erros do site (envia um erro de teste)
+        run: |
+          curl -sS -o /dev/null -w "erro-cliente HTTP %{http_code}\n" -X POST "https://gestaomacroambiental.com.br/api/public/hooks/erro-cliente" \
+            -H "Content-Type: application/json" \
+            -d '{"origem":"teste-automatico","mensagem":"erro de teste do workflow","caminho":"/f/teste","navegador":"GitHub Actions"}'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

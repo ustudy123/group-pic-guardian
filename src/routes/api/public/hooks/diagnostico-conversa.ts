@@ -17,6 +17,7 @@ import {
   ehDespedidaCurta,
   ehNegativaDeContinuidade,
 } from "@/lib/ai-bot-continuidade";
+import { ERROS_CLIENTE_PASTA } from "@/lib/erro-cliente";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -378,6 +379,51 @@ async function relatorioAlertas(dias: number): Promise<Record<string, unknown>> 
   };
 }
 
+/**
+ * Erros registrados pelo navegador dos usuários (tela de erro e falha no envio
+ * do formulário). O link do formulário sai só com o final, sem o nome.
+ */
+async function relatorioErrosCliente(dias: number): Promise<Record<string, unknown>> {
+  const bucket = supabaseAdmin.storage.from("fotos-obras");
+  const saida: Array<Record<string, unknown>> = [];
+  for (let i = dias - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86_400_000).toLocaleDateString("en-CA", {
+      timeZone: "America/Sao_Paulo",
+    });
+    const { data: arquivos } = await bucket.list(`${ERROS_CLIENTE_PASTA}/${d}`, {
+      limit: 200,
+      sortBy: { column: "name", order: "asc" },
+    });
+    for (const arq of arquivos ?? []) {
+      if (saida.length >= 80) break;
+      const { data: blob } = await bucket.download(`${ERROS_CLIENTE_PASTA}/${d}/${arq.name}`);
+      if (!blob) continue;
+      try {
+        const r = JSON.parse(await blob.text()) as Record<string, any>;
+        const ua = String(r.navegador ?? "");
+        saida.push({
+          quando: horaBrt(r.recebido_em),
+          origem: r.origem,
+          erro: `${r.nome ? `${r.nome}: ` : ""}${r.mensagem ?? ""}`.slice(0, 300),
+          onde: String(r.stack ?? "").split("\n").slice(0, 3).join(" | ").slice(0, 300),
+          pagina: String(r.caminho ?? "").replace(/(\/f\/).*(.{4})$/, "$1…$2"),
+          aparelho: /iPhone|iPad/.test(ua)
+            ? `iPhone ${ua.match(/OS (\d+[_\d]*)/)?.[1]?.replace(/_/g, ".") ?? ""}`
+            : /Android/.test(ua)
+              ? `Android ${ua.match(/Android (\d+)/)?.[1] ?? ""}`
+              : ua.slice(0, 40),
+          app: /FBAN|FBAV|Instagram|WhatsApp/i.test(ua) ? "navegador de app" : /CriOS|Chrome/.test(ua) ? "Chrome" : /Safari/.test(ua) ? "Safari" : "outro",
+          online: r.online,
+          extra: r.extra ?? null,
+        });
+      } catch {
+        /* arquivo inválido: ignora */
+      }
+    }
+  }
+  return { relatorio: "erros-cliente", dias, total: saida.length, erros: saida };
+}
+
 export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
   server: {
     handlers: {
@@ -394,6 +440,10 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
           body = await request.json();
         } catch {
           /* sem body */
+        }
+        if (body.relatorio === "erros") {
+          const dias = Math.min(Math.max(Number(body.horas) || 3, 1), 14);
+          return json(await relatorioErrosCliente(dias));
         }
         if (body.relatorio === "alertas") {
           const dias = Math.min(Math.max(Number(body.horas) || 3, 1), 14);

@@ -7,6 +7,7 @@ import { CheckCircle2, Paperclip, Loader2, Image as ImageIcon, X } from "lucide-
 import { FORM_GRAD, FORM_GRAD_BTN, FORM_BG, FORM_SHADOW } from "@/lib/ui-form";
 import { campoVisivel } from "@/lib/form-condicao";
 import { InstalarPwaModal } from "@/components/instalar-pwa-modal";
+import { ehErroDeCarregamento, reportarErroCliente } from "@/lib/erro-cliente";
 
 export const Route = createFileRoute("/f/$slug")({
   component: FormPublico,
@@ -46,6 +47,48 @@ async function comprimirImagem(f: File): Promise<File> {
   }
 }
 
+
+/**
+ * A rede do celular oscila (4G fraco, troca de antena, tela bloqueada por um
+ * instante): antes, uma falha em qualquer foto derrubava o envio inteiro.
+ * Agora cada etapa tenta de novo, com espera crescente, antes de desistir.
+ */
+async function comRetentativas<T>(acao: () => Promise<T>, tentativas = 3): Promise<T> {
+  let ultimo: unknown;
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      return await acao();
+    } catch (e) {
+      ultimo = e;
+      if (i < tentativas - 1) await new Promise((r) => setTimeout(r, 1500 * (i + 1) ** 2));
+    }
+  }
+  throw ultimo;
+}
+
+/** Mensagem que o encarregado entende, no lugar do erro técnico. */
+function mensagemDeErro(e: unknown): string {
+  if (ehErroDeCarregamento(e)) {
+    return "A internet falhou durante o envio. Suas respostas continuam aqui: confira a conexão e toque em Enviar resposta de novo.";
+  }
+  const msg = String((e as { message?: unknown } | null)?.message ?? "");
+  if (/exceeded the maximum allowed size|payload too large|413/i.test(msg)) {
+    return "Um dos arquivos é grande demais para enviar. Remova-o (ou envie um menor) e tente de novo.";
+  }
+  return msg || "Não foi possível enviar. Tente novamente.";
+}
+
+/** Mantém a tela acesa durante o envio (tela apagada pausa o envio no iPhone). */
+async function manterTelaAcesa(): Promise<{ release: () => Promise<void> } | null> {
+  try {
+    const wl = (navigator as unknown as {
+      wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> };
+    }).wakeLock;
+    return wl ? await wl.request("screen") : null;
+  } catch {
+    return null;
+  }
+}
 
 function FormPublico() {
   const { slug } = Route.useParams();
@@ -161,8 +204,11 @@ function FormPublico() {
         const path = ehFotoDeEncarregado
           ? `${encarregado!.id}/${dataPasta}/${uid}-${nomeSeguro}`
           : `formularios/${data.form.id}/${uid}-${nomeSeguro}`;
-        const { error } = await supabase.storage.from("fotos-obras").upload(path, arquivo);
-        if (error) throw error;
+        await comRetentativas(async () => {
+          const { error } = await supabase.storage.from("fotos-obras").upload(path, arquivo);
+          // "já existe" = uma tentativa anterior subiu e só a resposta se perdeu
+          if (error && !/already exists|duplicate/i.test(error.message)) throw error;
+        });
         enviados++;
         setProgresso({ feitas: enviados, total: totalArquivos });
         arquivosMeta.push({
@@ -200,9 +246,14 @@ function FormPublico() {
           await subir(fila[cursor++]);
         }
       };
-      await Promise.all(
-        Array.from({ length: Math.min(4, fila.length) }, () => trabalhador()),
-      );
+      const telaAcesa = await manterTelaAcesa();
+      try {
+        await Promise.all(
+          Array.from({ length: Math.min(4, fila.length) }, () => trabalhador()),
+        );
+      } finally {
+        await telaAcesa?.release().catch(() => {});
+      }
 
 
       // Salva apenas respostas de campos visíveis (descarta respostas de campos ocultos)
@@ -212,15 +263,22 @@ function FormPublico() {
         if (visivel(c) && valores[c.id] !== undefined) dadosVisiveis[c.id] = valores[c.id];
       }
 
-      const { error } = await supabase.from("formulario_respostas").insert({
-        formulario_id: data.form.id,
-        respondente_id: user?.id ?? null,
-        respondente_nome: nome || null,
-        respondente_email: email || user?.email || null,
-        dados: dadosVisiveis,
-        arquivos: arquivosMeta,
-      });
-      if (error) throw error;
+      // Só repete em falha de rede: erro de validação/permissão não muda na
+      // segunda tentativa.
+      let tentativa = 0;
+      for (;;) {
+        const { error } = await supabase.from("formulario_respostas").insert({
+          formulario_id: data.form.id,
+          respondente_id: user?.id ?? null,
+          respondente_nome: nome || null,
+          respondente_email: email || user?.email || null,
+          dados: dadosVisiveis,
+          arquivos: arquivosMeta,
+        });
+        if (!error) break;
+        if (++tentativa >= 3 || !ehErroDeCarregamento(error)) throw error;
+        await new Promise((r) => setTimeout(r, 2000 * tentativa));
+      }
     },
     onSuccess: () => {
       try {
@@ -230,8 +288,15 @@ function FormPublico() {
       setEnviado(true);
     },
     onError: (e: any) => {
+      const arquivosTotais = Object.values(arquivos).flat();
+      reportarErroCliente("envio-formulario", e, {
+        formulario: data?.form?.id,
+        arquivos: arquivosTotais.length,
+        mb: Math.round(arquivosTotais.reduce((s, f) => s + f.size, 0) / 1e5) / 10,
+        enviados_antes_do_erro: progresso?.feitas ?? null,
+      });
       setProgresso(null);
-      toast.error(e.message);
+      toast.error(mensagemDeErro(e));
     },
   });
 
@@ -433,7 +498,7 @@ function FormPublico() {
 
         {enviar.isError && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm font-medium text-destructive">
-            {(enviar.error as any)?.message ?? "Não foi possível enviar. Tente novamente."}
+            {mensagemDeErro(enviar.error)}
           </div>
         )}
 

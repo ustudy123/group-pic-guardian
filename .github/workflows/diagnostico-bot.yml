@@ -9,6 +9,8 @@ name: Diagnóstico do bot
 #     programada de manhã/noite, a que horas e o status no WhatsApp.
 #   - modo "alertas": alertas dos últimos dias, se foram avisados aos
 #     coordenadores e se o bot procurou o encarregado na manhã seguinte.
+#   - modo "erros-do-site": erros que aconteceram no navegador dos usuários
+#     (tela de erro, falha ao enviar formulário) nos últimos dias.
 #   - modo "fila": chama uma vez a fila de respostas (o mesmo que o job do banco
 #     faz a cada minuto) e mostra o que o servidor devolveu.
 on:
@@ -19,7 +21,7 @@ on:
         required: true
         type: choice
         default: conversa
-        options: ["conversa", "envios-do-dia", "alertas", "fila"]
+        options: ["conversa", "envios-do-dia", "alertas", "erros-do-site", "fila"]
       telefone:
         description: "Telefone do contato (modo conversa) — bastam os 8 últimos dígitos"
         required: false
@@ -50,6 +52,9 @@ jobs:
         run: |
           if [ "$MODO" = "fila" ]; then
             URL="$BASE/enviar-respostas-pendentes"; BODY='{}'
+          elif [ "$MODO" = "erros-do-site" ]; then
+            H=$(printf '%s' "${HORAS:-3}" | tr -cd '0-9')
+            URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"erros\",\"horas\":${H:-3}}"
           elif [ "$MODO" = "alertas" ]; then
             H=$(printf '%s' "${HORAS:-3}" | tr -cd '0-9')
             URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"alertas\",\"horas\":${H:-3}}"
