@@ -1,0 +1,35 @@
+name: Teste do formulário (iPhone e Android)
+
+# Abre os formulários publicados como iPhone (WebKit) e Android (Chromium),
+# mostra erros de JavaScript/rede e guarda prints da tela como artefato. Também
+# confere DNS (IPv4/IPv6) e se o domínio responde por IPv6.
+on:
+  workflow_dispatch:
+
+jobs:
+  teste:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: DNS e conexão
+        run: |
+          for h in gestaomacroambiental.com.br www.gestaomacroambiental.com.br; do
+            echo "== $h"; echo "A:    $(dig +short A $h | tr '\n' ' ')"; echo "AAAA: $(dig +short AAAA $h | tr '\n' ' ')"
+            echo "CAA:  $(dig +short CAA $h | tr '\n' ' ')"
+            for i in 1 2 3; do curl -4 -sS -o /dev/null -w "IPv4 %{http_code} %{time_total}s\n" --max-time 20 "https://$h/" || true; done
+            curl -6 -sS -o /dev/null -w "IPv6 %{http_code} %{time_total}s\n" --max-time 20 "https://$h/" || echo "IPv6: sem conexão (runner pode não ter IPv6)"
+          done
+          echo "== certificado"; echo | openssl s_client -connect gestaomacroambiental.com.br:443 -servername gestaomacroambiental.com.br 2>/dev/null | openssl x509 -noout -subject -dates -ext subjectAltName || true
+      - name: Navegadores
+        run: |
+          set -a; . ./.env; set +a
+          mkdir -p telas
+          npm i --no-save playwright@1.48.2 >/dev/null 2>&1
+          npx playwright install --with-deps webkit chromium >/dev/null 2>&1
+          HOSTS=gestaomacroambiental.com.br,project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app node .github/scripts/teste-formulario.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: telas
+          path: telas
