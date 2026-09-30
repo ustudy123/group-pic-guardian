@@ -26,12 +26,16 @@ export const Route = createFileRoute("/api/public/hooks/erro-cliente")({
           pais: request.headers.get("cf-ipcountry") ?? null,
         };
         const caminho = `${ERROS_CLIENTE_PASTA}/${dia}/${agora.getTime()}-${Math.random().toString(36).slice(2, 8)}.json`;
-        await supabaseAdmin.storage
+        const { error } = await supabaseAdmin.storage
           .from("fotos-obras")
-          .upload(caminho, new Blob([JSON.stringify(registro)], { type: "application/json" }), {
-            contentType: "application/json",
-          })
-          .catch(() => null);
+          .upload(caminho, JSON.stringify(registro), { contentType: "application/json" });
+        if (error) {
+          console.error("[erro-cliente] falha ao gravar:", error.message);
+          return new Response(JSON.stringify({ ok: false, erro: error.message }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
         return new Response(null, { status: 204 });
       },
     },
