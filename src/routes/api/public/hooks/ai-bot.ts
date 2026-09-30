@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { destinatariosDoAlerta, lerAreasAlerta } from "@/lib/areas-alerta";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -263,14 +264,11 @@ export const Route = createFileRoute("/api/public/hooks/ai-bot")({
               .select("id")
               .single();
 
-            const coordTels = [
-              config.coordenador_telefone,
-              (config as any).coordenador_telefone_2,
-              (config as any).coordenador_telefone_3,
-              (config as any).coordenador_telefone_4,
-            ]
-              .map((t) => normalizarTelefone(t || ""))
-              .filter((t) => t.length > 0);
+            const coordTels = destinatariosDoAlerta(
+              telefone,
+              await lerAreasAlerta(supabaseAdmin),
+              config as Record<string, unknown>,
+            ).map((d) => d.telefone);
 
             if (coordTels.length > 0) {
               const emoji = EMOJI_CRIT[alertaInfo.criticidade];

@@ -7,6 +7,7 @@ import {
   ehDespedidaCurta,
   ehNegativaDeContinuidade,
 } from "@/lib/ai-bot-continuidade";
+import { destinatariosDoAlerta, lerAreasAlerta } from "@/lib/areas-alerta";
 
 
 const corsHeaders = {
@@ -852,14 +853,13 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             const enviarAgora = !modoResumo || alertaInfo.criticidade === "critica";
 
             if (enviarAgora) {
-              const coordTels = [
-                cfg.coordenador_telefone,
-                cfg.coordenador_telefone_2,
-                cfg.coordenador_telefone_3,
-                cfg.coordenador_telefone_4,
-              ]
-                .map((t) => normalizarTelefone(String(t || "")))
-                .filter((t, i, arr) => t && arr.indexOf(t) === i);
+              // Cada alerta vai só para os responsáveis da área do encarregado
+              // (e a Diretoria); sem áreas configuradas, para os 4 coordenadores.
+              const coordTels = destinatariosDoAlerta(
+                telefone,
+                await lerAreasAlerta(supabaseAdmin),
+                cfg,
+              ).map((d) => d.telefone);
 
               if (coordTels.length > 0) {
                 const emoji = EMOJI_CRIT[alertaInfo.criticidade];

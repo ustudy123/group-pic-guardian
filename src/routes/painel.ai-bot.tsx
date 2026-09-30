@@ -2,7 +2,20 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  areaIncluiEncarregado,
+  chaveTelefone,
+  coordenadoresLegados,
+  destinatariosDoAlerta,
+  normalizarBr,
+  soDigitos,
+  type AreaAlerta,
+  type ConfigAreas,
+  type ModoArea,
+} from "@/lib/areas-alerta";
+import { gravarAreasAlerta, obterAreasAlerta } from "@/lib/areas-alerta.functions";
 import { Switch } from "@/components/ui/switch";
 import { Bot, ArrowLeft, Plus, Trash2, Save, MessageSquare, AlertTriangle, CheckCircle2 } from "lucide-react";
 
@@ -10,7 +23,7 @@ export const Route = createFileRoute("/painel/ai-bot")({
   component: AiBotPage,
 });
 
-type Aba = "persona" | "programadas" | "kb" | "exemplos" | "autorizados" | "alertas" | "historico";
+type Aba = "persona" | "programadas" | "kb" | "exemplos" | "autorizados" | "areas" | "alertas" | "historico";
 
 function AiBotPage() {
   const [aba, setAba] = useState<Aba>("persona");
@@ -28,13 +41,14 @@ function AiBotPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 border-b">
+      <div className="flex gap-1 border-b overflow-x-auto">
         {([
           ["persona", "Persona & Config"],
           ["programadas", "Mensagens programadas"],
           ["kb", "Base de conhecimento"],
           ["exemplos", "Exemplos"],
           ["autorizados", "Autorizados"],
+          ["areas", "Áreas de alerta"],
           ["alertas", "Alertas"],
           ["historico", "Histórico"],
         ] as [Aba, string][]).map(([k, label]) => (
@@ -57,6 +71,7 @@ function AiBotPage() {
       {aba === "kb" && <KbTab />}
       {aba === "exemplos" && <ExemplosTab />}
       {aba === "autorizados" && <AutorizadosTab />}
+      {aba === "areas" && <AreasAlertaTab />}
       {aba === "alertas" && <AlertasTab />}
       {aba === "historico" && <HistoricoTab />}
 
@@ -233,6 +248,12 @@ Regras:
             Detectar problemas em obra automaticamente e enviar alerta no WhatsApp do coordenador (via Z-API)
           </span>
         </label>
+        <p className="text-xs text-muted-foreground">
+          Com a separação por área ligada (aba "Áreas de alerta"), cada alerta vai para os
+          responsáveis da área do encarregado. Os coordenadores abaixo só recebem quando o
+          encarregado não estiver em nenhuma área.
+        </p>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {([
             ["coordenador_telefone", "coordenador_nome", "Coordenador 1 (principal)"],
@@ -990,6 +1011,11 @@ function AutorizadosTab() {
     <div className="space-y-5 max-w-3xl">
       <div className="rounded-lg border p-4 space-y-3 bg-card">
         <h3 className="font-medium">Autorizar novo encarregado</h3>
+        <p className="text-xs text-muted-foreground">
+          Os alertas de um encarregado novo seguem as regras da aba "Áreas de alerta" (na
+          configuração atual, ele entra em Coordenação – Rede). Para mudar a área dele, é só
+          marcá-lo lá.
+        </p>
         <div className="flex gap-2">
           <input
             placeholder="Telefone (com DDD, só números)"
@@ -1248,6 +1274,380 @@ function GuiaIntegracao() {
 }
 
 /* ----------------- ALERTAS ----------------- */
+/* ----------------- ÁREAS DE ALERTA ----------------- */
+const MODOS_AREA: [ModoArea, string][] = [
+  ["todos", "Todos os encarregados"],
+  ["lista", "Só os encarregados marcados"],
+  ["todos_exceto", "Todos, exceto os marcados"],
+];
+
+const novoIdArea = () => `area-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
+/**
+ * Modelo inicial pedido pela diretoria: Rede (todos menos Sidenilson e
+ * Aguimarães), ETE (Sidenilson e Aguimarães), Serralheria (Aguimarães) e
+ * Diretoria (todos). Coordenador 1 vira responsável da Rede e os demais
+ * coordenadores de "Persona & Config" viram a Diretoria. ETE e Serralheria
+ * ficam sem telefone para quem configurar preencher.
+ */
+function modeloAreas(
+  autorizados: { telefone: string; nome: string | null }[],
+  config: Record<string, unknown> | null | undefined,
+): ConfigAreas {
+  const tel = (nome: RegExp) =>
+    autorizados.filter((a) => nome.test(a.nome ?? "")).map((a) => a.telefone);
+  const sidenilson = tel(/sidenil/i);
+  const aguimaraes = tel(/aguimar/i);
+  const [principal, ...demais] = coordenadoresLegados(config);
+  return {
+    ativo: true,
+    areas: [
+      {
+        id: novoIdArea(),
+        nome: "Coordenação – Rede",
+        modo: "todos_exceto",
+        encarregados: [...sidenilson, ...aguimaraes],
+        destinatarios: principal ? [principal] : [],
+      },
+      {
+        id: novoIdArea(),
+        nome: "Coordenação – ETE",
+        modo: "lista",
+        encarregados: [...sidenilson, ...aguimaraes],
+        destinatarios: [{ nome: "Isaias Oliveira", telefone: "" }],
+      },
+      {
+        id: novoIdArea(),
+        nome: "Atividades de Apoio – Serralheria",
+        modo: "lista",
+        encarregados: aguimaraes,
+        destinatarios: [{ nome: "Alex Tigre", telefone: "" }],
+      },
+      {
+        id: novoIdArea(),
+        nome: "Diretoria",
+        modo: "todos",
+        encarregados: [],
+        destinatarios: demais,
+      },
+    ],
+  };
+}
+
+function AreasAlertaTab() {
+  const qc = useQueryClient();
+  const obter = useServerFn(obterAreasAlerta);
+  const gravar = useServerFn(gravarAreasAlerta);
+
+  const { data: salvo, isLoading } = useQuery({
+    queryKey: ["ai-bot-areas-alerta"],
+    queryFn: async () => (await obter()).config,
+  });
+  const { data: autorizados = [], isLoading: carregandoAut } = useQuery({
+    queryKey: ["ai-bot-autorizados"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_bot_autorizados")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+  const { data: configBot, isLoading: carregandoCfg } = useQuery({
+    queryKey: ["ai-bot-config"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ai_bot_config")
+        .select("*")
+        .eq("id", "default")
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [cfg, setCfg] = useState<ConfigAreas | null>(null);
+  const [ehModelo, setEhModelo] = useState(false);
+  const [alterado, setAlterado] = useState(false);
+
+  useEffect(() => {
+    if (cfg || isLoading || carregandoAut || carregandoCfg) return;
+    if (salvo) {
+      setCfg(salvo);
+    } else {
+      setCfg(modeloAreas(autorizados, configBot as Record<string, unknown> | null));
+      setEhModelo(true);
+    }
+  }, [cfg, salvo, isLoading, carregandoAut, carregandoCfg, autorizados, configBot]);
+
+  const salvar = useMutation({
+    mutationFn: async (c: ConfigAreas) => {
+      const limpo: ConfigAreas = {
+        ativo: c.ativo,
+        areas: c.areas.map((a) => ({
+          ...a,
+          nome: a.nome.trim() || "Área sem nome",
+          destinatarios: a.destinatarios
+            .map((d) => ({ nome: d.nome.trim(), telefone: normalizarBr(d.telefone) }))
+            .filter((d) => d.telefone),
+        })),
+      };
+      await gravar({ data: limpo });
+      return limpo;
+    },
+    onSuccess: (limpo) => {
+      setCfg(limpo);
+      setEhModelo(false);
+      setAlterado(false);
+      qc.invalidateQueries({ queryKey: ["ai-bot-areas-alerta"] });
+      toast.success("Áreas de alerta salvas");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!cfg) return <p className="text-sm text-muted-foreground">Carregando…</p>;
+
+  const mudar = (f: (c: ConfigAreas) => ConfigAreas) => {
+    setCfg((c) => (c ? f(c) : c));
+    setAlterado(true);
+  };
+  const mudarArea = (id: string, f: (a: AreaAlerta) => AreaAlerta) =>
+    mudar((c) => ({ ...c, areas: c.areas.map((a) => (a.id === id ? f(a) : a)) }));
+
+  const marcado = (a: AreaAlerta, tel: string) =>
+    a.encarregados.some((e) => chaveTelefone(e) === chaveTelefone(tel));
+  const alternarEncarregado = (a: AreaAlerta, tel: string) =>
+    mudarArea(a.id, (x) => ({
+      ...x,
+      encarregados: marcado(x, tel)
+        ? x.encarregados.filter((e) => chaveTelefone(e) !== chaveTelefone(tel))
+        : [...x.encarregados, tel],
+    }));
+
+  return (
+    <div className="space-y-5 max-w-3xl">
+      <div className="rounded-lg border p-4 space-y-3 bg-card">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="font-medium">Separar alertas por área</h3>
+            <p className="text-xs text-muted-foreground">
+              Cada área tem os seus encarregados e quem recebe os alertas deles. Vale para o alerta
+              crítico imediato, o resumo das 08:30 e os resumos a cada 2 horas. Um encarregado que
+              estiver em duas áreas (ex.: Diretoria + Rede) tem o alerta enviado aos responsáveis
+              das duas, sem repetir para a mesma pessoa.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Desligado, todo alerta vai para os coordenadores de "Persona &amp; Config", como antes.
+            </p>
+          </div>
+          <Switch
+            checked={cfg.ativo}
+            onCheckedChange={(v) => mudar((c) => ({ ...c, ativo: v }))}
+          />
+        </div>
+        {ehModelo && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+            Modelo sugerido, ainda não salvo. Confira os encarregados de cada área, preencha os
+            telefones que faltam e clique em <b>Salvar áreas</b>.
+          </div>
+        )}
+      </div>
+
+      {cfg.areas.map((area) => {
+        const semTelefone = area.destinatarios.every((d) => !soDigitos(d.telefone));
+        return (
+          <div key={area.id} className="rounded-lg border p-4 space-y-4 bg-card">
+            <div className="flex items-center gap-2">
+              <input
+                value={area.nome}
+                onChange={(e) => mudarArea(area.id, (a) => ({ ...a, nome: e.target.value }))}
+                placeholder="Nome da área"
+                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium"
+              />
+              <button
+                onClick={() => {
+                  if (confirm(`Excluir a área "${area.nome}"?`))
+                    mudar((c) => ({ ...c, areas: c.areas.filter((a) => a.id !== area.id) }));
+                }}
+                className="text-destructive p-2"
+                title="Excluir área"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-muted-foreground">Encarregados da área</div>
+              <select
+                value={area.modo}
+                onChange={(e) =>
+                  mudarArea(area.id, (a) => ({ ...a, modo: e.target.value as ModoArea }))
+                }
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                {MODOS_AREA.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+              {area.modo !== "todos" && (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    {area.modo === "lista"
+                      ? "Marque quem faz parte desta área."
+                      : "Marque quem NÃO faz parte. Encarregados novos entram automaticamente nesta área."}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                    {autorizados.map((a) => (
+                      <label
+                        key={a.id}
+                        className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm cursor-pointer hover:bg-accent"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={marcado(area, a.telefone)}
+                          onChange={() => alternarEncarregado(area, a.telefone)}
+                          className="size-4"
+                        />
+                        <span className="truncate">{a.nome || a.telefone}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-muted-foreground">
+                Quem recebe os alertas desta área
+              </div>
+              {area.destinatarios.map((d, i) => (
+                <div key={i} className="flex gap-2">
+                  <input
+                    placeholder="Nome"
+                    value={d.nome}
+                    onChange={(e) =>
+                      mudarArea(area.id, (a) => ({
+                        ...a,
+                        destinatarios: a.destinatarios.map((x, j) =>
+                          j === i ? { ...x, nome: e.target.value } : x,
+                        ),
+                      }))
+                    }
+                    className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <input
+                    placeholder="WhatsApp com DDD"
+                    value={d.telefone}
+                    onChange={(e) =>
+                      mudarArea(area.id, (a) => ({
+                        ...a,
+                        destinatarios: a.destinatarios.map((x, j) =>
+                          j === i ? { ...x, telefone: e.target.value } : x,
+                        ),
+                      }))
+                    }
+                    className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm font-mono"
+                  />
+                  <button
+                    onClick={() =>
+                      mudarArea(area.id, (a) => ({
+                        ...a,
+                        destinatarios: a.destinatarios.filter((_, j) => j !== i),
+                      }))
+                    }
+                    className="text-destructive p-2"
+                    title="Remover"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() =>
+                  mudarArea(area.id, (a) => ({
+                    ...a,
+                    destinatarios: [...a.destinatarios, { nome: "", telefone: "" }],
+                  }))
+                }
+                className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs hover:bg-accent"
+              >
+                <Plus size={12} /> Adicionar pessoa
+              </button>
+              {semTelefone && (
+                <p className="text-xs text-amber-700 flex items-center gap-1">
+                  <AlertTriangle size={12} /> Sem telefone: esta área ainda não avisa ninguém.
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() =>
+            mudar((c) => ({
+              ...c,
+              areas: [
+                ...c.areas,
+                { id: novoIdArea(), nome: "", modo: "lista", encarregados: [], destinatarios: [] },
+              ],
+            }))
+          }
+          className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+        >
+          <Plus size={14} /> Nova área
+        </button>
+        <button
+          onClick={() => salvar.mutate(cfg)}
+          disabled={salvar.isPending || (!alterado && !ehModelo)}
+          className="inline-flex items-center gap-2 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm disabled:opacity-50"
+        >
+          <Save size={14} /> {salvar.isPending ? "Salvando…" : "Salvar áreas"}
+        </button>
+      </div>
+
+      <div className="rounded-lg border p-4 space-y-2 bg-card">
+        <h3 className="font-medium">Quem recebe o alerta de cada encarregado</h3>
+        <p className="text-xs text-muted-foreground">
+          Prévia com o que está na tela{alterado || ehModelo ? " (ainda não salvo)" : ""}.
+        </p>
+        <div className="divide-y text-sm">
+          {autorizados.map((a) => {
+            const dest = destinatariosDoAlerta(
+              a.telefone,
+              cfg,
+              configBot as Record<string, unknown> | null,
+            );
+            // Nenhuma área com telefone cobre este encarregado → coordenadores antigos.
+            const foraDasAreas = !cfg.areas.some(
+              (ar) =>
+                areaIncluiEncarregado(ar, a.telefone) &&
+                ar.destinatarios.some((d) => soDigitos(d.telefone)),
+            );
+            return (
+              <div key={a.id} className="py-2 flex flex-col sm:flex-row sm:gap-3">
+                <div className="sm:w-48 shrink-0 font-medium truncate">{a.nome || a.telefone}</div>
+                <div className="text-muted-foreground">
+                  {dest.length === 0
+                    ? "Ninguém (cadastre coordenadores)"
+                    : dest.map((d) => d.nome || d.telefone).join(", ")}
+                  {cfg.ativo && foraDasAreas && dest.length > 0 && (
+                    <span className="text-amber-700"> — fora de todas as áreas, vai para os coordenadores de Persona &amp; Config</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AlertasTab() {
   const qc = useQueryClient();
   const [filtroCrit, setFiltroCrit] = useState<string>("todas");

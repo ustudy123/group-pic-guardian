@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { destinatariosDoAlerta, lerAreasAlerta } from "@/lib/areas-alerta";
 
 const EMOJI_CRIT: Record<string, string> = {
   baixa: "🟢",
@@ -37,20 +38,12 @@ export const Route = createFileRoute("/api/public/hooks/reenviar-alertas")({
 
         const { data: config } = await supabaseAdmin
           .from("ai_bot_config")
-          .select("coordenador_telefone, coordenador_telefone_2, coordenador_telefone_3, coordenador_telefone_4")
+          .select("coordenador_telefone, coordenador_telefone_2, coordenador_telefone_3, coordenador_telefone_4, coordenador_nome, coordenador_nome_2, coordenador_nome_3, coordenador_nome_4")
           .eq("id", "default")
           .maybeSingle();
 
-        const coords = [
-          config?.coordenador_telefone,
-          (config as any)?.coordenador_telefone_2,
-          (config as any)?.coordenador_telefone_3,
-          (config as any)?.coordenador_telefone_4,
-        ]
-          .map((t) => (t || "").replace(/\D/g, ""))
-          .filter((t) => t.length > 0);
-
-        if (coords.length === 0) {
+        const cfgAreas = await lerAreasAlerta(supabaseAdmin);
+        if (destinatariosDoAlerta("", cfgAreas, config as Record<string, unknown>).length === 0 && !cfgAreas) {
           return new Response(JSON.stringify({ error: "coordenador nao configurado" }), { status: 400 });
         }
 
@@ -65,6 +58,11 @@ export const Route = createFileRoute("/api/public/hooks/reenviar-alertas")({
           const emoji = EMOJI_CRIT[a.criticidade] || "⚠️";
           const msg = `${emoji} *Alerta de obra* (${String(a.criticidade).toUpperCase()})\n*Categoria:* ${a.categoria}\n*Encarregado:* ${a.nome || a.telefone}\n\n${a.resumo}`;
           let algumOk = false;
+          const coords = destinatariosDoAlerta(
+            a.telefone,
+            cfgAreas,
+            config as Record<string, unknown>,
+          ).map((d) => d.telefone);
           for (const coord of coords) {
             const res = await enviarUazapi(coord, msg);
             if (res.ok) algumOk = true;

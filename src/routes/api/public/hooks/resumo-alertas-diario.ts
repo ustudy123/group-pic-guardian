@@ -2,6 +2,7 @@
 // enviar UM único resumo aos coordenadores, em vez de várias mensagens soltas.
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { destinatariosDoAlerta, lerAreasAlerta } from "@/lib/areas-alerta";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,12 +15,6 @@ function json(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders },
   });
-}
-
-function normalizarTelefone(tel: string): string {
-  let t = (tel || "").replace(/\D/g, "");
-  if (t.length >= 10 && t.length <= 11 && !t.startsWith("55")) t = "55" + t;
-  return t;
 }
 
 async function enviarUazapi(numero: string, mensagem: string): Promise<boolean> {
@@ -166,7 +161,7 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
 
         const { data: config } = await supabaseAdmin
           .from("ai_bot_config")
-          .select("ativo, alertas_ativos, resumo_alertas_diario, coordenador_telefone, coordenador_telefone_2, coordenador_telefone_3, coordenador_telefone_4")
+          .select("ativo, alertas_ativos, resumo_alertas_diario, coordenador_telefone, coordenador_telefone_2, coordenador_telefone_3, coordenador_telefone_4, coordenador_nome, coordenador_nome_2, coordenador_nome_3, coordenador_nome_4")
           .eq("id", "default")
           .maybeSingle();
         if (!config?.ativo || config.alertas_ativos === false) {
@@ -255,24 +250,17 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
           porEncarregado.set(chave, arr);
         }
 
-        const linhas: string[] = [];
-        linhas.push(`📋 *${rotulo}*`);
-        linhas.push(`*${porEncarregado.size}* encarregado(s) com ocorrências.`);
-        linhas.push("");
-
+        // Itens de cada encarregado (consolidados uma vez só e reaproveitados
+        // no resumo de cada destinatário).
         const openaiKey = process.env.OPENAI_API_KEY;
-
+        const itensPorEncarregado = new Map<string, { emoji: string; texto: string }[]>();
         for (const [chave, lista] of porEncarregado) {
           const [nome, tel] = chave.split("|");
-          linhas.push(`👷 *${nome || tel}*`);
-          linhas.push("");
-
           const alertasEnc: AlertaRow[] = lista.map((a) => ({
             categoria: a.categoria,
             criticidade: a.criticidade,
             resumo: a.resumo,
           }));
-
           // Consolida com IA (quando há mais de 1 alerta); senão, dedupe por categoria.
           let itens: { emoji: string; texto: string }[] | null = null;
           if (openaiKey && alertasEnc.length > 1) {
@@ -286,52 +274,76 @@ export const Route = createFileRoute("/api/public/hooks/resumo-alertas-diario")(
               .sort((a, b) => (ORDEM_CRIT[a.criticidade] ?? 9) - (ORDEM_CRIT[b.criticidade] ?? 9))
               .map((a) => ({ emoji: EMOJI_CRIT[a.criticidade] || "⚪", texto: a.resumo }));
           }
-
-          itens.forEach((it, idx) => {
-            linhas.push(`  ${it.emoji} ${it.texto}`);
-            if (idx < itens!.length - 1) linhas.push(""); // espaço entre um alerta e outro
-          });
-          linhas.push("");
+          itensPorEncarregado.set(chave, itens);
         }
 
-        const msg = linhas.join("\n").trim();
-        const coordTels = [
-          config.coordenador_telefone,
-          config.coordenador_telefone_2,
-          config.coordenador_telefone_3,
-          config.coordenador_telefone_4,
-        ]
-          .map((t) => normalizarTelefone(String(t || "")))
-          .filter((t, i, arr) => t && arr.indexOf(t) === i);
+        // Cada destinatário recebe só os encarregados das áreas dele (a
+        // Diretoria, com "todos", recebe tudo). Sem áreas configuradas, todos
+        // os coordenadores recebem o resumo completo, como antes.
+        const cfgAreas = await lerAreasAlerta(supabaseAdmin);
+        const porDestinatario = new Map<string, { nome: string; chaves: string[] }>();
+        for (const chave of porEncarregado.keys()) {
+          const tel = chave.split("|")[1];
+          for (const d of destinatariosDoAlerta(tel, cfgAreas, config as Record<string, unknown>)) {
+            const atual = porDestinatario.get(d.telefone) ?? { nome: d.nome, chaves: [] };
+            atual.chaves.push(chave);
+            porDestinatario.set(d.telefone, atual);
+          }
+        }
 
-        if (coordTels.length === 0) {
+        if (porDestinatario.size === 0) {
           return json({ error: "sem_coordenadores" }, 400);
         }
 
+        const montarMensagem = (chaves: string[]) => {
+          const linhas: string[] = [];
+          linhas.push(`📋 *${rotulo}*`);
+          linhas.push(`*${chaves.length}* encarregado(s) com ocorrências.`);
+          linhas.push("");
+          for (const chave of chaves) {
+            const [nome, tel] = chave.split("|");
+            const itens = itensPorEncarregado.get(chave) ?? [];
+            linhas.push(`👷 *${nome || tel}*`);
+            linhas.push("");
+            itens.forEach((it, idx) => {
+              linhas.push(`  ${it.emoji} ${it.texto}`);
+              if (idx < itens.length - 1) linhas.push(""); // espaço entre um alerta e outro
+            });
+            linhas.push("");
+          }
+          return linhas.join("\n").trim();
+        };
+
         let ok = 0;
-        for (const tel of coordTels) {
+        const encarregadosAvisados = new Set<string>();
+        for (const [tel, { chaves }] of porDestinatario) {
           try {
-            if (await enviarUazapi(tel, msg)) ok++;
+            if (await enviarUazapi(tel, montarMensagem(chaves))) {
+              ok++;
+              chaves.forEach((c) => encarregadosAvisados.add(c));
+            }
           } catch (e) {
             console.error("[resumo-alertas] erro:", e);
           }
         }
 
-        if (ok > 0) {
+        // Marca como avisado só o alerta que chegou a pelo menos um responsável.
+        const idsAvisados = alertas
+          .filter((a) => encarregadosAvisados.has(`${a.nome || ""}|${a.telefone}`))
+          .map((a) => a.id);
+        if (idsAvisados.length > 0) {
           await supabaseAdmin
             .from("ai_bot_alertas")
             .update({ enviado_coordenador: true, enviado_em: new Date().toISOString() })
-            .in(
-              "id",
-              alertas.map((a) => a.id),
-            )
+            .in("id", idsAvisados)
             .eq("enviado_coordenador", false);
         }
 
         return json({
           janela: { inicio: inicioUtc, fim: fimUtc },
           total: alertas.length,
-          coordenadores: coordTels.length,
+          por_area: Boolean(cfgAreas?.ativo),
+          destinatarios: porDestinatario.size,
           sucesso: ok,
         });
       },
