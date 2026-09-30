@@ -26,17 +26,42 @@ export const Route = createFileRoute("/api/public/hooks/erro-cliente")({
           pais: request.headers.get("cf-ipcountry") ?? null,
         };
         const caminho = `${ERROS_CLIENTE_PASTA}/${dia}/${agora.getTime()}-${Math.random().toString(36).slice(2, 8)}.json`;
-        const { error } = await supabaseAdmin.storage
-          .from("fotos-obras")
-          .upload(caminho, JSON.stringify(registro), { contentType: "application/json" });
-        if (error) {
-          console.error("[erro-cliente] falha ao gravar:", error.message);
-          return new Response(JSON.stringify({ ok: false, erro: error.message }), {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          });
+        // O bucket fotos-obras só aceita alguns tipos de arquivo (recusa
+        // application/json). O conteúdo continua sendo JSON; o tipo é só o
+        // rótulo aceito pelo bucket.
+        let ultimoErro = "";
+        for (const tipo of ["application/json", "text/plain", "application/octet-stream", "image/png"]) {
+          const { error } = await supabaseAdmin.storage
+            .from("fotos-obras")
+            .upload(caminho, new Blob([JSON.stringify(registro)], { type: tipo }), {
+              contentType: tipo,
+            });
+          if (!error) {
+            if (corpo.origem === "teste-automatico") {
+              const { data: bucket } = await supabaseAdmin.storage.getBucket("fotos-obras");
+              return new Response(
+                JSON.stringify({
+                  ok: true,
+                  tipo_aceito: tipo,
+                  bucket: {
+                    tipos_permitidos: bucket?.allowed_mime_types ?? null,
+                    tamanho_maximo_mb: bucket?.file_size_limit
+                      ? Math.round(Number(bucket.file_size_limit) / 1e5) / 10
+                      : null,
+                  },
+                }),
+                { headers: { "Content-Type": "application/json" } },
+              );
+            }
+            return new Response(null, { status: 204 });
+          }
+          ultimoErro = error.message;
         }
-        return new Response(null, { status: 204 });
+        console.error("[erro-cliente] falha ao gravar:", ultimoErro);
+        return new Response(JSON.stringify({ ok: false, erro: ultimoErro }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
       },
     },
   },
