@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft,
@@ -11,7 +11,18 @@ import {
   Filter,
   X,
   Loader2,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FORM_GRAD, FORM_SHADOW } from "@/lib/ui-form";
@@ -228,6 +239,66 @@ function Respostas() {
     }
   };
 
+  // --- exclusão (respostas de teste etc.) ---
+  const qc = useQueryClient();
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
+  const [paraExcluir, setParaExcluir] = useState<any[] | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const alternarSelecao = (rid: string) =>
+    setSelecionadas((atual) => {
+      const nova = new Set(atual);
+      if (nova.has(rid)) nova.delete(rid);
+      else nova.add(rid);
+      return nova;
+    });
+  const todasFiltradasMarcadas =
+    filtradas.length > 0 && filtradas.every((r: any) => selecionadas.has(r.id));
+
+  /**
+   * Apaga as respostas e os arquivos delas. As fotos que o encarregado logado
+   * mandou pelo formulário também foram para o acervo (tabela fotos), então
+   * saem de lá junto.
+   */
+  const excluirRespostas = async (lista: any[]) => {
+    setExcluindo(true);
+    try {
+      const ids = lista.map((r) => r.id);
+      const { data: apagadas, error } = await supabase
+        .from("formulario_respostas")
+        .delete()
+        .in("id", ids)
+        .select("id");
+      if (error) throw error;
+      if (!apagadas || apagadas.length === 0) {
+        throw new Error("Sem permissão para excluir respostas (só administrador ou analista).");
+      }
+      const caminhos = lista
+        .flatMap((r) => (r.arquivos ?? []) as Array<{ path?: string }>)
+        .map((a) => a.path)
+        .filter((c): c is string => Boolean(c));
+      if (caminhos.length > 0) {
+        await (supabase.from("fotos") as any)
+          .delete()
+          .eq("formulario_id", id)
+          .in("storage_path", caminhos);
+        for (let i = 0; i < caminhos.length; i += 100) {
+          await supabase.storage.from("fotos-obras").remove(caminhos.slice(i, i + 100));
+        }
+      }
+      toast.success(
+        apagadas.length === 1 ? "Resposta excluída." : `${apagadas.length} respostas excluídas.`,
+      );
+      setSelecionadas(new Set());
+      setAberta(null);
+      await qc.invalidateQueries({ queryKey: ["formulario-respostas", id] });
+    } catch (e) {
+      toast.error((e as Error).message || "Não foi possível excluir.");
+    } finally {
+      setExcluindo(false);
+      setParaExcluir(null);
+    }
+  };
+
   const abrirArquivo = async (path: string) => {
     const { data } = await supabase.storage.from("fotos-obras").createSignedUrl(path, 3600);
     if (data?.signedUrl) window.open(data.signedUrl, "_blank");
@@ -359,6 +430,34 @@ function Respostas() {
         )}
       </div>
 
+      {filtradas.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={todasFiltradasMarcadas}
+              onChange={() =>
+                setSelecionadas(
+                  todasFiltradasMarcadas ? new Set() : new Set(filtradas.map((r: any) => r.id)),
+                )
+              }
+            />
+            Selecionar todas{filtroAtivo ? " as filtradas" : ""}
+          </label>
+          {selecionadas.size > 0 && (
+            <button
+              onClick={() =>
+                setParaExcluir((respostas as any[]).filter((r) => selecionadas.has(r.id)))
+              }
+              disabled={excluindo}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+            >
+              <Trash2 size={14} /> Excluir selecionadas ({selecionadas.size})
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="rounded-2xl border bg-card divide-y shadow-lg">
         {filtradas.length === 0 && (
           <div className="p-8 text-center text-sm text-muted-foreground">
@@ -372,6 +471,13 @@ function Respostas() {
           return (
             <div key={r.id}>
               <div className="flex items-center gap-2 pr-3">
+                <input
+                  type="checkbox"
+                  checked={selecionadas.has(r.id)}
+                  onChange={() => alternarSelecao(r.id)}
+                  aria-label="Selecionar resposta"
+                  className="ml-3"
+                />
                 <button
                   onClick={() => setAberta(open ? null : r.id)}
                   className="flex-1 flex items-center gap-3 p-3 hover:bg-accent/40 text-left"
@@ -402,6 +508,14 @@ function Respostas() {
                     <FileDown size={13} />
                   )}
                   Baixar
+                </button>
+                <button
+                  onClick={() => setParaExcluir([r])}
+                  disabled={excluindo}
+                  title="Excluir esta resposta"
+                  className="inline-flex items-center rounded-md p-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
                 </button>
               </div>
 
@@ -458,6 +572,34 @@ function Respostas() {
           );
         })}
       </div>
+      <AlertDialog open={paraExcluir !== null} onOpenChange={(o) => !o && !excluindo && setParaExcluir(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {paraExcluir?.length === 1
+                ? "Excluir esta resposta?"
+                : `Excluir ${paraExcluir?.length ?? 0} respostas?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              As respostas e as fotos/arquivos enviados nelas serão apagados de vez. Não dá para
+              desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluindo}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={excluindo}
+              onClick={(e) => {
+                e.preventDefault();
+                if (paraExcluir) void excluirRespostas(paraExcluir);
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {excluindo ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
