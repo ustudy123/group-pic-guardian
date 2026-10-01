@@ -1014,7 +1014,7 @@ function AutorizadosTab() {
         <p className="text-xs text-muted-foreground">
           Os alertas de um encarregado novo seguem as regras da aba "Áreas de alerta" (na
           configuração atual, ele entra em Coordenação – Rede). Para mudar a área dele, é só
-          marcá-lo lá.
+          marcar ou desmarcar lá.
         </p>
         <div className="flex gap-2">
           <input
@@ -1277,8 +1277,8 @@ function GuiaIntegracao() {
 /* ----------------- ÁREAS DE ALERTA ----------------- */
 const MODOS_AREA: [ModoArea, string][] = [
   ["todos", "Todos os encarregados"],
-  ["lista", "Só os encarregados marcados"],
-  ["todos_exceto", "Todos, exceto os marcados"],
+  ["lista", "Só os marcados (encarregado novo entra desmarcado)"],
+  ["todos_exceto", "Todos, menos os desmarcados (encarregado novo entra marcado)"],
 ];
 
 const novoIdArea = () => `area-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -1496,8 +1496,8 @@ function AreasAlertaTab() {
                 <>
                   <p className="text-xs text-muted-foreground">
                     {area.modo === "lista"
-                      ? "Marque quem faz parte desta área."
-                      : "Marque quem NÃO faz parte. Encarregados novos entram automaticamente nesta área."}
+                      ? "Marcado = faz parte desta área."
+                      : "Marcado = faz parte desta área. Desmarque quem não faz parte; encarregado novo já entra marcado."}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                     {autorizados.map((a) => (
@@ -1507,7 +1507,13 @@ function AreasAlertaTab() {
                       >
                         <input
                           type="checkbox"
-                          checked={marcado(area, a.telefone)}
+                          // Sempre "marcado = faz parte"; em "todos, menos" a lista
+                          // salva guarda quem foi desmarcado.
+                          checked={
+                            area.modo === "todos_exceto"
+                              ? !marcado(area, a.telefone)
+                              : marcado(area, a.telefone)
+                          }
                           onChange={() => alternarEncarregado(area, a.telefone)}
                           className="size-4"
                         />
