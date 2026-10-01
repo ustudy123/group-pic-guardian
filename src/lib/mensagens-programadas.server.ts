@@ -11,6 +11,7 @@
 // garante uma mensagem por pessoa por período mesmo com chamadas simultâneas.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { fechoFollowUpFrenteParada } from "@/lib/frente-parada";
 
 export type Periodo = "manha" | "noite";
 
@@ -133,7 +134,11 @@ function personalizar(template: string, nome: string | null): string {
  * Regra do Arthur: no dia seguinte o bot procura essa pessoa perguntando se o
  * problema foi resolvido — citando o que ela relatou, e não o "bom dia" genérico.
  */
-function mensagemFollowUp(nome: string | null, problemas: string[]): string {
+function mensagemFollowUp(
+  nome: string | null,
+  problemas: string[],
+  textosOriginais: string[] = [],
+): string {
   const primeiro = (nome || "").trim().split(/\s+/)[0] || "";
   const saudacao = primeiro ? `Bom dia, ${primeiro}!` : "Bom dia!";
   const aberturas = [
@@ -148,7 +153,11 @@ function mensagemFollowUp(nome: string | null, problemas: string[]): string {
     "Deu pra resolver ou ainda tá pendente?",
     "Foi resolvido ou segue travado?",
   ];
-  const fecho = fechos[Math.floor(Math.random() * fechos.length)];
+  // Frente parada ontem: pergunta se ainda aguarda a equipe técnica ou se já
+  // foi direcionado para outra frente (pedido do Arthur).
+  const fecho =
+    fechoFollowUpFrenteParada([...problemas, ...textosOriginais]) ??
+    fechos[Math.floor(Math.random() * fechos.length)];
 
   if (problemas.length === 0) {
     return `${saudacao} Ontem você relatou um problema na sua frente de serviço. ${fecho}`;
@@ -376,12 +385,13 @@ export async function processarMensagensProgramadas(
   // retorno (aconteceu com um encarregado em 24/09).
   const chaveTel = (t: string) => String(t ?? "").replace(/\D/g, "").slice(-8);
   const alertasPorTelefone = new Map<string, string[]>();
+  const falasPorTelefone = new Map<string, string[]>();
   if (followUpAtivo && periodo === "manha") {
     const inicioOntemUtc = new Date(`${ontemRef}T03:00:00Z`).toISOString();
     const inicioHojeUtc = new Date(`${dataRef}T03:00:00Z`).toISOString();
     const { data: alertasOntem } = await supabaseAdmin
       .from("ai_bot_alertas")
-      .select("telefone, resumo, categoria")
+      .select("telefone, resumo, categoria, mensagem_origem")
       .gte("created_at", inicioOntemUtc)
       .lt("created_at", inicioHojeUtc)
       .order("created_at", { ascending: true });
@@ -390,6 +400,11 @@ export async function processarMensagensProgramadas(
       const texto = (a.resumo || a.categoria || "").trim();
       if (texto && !lista.includes(texto)) lista.push(texto);
       alertasPorTelefone.set(chaveTel(a.telefone), lista);
+      if (a.mensagem_origem) {
+        const falas = falasPorTelefone.get(chaveTel(a.telefone)) ?? [];
+        falas.push(String(a.mensagem_origem));
+        falasPorTelefone.set(chaveTel(a.telefone), falas);
+      }
     }
   }
   const chavesFollowUp = new Set(alertasPorTelefone.keys());
@@ -561,7 +576,11 @@ export async function processarMensagensProgramadas(
   // os demais recebem o check-in normal do dia.
   const montarMensagem = (c: { telefone: string; nome: string | null }) =>
     temFollowUp(c.telefone)
-      ? mensagemFollowUp(c.nome, alertasPorTelefone.get(chaveTel(c.telefone)) ?? [])
+      ? mensagemFollowUp(
+          c.nome,
+          alertasPorTelefone.get(chaveTel(c.telefone)) ?? [],
+          falasPorTelefone.get(chaveTel(c.telefone)) ?? [],
+        )
       : personalizar(escolherTemplatePara(c.telefone), c.nome);
 
   if (opcoes.dryRun) {

@@ -7,6 +7,14 @@ import {
   ehDespedidaCurta,
   ehNegativaDeContinuidade,
 } from "@/lib/ai-bot-continuidade";
+import {
+  BLOCO_LEITURA_REMANEJAMENTO,
+  BLOCO_PERGUNTA_REMANEJAMENTO,
+  REGRA_ALERTA_REMANEJAMENTO,
+  garantirPerguntaRemanejamento,
+  perguntouRemanejamento,
+  precisaPerguntarRemanejamento,
+} from "@/lib/frente-parada";
 import { destinatariosDoAlerta, lerAreasAlerta } from "@/lib/areas-alerta";
 
 
@@ -265,7 +273,7 @@ Criticidade:
 - Se NÃO há problema relevante (saudação, conversa fiada, dúvida resolvida), responda alerta=false.
 
 Responda APENAS com JSON válido no formato:
-{"alerta": boolean, "categoria": string, "criticidade": "baixa"|"media"|"alta"|"critica", "resumo": "frase curta para o coordenador"}`;
+{"alerta": boolean, "categoria": string, "criticidade": "baixa"|"media"|"alta"|"critica", "resumo": "frase curta para o coordenador"}${REGRA_ALERTA_REMANEJAMENTO}`;
 
   const user = `Contexto recente:\n${contexto || "(início)"}\n\nMensagem do encarregado:\n${mensagem}\n\nResposta dada pelo assistente:\n${resposta}`;
 
@@ -613,7 +621,18 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         // Instrução de tom obrigatória — o histórico pode conter uma conversa já
         // encerrada, e sem isso o modelo trata o novo "oi" como insistência e
         // responde de forma ríspida ("só estou aqui para tratar de trabalho").
-        const blocoSituacao = conversaReaberta
+        // Ele está respondendo a pergunta "foi para outra frente ou segue
+        // aguardando?" (feita na conversa ou no retorno da manhã), mesmo que
+        // horas depois: não é contato novo, é a resposta.
+        const ultimaLinha = historicoCompletoAsc[historicoCompletoAsc.length - 1];
+        const respondendoPerguntaPendente = Boolean(
+          ultimaLinha &&
+            ultimaLinha.role === "assistant" &&
+            perguntouRemanejamento(ultimaLinha.conteudo || "") &&
+            Date.now() - new Date(ultimaLinha.created_at).getTime() < 24 * 60 * 60 * 1000,
+        );
+
+        const blocoSituacao = conversaReaberta && !respondendoPerguntaPendente
           ? `\n\n## SITUAÇÃO AGORA — LEIA ANTES DE RESPONDER\nO encarregado ficou um tempo sem falar e está iniciando um contato NOVO agora. Qualquer conversa anterior no histórico já se encerrou — ela NÃO continua.\n- Cumprimente de volta com simpatia e pergunte, de forma aberta, o que ele precisa tratar. Ex.: "Opa, boa tarde! Tudo certo por aí? Em que posso ajudar?"\n- É TERMINANTEMENTE PROIBIDO reclamar do contato, cobrar objetividade ou dizer que só atende assunto de trabalho. Ele pode falar com você quando quiser.\n- Não repita perguntas que você já fez antes; comece do zero, leve.`
           : "";
 
@@ -639,7 +658,23 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             ? `\n\n## NOME DA PESSOA\nEla se chama ${primeiroNome}, mas você JÁ a chamou pelo nome nesta conversa. NÃO use o nome de novo agora — repetir o nome a cada mensagem soa artificial, de robô. Só volte a usar num próximo contato ou se for realmente natural.`
             : `\n\n## NOME DA PESSOA\nEla se chama ${primeiroNome}. Você pode usar o primeiro nome UMA vez, no cumprimento, se soar natural. Depois disso siga a conversa sem repetir o nome.`;
 
-        const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}${blocoNome}\n\n## GENTILEZA — REGRA ACIMA DE TODAS\nSeja educado e acolhedor em 100% das mensagens, sem exceção. Nunca responda de forma seca, irritada ou repreendendo o encarregado — nem quando ele repetir assunto, mandar mensagem fora de hora, cumprimentar de novo ou falar de algo que não é problema de obra. Nunca diga que só está ali para tratar de trabalho nem peça que ele vá direto ao ponto. Se não entender o que ele quer, pergunte com cordialidade o que ele deseja tratar e siga a conversa a partir dali.${blocoSituacao}${blocoContinuidade(estadoSessao)}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
+        // Frente parada (pedido do Arthur): perguntar se a equipe foi para outra
+        // frente ou segue aguardando; e, quando ele responder, confirmar o que
+        // entendeu (a resposta vai no alerta para o coordenador).
+        const perguntarRemanejamento =
+          !respondendoPerguntaPendente &&
+          precisaPerguntarRemanejamento(estadoSessao.mensagensSessao, mensagem);
+        const respondendoRemanejamento =
+          !perguntarRemanejamento &&
+          (respondendoPerguntaPendente ||
+            Boolean(ultimaAssistantSessao && perguntouRemanejamento(ultimaAssistantSessao)));
+        const blocoFrenteParada = perguntarRemanejamento
+          ? BLOCO_PERGUNTA_REMANEJAMENTO
+          : respondendoRemanejamento
+            ? BLOCO_LEITURA_REMANEJAMENTO
+            : "";
+
+        const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}${blocoNome}\n\n## GENTILEZA — REGRA ACIMA DE TODAS\nSeja educado e acolhedor em 100% das mensagens, sem exceção. Nunca responda de forma seca, irritada ou repreendendo o encarregado — nem quando ele repetir assunto, mandar mensagem fora de hora, cumprimentar de novo ou falar de algo que não é problema de obra. Nunca diga que só está ali para tratar de trabalho nem peça que ele vá direto ao ponto. Se não entender o que ele quer, pergunte com cordialidade o que ele deseja tratar e siga a conversa a partir dali.${blocoSituacao}${blocoContinuidade(estadoSessao)}${blocoFrenteParada}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
 
         const messages: Array<{ role: string; content: string }> = [
           { role: "system", content: systemPrompt },
@@ -755,8 +790,15 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         // Trava determinística de continuidade: mesmo que o modelo desobedeça, a
         // pergunta genérica excedente é removida aqui (limite de 2 por sessão) e
         // frases repetidas são trocadas por uma variação diferente.
-        const resposta = aplicarRegrasContinuidade(respostaLimpa, estadoSessao);
-        if (resposta !== respostaLimpa) {
+        const respostaContinuidade = aplicarRegrasContinuidade(respostaLimpa, estadoSessao);
+        // Se o modelo esquecer a pergunta da frente parada, ela entra aqui.
+        const resposta = perguntarRemanejamento
+          ? garantirPerguntaRemanejamento(respostaContinuidade)
+          : respostaContinuidade;
+        if (perguntarRemanejamento) {
+          console.log("[uazapi-bot] frente parada: pergunta de remanejamento incluída");
+        }
+        if (respostaContinuidade !== respostaLimpa) {
           console.log(
             `[uazapi-bot] continuidade ajustada (count=${estadoSessao.genericFollowUpCount}): "${respostaLimpa.slice(0, 80)}" -> "${resposta.slice(0, 80)}"`,
           );

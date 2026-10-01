@@ -92,6 +92,7 @@ const NUCLEOS_NECESSARIOS: RegExp[] = [
   /quant[oa]s?/,
   /avisad[oa]|comunicad[oa]|informad[oa]/,
   /ja foi|foi feito|resolveu|resolvido\?/,
+  /direcionad|remanejad|outra frente|continua aguardando|ainda (esta|ta) aguardando|liberaram/,
 ];
 
 function separarFrases(texto: string): string[] {
