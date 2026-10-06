@@ -57,7 +57,7 @@ function montarTabela(campos: CampoExport[], respostas: RespostaExport[]) {
   return { header, linhas, exportaveis };
 }
 
-function baixar(blob: Blob, nome: string) {
+export function baixar(blob: Blob, nome: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -106,7 +106,9 @@ export async function exportarPDFTabela(
   respostas: RespostaExport[],
   resolverUrls?: ResolverUrls,
   onProgresso?: (feitas: number, total: number) => void,
-) {
+  /** false = não baixa; só devolve o arquivo (usado no .zip "um PDF por rua"). */
+  salvar = true,
+): Promise<Blob> {
   const { header, linhas, exportaveis } = montarTabela(campos, respostas);
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
 
@@ -216,7 +218,8 @@ export async function exportarPDFTabela(
       }
     },
   });
-  doc.save(`${titulo}.pdf`);
+  if (salvar) doc.save(`${titulo}.pdf`);
+  return doc.output("blob");
 }
 
 /**
@@ -443,7 +446,9 @@ export async function exportarPDFDetalhado(
   geradoPor?: string,
   logoUrl?: string | null,
   nomeCabecalho?: string | null,
-) {
+  /** false = não baixa; só devolve o arquivo (usado no .zip "um PDF por rua"). */
+  salvar = true,
+): Promise<Blob> {
   const doc = new jsPDF({ unit: "pt", format: "a4" }); // 595 x 842
   const PAG_LARG = doc.internal.pageSize.getWidth();
   const PAG_ALT = doc.internal.pageSize.getHeight();
@@ -671,5 +676,6 @@ export async function exportarPDFDetalhado(
   }
   doc.setFont("helvetica", "normal");
 
-  doc.save(`${titulo}-detalhado.pdf`);
+  if (salvar) doc.save(`${titulo}-detalhado.pdf`);
+  return doc.output("blob");
 }

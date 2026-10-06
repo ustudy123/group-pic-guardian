@@ -34,6 +34,7 @@ import {
   exportarPDFTabela,
   exportarPDFDetalhado,
   LOGO_FORM_PATH,
+  baixar,
 } from "@/lib/exportar-respostas";
 
 type Formato = "pdf-detalhado" | "pdf-tabela" | "xlsx" | "csv";
@@ -61,11 +62,78 @@ const APELIDOS = {
 const dataSP = (iso: string) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(iso));
 
+/** Nome de arquivo seguro (Windows/celular): sem / \\ : * ? " < > | */
+const nomeArquivo = (t: string) =>
+  t.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim().slice(0, 120) || "arquivo";
+
+/**
+ * Separa as respostas por rua para o .zip "um PDF por rua" (pedido da equipe
+ * de vistorias, 08/10). A mesma rua em bairros diferentes vira arquivos
+ * diferentes, com o bairro no nome; várias vistorias da mesma rua (dias
+ * diferentes, pré e pós-obra) ficam juntas no PDF dela, da mais antiga para a
+ * mais nova.
+ */
+function separarPorRua<T extends { created_at: string }>(
+  respostas: T[],
+  ruaDe: (r: T) => string,
+  bairroDe: (r: T) => string,
+): { nome: string; respostas: T[] }[] {
+  const grupos = new Map<string, { rua: string; bairro: string; respostas: T[] }>();
+  for (const r of respostas) {
+    const rua = ruaDe(r).trim();
+    const bairro = bairroDe(r).trim();
+    const chave = `${normalizar(rua)}|${normalizar(bairro)}`;
+    const g = grupos.get(chave) ?? { rua, bairro, respostas: [] };
+    g.respostas.push(r);
+    grupos.set(chave, g);
+  }
+  // Rua que aparece em mais de um bairro leva o bairro no nome do arquivo.
+  const bairrosPorRua = new Map<string, number>();
+  for (const g of grupos.values()) {
+    const k = normalizar(g.rua);
+    bairrosPorRua.set(k, (bairrosPorRua.get(k) ?? 0) + 1);
+  }
+  const usados = new Map<string, number>();
+  return [...grupos.values()]
+    .sort((a, b) => a.rua.localeCompare(b.rua, "pt-BR") || a.bairro.localeCompare(b.bairro, "pt-BR"))
+    .map((g) => {
+      let nome = g.rua || "Sem rua";
+      if (g.rua && g.bairro && (bairrosPorRua.get(normalizar(g.rua)) ?? 0) > 1) {
+        nome = `${g.rua} - ${g.bairro}`;
+      }
+      nome = nomeArquivo(nome);
+      const n = (usados.get(nome.toLowerCase()) ?? 0) + 1;
+      usados.set(nome.toLowerCase(), n);
+      if (n > 1) nome = `${nome} (${n})`;
+      return {
+        nome,
+        respostas: [...g.respostas].sort((a, b) => a.created_at.localeCompare(b.created_at)),
+      };
+    });
+}
+
 function Respostas() {
   const { id } = Route.useParams();
   const { user } = useAuth();
   const [aberta, setAberta] = useState<string | null>(null);
   const [formato, setFormato] = useState<Formato>("pdf-detalhado");
+  // "Exportar tudo" em PDF: um arquivo por rua dentro de um .zip (padrão) ou
+  // tudo num PDF só, como antes. A escolha fica lembrada neste navegador.
+  const [porRua, setPorRuaState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("respostas-pdf-por-rua") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const setPorRua = (v: boolean) => {
+    setPorRuaState(v);
+    try {
+      localStorage.setItem("respostas-pdf-por-rua", v ? "1" : "0");
+    } catch {
+      /* navegador sem armazenamento: vale só nesta tela */
+    }
+  };
   const [exportando, setExportando] = useState<string | null>(null);
 
   // --- filtros ---
@@ -211,6 +279,50 @@ function Respostas() {
       const geradoPor =
         (user?.user_metadata as any)?.display_name || user?.email || undefined;
 
+      // Um PDF por rua, todos num .zip (só no "exportar tudo/filtrados").
+      if (!somente && porRua && campoPor.rua) {
+        const grupos = separarPorRua(
+          lista,
+          (r) => valorDe(r, campoPor.rua),
+          (r) => valorDe(r, campoPor.bairro),
+        );
+        const [{ default: JSZip }, logo, cfgRel] = await Promise.all([
+          import("jszip"),
+          formato === "pdf-detalhado"
+            ? supabase.storage.from("fotos-obras").createSignedUrl(LOGO_FORM_PATH(id), 3600)
+            : Promise.resolve({ data: null }),
+          formato === "pdf-detalhado" ? lerConfigRelatorio(id) : Promise.resolve(null),
+        ]);
+        const zip = new JSZip();
+        for (let i = 0; i < grupos.length; i++) {
+          const g = grupos[i];
+          toast.loading(`Montando PDFs por rua — ${i + 1} de ${grupos.length}: ${g.nome}`, {
+            id: "pdf-fotos",
+          });
+          const blob =
+            formato === "pdf-tabela"
+              ? await exportarPDFTabela(titulo, campos as any, g.respostas, resolverUrls, undefined, false)
+              : await exportarPDFDetalhado(
+                  titulo,
+                  campos as any,
+                  g.respostas,
+                  resolverUrls,
+                  undefined,
+                  geradoPor,
+                  (logo as any)?.data?.signedUrl ?? undefined,
+                  cfgRel ? nomeCabecalhoDe(cfgRel as any) : undefined,
+                  false,
+                );
+          zip.file(`${g.nome}.pdf`, blob);
+        }
+        toast.loading("Compactando o .zip…", { id: "pdf-fotos" });
+        const arquivoZip = await zip.generateAsync({ type: "blob" });
+        baixar(arquivoZip, `${nomeArquivo(titulo)} - por rua.zip`);
+        toast.dismiss("pdf-fotos");
+        toast.success(`${grupos.length} PDF(s), um por rua, no arquivo .zip`);
+        return;
+      }
+
       if (formato === "pdf-tabela") {
         await exportarPDFTabela(titulo, campos as any, lista, resolverUrls, progresso);
       } else {
@@ -349,6 +461,20 @@ function Respostas() {
             <option value="xlsx">Excel (.xlsx)</option>
             <option value="csv">CSV</option>
           </select>
+          {formato.startsWith("pdf") && campoPor.rua && (
+            <label
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer"
+              title="Marcado: um PDF para cada rua, todos num arquivo .zip. Desmarcado: tudo num PDF só."
+            >
+              <input
+                type="checkbox"
+                checked={porRua}
+                onChange={(e) => setPorRua(e.target.checked)}
+                className="size-4"
+              />
+              Um PDF por rua (.zip)
+            </label>
+          )}
           <button
             onClick={() => exportar()}
             disabled={filtradas.length === 0 || exportando !== null}
