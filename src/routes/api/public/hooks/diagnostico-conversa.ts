@@ -311,6 +311,7 @@ async function relatorioAlertas(dias: number): Promise<Record<string, unknown>> 
   const diaSeguinte = (d: string) => {
     const x = new Date(`${d}T12:00:00-03:00`);
     x.setUTCDate(x.getUTCDate() + 1);
+    if (x.getUTCDay() === 0) x.setUTCDate(x.getUTCDate() + 1); // domingo não tem envio: vai para segunda
     return x.toISOString().slice(0, 10);
   };
   const fim8 = (t: string) => String(t ?? "").replace(/\D/g, "").slice(-8);
@@ -346,7 +347,7 @@ async function relatorioAlertas(dias: number): Promise<Record<string, unknown>> 
         ? {
             hora: horaBrt(retorno.enviado_em),
             confirmado: retorno.sucesso,
-            foi_retorno_do_problema: /ontem/i.test(String(retorno.mensagem ?? "")),
+            foi_retorno_do_problema: /ontem|s[áa]bado|fim de semana|em que frente|onde voc[êe] est[áa]|qual servi[çc]o/i.test(String(retorno.mensagem ?? "")),
           }
         : seguinte > hojeBrt
           ? "ainda_nao_chegou"

@@ -9,9 +9,13 @@ import {
 } from "@/lib/ai-bot-continuidade";
 import {
   BLOCO_LEITURA_REMANEJAMENTO,
+  BLOCO_PARADA_CONHECIDA,
   BLOCO_PERGUNTA_REMANEJAMENTO,
   REGRA_ALERTA_REMANEJAMENTO,
+  blocoJaInformados,
   garantirPerguntaRemanejamento,
+  informouSituacaoDaEquipe,
+  mencionaFrenteParada,
   perguntouRemanejamento,
   precisaPerguntarRemanejamento,
 } from "@/lib/frente-parada";
@@ -255,6 +259,7 @@ async function analisarAlerta(
   contexto: string,
   mensagem: string,
   resposta: string,
+  jaInformados: Array<{ quando: string; resumo: string }> = [],
 ): Promise<{
   alerta: boolean;
   categoria: string;
@@ -273,7 +278,7 @@ Criticidade:
 - Se NÃO há problema relevante (saudação, conversa fiada, dúvida resolvida), responda alerta=false.
 
 Responda APENAS com JSON válido no formato:
-{"alerta": boolean, "categoria": string, "criticidade": "baixa"|"media"|"alta"|"critica", "resumo": "frase curta para o coordenador"}${REGRA_ALERTA_REMANEJAMENTO}`;
+{"alerta": boolean, "categoria": string, "criticidade": "baixa"|"media"|"alta"|"critica", "resumo": "frase curta para o coordenador"}${REGRA_ALERTA_REMANEJAMENTO}${blocoJaInformados(jaInformados)}`;
 
   const user = `Contexto recente:\n${contexto || "(início)"}\n\nMensagem do encarregado:\n${mensagem}\n\nResposta dada pelo assistente:\n${resposta}`;
 
@@ -661,18 +666,47 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
         // Frente parada (pedido do Arthur): perguntar se a equipe foi para outra
         // frente ou segue aguardando; e, quando ele responder, confirmar o que
         // entendeu (a resposta vai no alerta para o coordenador).
+        // Obra parada já conhecida (Arthur, 06/10): a pergunta sobre ela sai no
+        // máximo 1 vez por semana — inclusive a do retorno da manhã, que pode
+        // ter sido gravada com o telefone em outro formato (por isso os 8
+        // últimos dígitos).
+        const fimTelefone = telefone.replace(/\D/g, "").slice(-8);
+        const seteDiasAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: perguntasSemana } = await sbAny
+          .from("ai_bot_conversas")
+          .select("conteudo")
+          .like("telefone", `%${fimTelefone}`)
+          .eq("role", "assistant")
+          .gte("created_at", seteDiasAtras)
+          .or("conteudo.ilike.%direcionad%,conteudo.ilike.%remanejad%,conteudo.ilike.%outra%frente%,conteudo.ilike.%continua%aguardando%,conteudo.ilike.%ainda%aguardando%")
+          .limit(20);
+        const perguntouNaSemana = ((perguntasSemana ?? []) as Array<{ conteudo: string }>).some(
+          (m) => perguntouRemanejamento(m.conteudo || ""),
+        );
+        const falouDeParada =
+          mencionaFrenteParada(mensagem) ||
+          estadoSessao.mensagensSessao.some(
+            (m) => m.role === "user" && mencionaFrenteParada(m.conteudo || ""),
+          );
+
         const perguntarRemanejamento =
           !respondendoPerguntaPendente &&
+          !perguntouNaSemana &&
           precisaPerguntarRemanejamento(estadoSessao.mensagensSessao, mensagem);
+        // Respondeu a pergunta, ou contou por conta própria que está em outra
+        // frente ("estou atendendo o Mateus"): aprofundar no trabalho de agora.
         const respondendoRemanejamento =
           !perguntarRemanejamento &&
           (respondendoPerguntaPendente ||
-            Boolean(ultimaAssistantSessao && perguntouRemanejamento(ultimaAssistantSessao)));
+            Boolean(ultimaAssistantSessao && perguntouRemanejamento(ultimaAssistantSessao)) ||
+            informouSituacaoDaEquipe(mensagem));
         const blocoFrenteParada = perguntarRemanejamento
           ? BLOCO_PERGUNTA_REMANEJAMENTO
           : respondendoRemanejamento
-            ? BLOCO_LEITURA_REMANEJAMENTO
-            : "";
+            ? BLOCO_LEITURA_REMANEJAMENTO + (perguntouNaSemana ? BLOCO_PARADA_CONHECIDA : "")
+            : perguntouNaSemana && falouDeParada
+              ? BLOCO_PARADA_CONHECIDA
+              : "";
 
         const systemPrompt = `${config.persona || "Você é um assistente útil."}${kbBlock}${blocoNome}\n\n## GENTILEZA — REGRA ACIMA DE TODAS\nSeja educado e acolhedor em 100% das mensagens, sem exceção. Nunca responda de forma seca, irritada ou repreendendo o encarregado — nem quando ele repetir assunto, mandar mensagem fora de hora, cumprimentar de novo ou falar de algo que não é problema de obra. Nunca diga que só está ali para tratar de trabalho nem peça que ele vá direto ao ponto. Se não entender o que ele quer, pergunte com cordialidade o que ele deseja tratar e siga a conversa a partir dali.${blocoSituacao}${blocoContinuidade(estadoSessao)}${blocoFrenteParada}\n\nResponda de forma clara, curta e direta. Se não souber, diga que vai verificar com a equipe.`;
 
@@ -868,13 +902,46 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-bot")({
             .slice(-6)
             .map((m) => `${m.role}: ${m.conteudo}`)
             .join("\n");
+          // O que os gestores já sabem deste encarregado na última semana: só
+          // vira alerta o que for novidade (não "a obra continua parada").
+          const { data: recentes } = await sbAny
+            .from("ai_bot_alertas")
+            .select("resumo, created_at, resolvido")
+            .like("telefone", `%${fimTelefone}`)
+            .gte("created_at", seteDiasAtras)
+            .order("created_at", { ascending: false })
+            .limit(30);
+          const vistos = new Set<string>();
+          const jaInformados = ((recentes ?? []) as Array<{ resumo: string | null; created_at: string; resolvido: boolean | null }>)
+            .filter((a) => a.resolvido !== true && (a.resumo || "").trim())
+            .filter((a) => {
+              const chave = (a.resumo || "").trim().toLowerCase();
+              if (vistos.has(chave)) return false;
+              vistos.add(chave);
+              return true;
+            })
+            .slice(0, 12)
+            .map((a) => ({
+              quando: new Date(a.created_at).toLocaleString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+                day: "2-digit",
+                month: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              resumo: String(a.resumo).trim(),
+            }));
           const alertaInfo = await analisarAlerta(
             openaiKey,
             modelo,
             contextoCurto,
             mensagem,
             resposta,
+            jaInformados,
           );
+          if (alertaInfo && !alertaInfo.alerta && jaInformados.length > 0) {
+            console.log(`[uazapi-bot] sem alerta (nada novo frente a ${jaInformados.length} já informados)`);
+          }
 
           if (alertaInfo?.alerta) {
             const { data: alertRow } = await supabaseAdmin

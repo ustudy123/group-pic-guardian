@@ -9,6 +9,11 @@
 //   ou "equipe parada aguardando Y").
 // - No dia seguinte, o retorno pergunta de novo se ainda está aguardando ou se
 //   já foi direcionado para outra frente.
+//
+// Ajuste de 06/10 (Arthur): obra parada já conhecida não pode virar pergunta
+// nem alerta todo dia — os gestores já sabem. A pergunta sobre a obra parada
+// sai no máximo 1 vez por semana; no resto do tempo o bot foca no que o
+// encarregado está fazendo agora (que serviço, onde, alguma dificuldade).
 
 const semAcento = (t: string) =>
   (t || "")
@@ -37,7 +42,7 @@ export function mencionaFrenteParada(texto: string): boolean {
 }
 
 const REGEX_REMANEJADO =
-  /\b(direcionad[oa]s?|remanejad[oa]s?|deslocad[oa]s?|transferid[oa]s?|realocad[oa]s?|me mandaram|mandaram (a gente|nos|eu|a equipe|o pessoal)|me colocaram|colocaram (a gente|nos|a equipe)|fui pra|fui para|fomos pra|fomos para|outra frente|outro servico|outra obra|outro trecho|outra rua|outro local|outro ponto)\b/;
+  /\b(direcionad[oa]s?|remanejad[oa]s?|deslocad[oa]s?|transferid[oa]s?|realocad[oa]s?|me mandaram|mandaram (a gente|nos|eu|a equipe|o pessoal)|me colocaram|colocaram (a gente|nos|a equipe)|fui pra|fui para|fomos pra|fomos para|outra frente|outro servico|outra obra|outro trecho|outra rua|outro local|outro ponto|(atendendo|ajudando|apoiando|dando apoio)( a| ao| o| à| na| no| pro| pra)? \w+)\b/;
 // "parada aguardando X" é o próprio relato do problema, não a resposta: só
 // conta quando ele diz que CONTINUA/AINDA está esperando.
 const REGEX_CONTINUA_AGUARDANDO =
@@ -84,8 +89,15 @@ O encarregado contou que a obra/frente dele está parada ou travada esperando al
 - Nesta resposta, acolha o que ele disse em poucas palavras e PERGUNTE se ele foi direcionado para outra frente de serviço (outro lugar) ou se continua aguardando a providência da equipe técnica. Ex.: "E enquanto isso está parado aí, você foi direcionado para outra frente de serviço ou continua aguardando a providência da equipe técnica?"
 - Faça só essa pergunta nesta mensagem (sem pergunta genérica junto).`;
 
-export const BLOCO_LEITURA_REMANEJAMENTO = `\n\n## FRENTE PARADA — REGISTRE A SITUAÇÃO DA EQUIPE
-Se o encarregado acabou de dizer que foi direcionado para outra frente, confirme de forma curta o que entendeu (ex.: "Beleza, anotado: a frente da rua X segue parada e você está na rua Y enquanto não libera."), perguntando onde está agora só se ele não disse. Se ele continua aguardando, confirme que ficou registrado que a equipe está parada esperando a providência.`;
+export const BLOCO_LEITURA_REMANEJAMENTO = `\n\n## FRENTE PARADA — REGISTRE E APROFUNDE NO TRABALHO ATUAL
+- Se o encarregado disse que foi direcionado para outra frente (ou que está atendendo/ajudando outra equipe ou pessoa), confirme em poucas palavras o que entendeu e APROFUNDE no trabalho de agora, uma pergunta por mensagem, nesta ordem e só o que ainda não foi dito: (1) onde está e que tipo de serviço está fazendo lá; (2) se está com alguma dificuldade nesse serviço. Ex.: ele disse "estou atendendo o Mateus" → "Beleza! E o que vocês estão fazendo lá com o Mateus, que tipo de serviço?".
+- Se ele continua aguardando, confirme que ficou registrado que a equipe está parada esperando a providência.
+- NÃO volte a perguntar se a obra parada continua parada.`;
+
+export const BLOCO_PARADA_CONHECIDA = `\n\n## OBRA PARADA JÁ CONHECIDA — NÃO INSISTA NISSO
+Nesta semana você já perguntou a este encarregado sobre a obra/frente parada, e os gestores já foram avisados.
+- NÃO pergunte de novo se ela continua parada, se já liberou ou se ele foi remanejado — a não ser que seja claramente uma obra/frente DIFERENTE da que ele já relatou.
+- Reconheça em poucas palavras (ex.: "Entendi, essa já está registrada.") e leve a conversa para o que ele está fazendo AGORA, uma pergunta por mensagem e só o que ainda não foi dito: onde está trabalhando e que tipo de serviço está fazendo; depois, se está com alguma dificuldade nesse serviço.`;
 
 /** A resposta do bot já pergunta sobre remanejamento? Se não, acrescenta a pergunta. */
 export function garantirPerguntaRemanejamento(resposta: string): string {
@@ -103,7 +115,8 @@ export const REGRA_ALERTA_REMANEJAMENTO = `
 
 FRENTE PARADA / REMANEJAMENTO DA EQUIPE (importante):
 - Se a frente/obra está parada ou travada, o resumo DEVE dizer a situação da equipe quando ela aparecer na conversa: "equipe remanejada para <local/serviço>" ou "equipe parada aguardando <providência>". Se ainda não se sabe, não invente.
-- Se a mensagem do encarregado RESPONDE se foi direcionado para outra frente ou se continua aguardando, isso É relevante (alerta=true, categoria "prazo"): resuma qual frente está parada, o motivo (se citado) e onde a equipe está agora. Criticidade "alta" se a equipe está parada esperando; "media" se foi remanejada para outra frente.`;
+- Saber PELA PRIMEIRA VEZ onde a equipe está (remanejada para outra frente, atendendo outra equipe, ou parada esperando) é relevante (categoria "prazo"): resuma qual frente está parada e onde a equipe está agora e o que está fazendo. Criticidade "alta" se a equipe está parada esperando; "media" se foi remanejada. Se isso já foi informado aos gestores (lista abaixo), NÃO é novidade.
+- Dificuldade no serviço atual (na frente para onde foi remanejado) é um problema novo e deve ser avaliado normalmente.`;
 
 /**
  * Pergunta final do retorno do dia seguinte quando o problema de ontem era
@@ -123,4 +136,39 @@ export function fechoFollowUpFrenteParada(textosOntem: string[]): string | null 
     "Ainda está aguardando o retorno da equipe técnica pra frente liberar, ou já te direcionaram para outra frente de serviço?",
   ];
   return opcoes[Math.floor(Math.random() * opcoes.length)];
+}
+
+/**
+ * Bloco com o que os gestores já sabem deste encarregado (últimos 7 dias):
+ * o analista só gera alerta quando há NOVIDADE. Sem isso, "a obra da ETE
+ * continua parada" virava alerta todo dia (Olivan, 29/09 a 05/10).
+ */
+export function blocoJaInformados(lista: Array<{ quando: string; resumo: string }>): string {
+  if (lista.length === 0) return "";
+  const linhas = lista.map((a) => `- ${a.quando}: ${a.resumo}`).join("\n");
+  return `
+
+JÁ INFORMADO AOS GESTORES SOBRE ESTE ENCARREGADO NOS ÚLTIMOS 7 DIAS (eles JÁ SABEM):
+${linhas}
+
+Se a conversa atual só repete, confirma ou mantém uma dessas situações sem novidade (ex.: "a obra continua parada", "ainda falta o material", "segue do mesmo jeito"), responda alerta=false. Gere alerta SÓ se houver novidade real: um problema diferente, uma situação que piorou, que foi resolvida/liberada, ou uma informação nova importante (ex.: para onde a equipe foi remanejada, data prevista de liberação, nova dificuldade no serviço atual).`;
+}
+
+/**
+ * Pergunta do retorno da manhã quando a obra parada JÁ foi perguntada nesta
+ * semana: em vez de insistir nela, pergunta do trabalho de agora.
+ */
+export function perguntaTrabalhoAtual(): string {
+  const opcoes = [
+    "Como está o serviço hoje? Em que frente você está e que tipo de serviço está fazendo?",
+    "Como estão as coisas hoje? Onde você está trabalhando e qual serviço está tocando por aí?",
+    "E o serviço de hoje, como está? Me conta onde você está e o que está fazendo por aí.",
+  ];
+  return opcoes[Math.floor(Math.random() * opcoes.length)];
+}
+
+/** O problema é (só) de frente parada / remanejamento? */
+export function ehAssuntoFrenteParada(textos: string[]): boolean {
+  const todos = semAcento(textos.join(" \n "));
+  return textos.some(mencionaFrenteParada) || /\b(parad|travad|paralisad|remanej|direcionad)/.test(todos);
 }

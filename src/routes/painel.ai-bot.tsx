@@ -587,8 +587,10 @@ function ProgramadasTab() {
             <span className="font-medium">Cobrar retorno de quem relatou problema</span>
             <span className="block text-xs text-muted-foreground">
               No dia seguinte ao alerta, o bot procura a pessoa citando o problema e pergunta se
-              foi resolvido — mesmo que não seja um dia de check-in. Quem não relatou nada não
-              recebe mensagem fora dos dias marcados.
+              foi resolvido — mesmo que não seja um dia de check-in. No domingo não sai nada: o
+              retorno dos problemas de sábado vai na segunda. Obra parada já perguntada na
+              semana não é perguntada de novo (o bot pergunta do serviço atual). Quem não
+              relatou nada não recebe mensagem fora dos dias marcados.
             </span>
           </span>
         </label>

@@ -11,7 +11,12 @@
 // garante uma mensagem por pessoa por período mesmo com chamadas simultâneas.
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { fechoFollowUpFrenteParada } from "@/lib/frente-parada";
+import {
+  ehAssuntoFrenteParada,
+  fechoFollowUpFrenteParada,
+  perguntaTrabalhoAtual,
+  perguntouRemanejamento,
+} from "@/lib/frente-parada";
 
 export type Periodo = "manha" | "noite";
 
@@ -129,44 +134,71 @@ function personalizar(template: string, nome: string | null): string {
   return template.replace(/\s*(\{nome\}|FULANO)\s*([,!]?)/gi, "$2");
 }
 
+/** Quando foi o problema citado no retorno (segunda-feira cobre o sábado). */
+export type QuandoFollowUp = "ontem" | "sabado" | "fim_de_semana";
+const QUANDO_TEXTO: Record<QuandoFollowUp, { inicio: string; assunto: string }> = {
+  ontem: { inicio: "Ontem", assunto: "de ontem" },
+  sabado: { inicio: "No sábado", assunto: "de sábado" },
+  fim_de_semana: { inicio: "No fim de semana", assunto: "do fim de semana" },
+};
+
+/**
+ * Resumo do alerta dentro da frase: sem ponto final (evita "material.. E aí")
+ * e com a primeira letra minúscula ("sobre equipe parada…"), exceto siglas
+ * como "ETE".
+ */
+function trechoProblema(p: string): string {
+  const t = p.trim().replace(/[\s.;!]+$/, "");
+  if (t.length > 1 && /^[A-ZÀ-Ú][a-zà-ú]/.test(t)) return t[0].toLowerCase() + t.slice(1);
+  return t;
+}
+
 /**
  * Mensagem de retorno para quem relatou problema no último contato.
  * Regra do Arthur: no dia seguinte o bot procura essa pessoa perguntando se o
  * problema foi resolvido — citando o que ela relatou, e não o "bom dia" genérico.
+ * Obra parada que já foi perguntada nesta semana NÃO é perguntada de novo
+ * (Arthur, 06/10): o retorno pergunta do trabalho de agora.
  */
-function mensagemFollowUp(
+export function mensagemFollowUp(
   nome: string | null,
   problemas: string[],
   textosOriginais: string[] = [],
+  opcoes: { quando?: QuandoFollowUp; paradaJaPerguntada?: boolean } = {},
 ): string {
   const primeiro = (nome || "").trim().split(/\s+/)[0] || "";
   const saudacao = primeiro ? `Bom dia, ${primeiro}!` : "Bom dia!";
-  const aberturas = [
-    `${saudacao} Ontem você comentou`,
-    `${saudacao} Voltando no assunto de ontem, você falou`,
-    `${saudacao} Sobre o que você me passou ontem —`,
-  ];
-  const abertura = aberturas[Math.floor(Math.random() * aberturas.length)];
+  const quando = QUANDO_TEXTO[opcoes.quando ?? "ontem"];
+
+  const ehParada = ehAssuntoFrenteParada([...problemas, ...textosOriginais]);
+  if (ehParada && opcoes.paradaJaPerguntada) {
+    return `${saudacao} ${perguntaTrabalhoAtual()}`;
+  }
 
   const fechos = [
     "Conseguiram resolver ou ainda tá parado?",
     "Deu pra resolver ou ainda tá pendente?",
     "Foi resolvido ou segue travado?",
   ];
-  // Frente parada ontem: pergunta se ainda aguarda a equipe técnica ou se já
-  // foi direcionado para outra frente (pedido do Arthur).
+  // Frente parada: pergunta se ainda aguarda a equipe técnica ou se já foi
+  // direcionado para outra frente (pedido do Arthur).
   const fecho =
-    fechoFollowUpFrenteParada([...problemas, ...textosOriginais]) ??
+    (ehParada ? fechoFollowUpFrenteParada([...problemas, ...textosOriginais]) : null) ??
     fechos[Math.floor(Math.random() * fechos.length)];
 
-  if (problemas.length === 0) {
-    return `${saudacao} Ontem você relatou um problema na sua frente de serviço. ${fecho}`;
+  const itens = problemas.map(trechoProblema).filter(Boolean);
+  if (itens.length === 0) {
+    return `${saudacao} ${quando.inicio} você relatou um problema na sua frente de serviço. ${fecho}`;
   }
-  if (problemas.length === 1) {
-    return `${abertura} sobre ${problemas[0]}. ${fecho}`;
+  if (itens.length === 1) {
+    const aberturas = [
+      `${quando.inicio} você comentou sobre ${itens[0]}.`,
+      `Voltando no assunto ${quando.assunto}: ${itens[0]}.`,
+    ];
+    return `${saudacao} ${aberturas[Math.floor(Math.random() * aberturas.length)]} ${fecho}`;
   }
-  const lista = problemas.slice(0, 3).map((p) => `- ${p}`).join("\n");
-  return `${abertura} alguns pontos:\n${lista}\n\n${fecho}`;
+  const lista = itens.slice(0, 3).map((p) => `- ${p}`).join("\n");
+  return `${saudacao} ${quando.inicio} você comentou alguns pontos:\n${lista}\n\n${fecho}`;
 }
 
 export async function enviarUazapi(
@@ -281,6 +313,10 @@ export async function processarMensagensProgramadas(
     ? ((config as Record<string, unknown>).dias_semana as number[])
     : [1, 3, 5];
   const isDiaProgramado = diasPermitidos.includes(diaSemana);
+  // Domingo ninguém recebe mensagem do bot por iniciativa dele (Arthur,
+  // 05/10) — nem o retorno de alerta. Só se o domingo for marcado de propósito
+  // no painel. O retorno dos problemas de sábado sai na segunda de manhã.
+  const domingoBloqueado = diaSemana === 0 && !isDiaProgramado;
   const noiteAtiva = (config as Record<string, unknown>).noite_ativa === true;
 
   const janelas = {
@@ -300,6 +336,10 @@ export async function processarMensagensProgramadas(
     return resposta({ idle: true, motivo: "fora_da_janela", hhmm, janelas });
   }
   const periodo: Periodo = periodoCalc ?? "manha";
+
+  if (domingoBloqueado && !forcadoPeriodo && !opcoes.diagnostico) {
+    return resposta({ idle: true, motivo: "domingo_sem_envio" });
+  }
 
   // Ajuste pedido pelo Arthur: por padrão o bot só conversa de manhã.
   // Só envia à noite se `noite_ativa` estiver marcado explicitamente
@@ -386,16 +426,34 @@ export async function processarMensagensProgramadas(
   const chaveTel = (t: string) => String(t ?? "").replace(/\D/g, "").slice(-8);
   const alertasPorTelefone = new Map<string, string[]>();
   const falasPorTelefone = new Map<string, string[]>();
+  // Segunda-feira (com domingo sem envio) cobre os alertas de sábado e domingo.
+  const cobreFimDeSemana = diaSemana === 1 && !diasPermitidos.includes(0);
+  const sabadoRef = (() => {
+    const d = new Date(`${dataRef}T12:00:00-03:00`);
+    d.setUTCDate(d.getUTCDate() - 2);
+    return d.toISOString().slice(0, 10);
+  })();
+  const inicioJanelaRef = cobreFimDeSemana ? sabadoRef : ontemRef;
+  const quandoPorTelefone = new Map<string, QuandoFollowUp>();
+  const comSabadoGlobal = new Set<string>();
+  const comDomingoGlobal = new Set<string>();
   if (followUpAtivo && periodo === "manha") {
-    const inicioOntemUtc = new Date(`${ontemRef}T03:00:00Z`).toISOString();
+    const inicioOntemUtc = new Date(`${inicioJanelaRef}T03:00:00Z`).toISOString();
     const inicioHojeUtc = new Date(`${dataRef}T03:00:00Z`).toISOString();
     const { data: alertasOntem } = await supabaseAdmin
       .from("ai_bot_alertas")
-      .select("telefone, resumo, categoria, mensagem_origem")
+      .select("telefone, resumo, categoria, mensagem_origem, created_at")
       .gte("created_at", inicioOntemUtc)
       .lt("created_at", inicioHojeUtc)
       .order("created_at", { ascending: true });
+    // Na segunda: só sábado → "No sábado"; só domingo → "Ontem"; os dois →
+    // "No fim de semana".
+    const domingoInicioUtc = new Date(`${ontemRef}T03:00:00Z`).getTime();
     for (const a of alertasOntem ?? []) {
+      if (cobreFimDeSemana) {
+        const doDomingo = new Date(a.created_at).getTime() >= domingoInicioUtc;
+        (doDomingo ? comDomingoGlobal : comSabadoGlobal).add(chaveTel(a.telefone));
+      }
       const lista = alertasPorTelefone.get(chaveTel(a.telefone)) ?? [];
       const texto = (a.resumo || a.categoria || "").trim();
       if (texto && !lista.includes(texto)) lista.push(texto);
@@ -407,8 +465,31 @@ export async function processarMensagensProgramadas(
       }
     }
   }
+  for (const chave of alertasPorTelefone.keys()) {
+    if (!cobreFimDeSemana) continue;
+    const sab = comSabadoGlobal.has(chave);
+    const dom = comDomingoGlobal.has(chave);
+    quandoPorTelefone.set(chave, sab && dom ? "fim_de_semana" : sab ? "sabado" : "ontem");
+  }
   const chavesFollowUp = new Set(alertasPorTelefone.keys());
   const temFollowUp = (telefone: string) => chavesFollowUp.has(chaveTel(telefone));
+
+  // Obra parada: a pergunta sobre ela sai no máximo 1 vez por semana (Arthur,
+  // 06/10). Quem já foi perguntado nos últimos 7 dias recebe, no retorno, a
+  // pergunta sobre o trabalho de agora.
+  const paradaPerguntadaNaSemana = new Set<string>();
+  if (chavesFollowUp.size > 0) {
+    const { data: perguntas } = await (supabaseAdmin as unknown as { from: (t: string) => any })
+      .from("ai_bot_conversas")
+      .select("telefone, conteudo")
+      .eq("role", "assistant")
+      .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+      .or("conteudo.ilike.%direcionad%,conteudo.ilike.%remanejad%,conteudo.ilike.%outra%frente%,conteudo.ilike.%continua%aguardando%,conteudo.ilike.%ainda%aguardando%")
+      .limit(500);
+    for (const m of (perguntas ?? []) as Array<{ telefone: string; conteudo: string }>) {
+      if (perguntouRemanejamento(m.conteudo || "")) paradaPerguntadaNaSemana.add(chaveTel(m.telefone));
+    }
+  }
 
   // Se hoje NÃO é dia programado e não é teste forçado, restringe ao follow-up.
   const baseAutorizados = (autorizados ?? []).filter((a) => {
@@ -580,6 +661,10 @@ export async function processarMensagensProgramadas(
           c.nome,
           alertasPorTelefone.get(chaveTel(c.telefone)) ?? [],
           falasPorTelefone.get(chaveTel(c.telefone)) ?? [],
+          {
+            quando: quandoPorTelefone.get(chaveTel(c.telefone)) ?? "ontem",
+            paradaJaPerguntada: paradaPerguntadaNaSemana.has(chaveTel(c.telefone)),
+          },
         )
       : personalizar(escolherTemplatePara(c.telefone), c.nome);
 
