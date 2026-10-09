@@ -405,6 +405,8 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
     return v ? `…${v.replace(/@g\.us$/, "").slice(-6)}${v.endsWith("@g.us") ? "@g.us" : ""}` : null;
   };
   const desde = new Date(Date.now() - horas * 3600_000).toISOString();
+  const semSufixo = (v: unknown) =>
+    String(v ?? "").trim().toLowerCase().replace(/@g\.us$/, "").replace(/@s\.whatsapp\.net$/, "").replace(/-group$/, "");
 
   const [{ data: grupos }, { data: encs }] = await Promise.all([
     sbAny.from("grupos").select("whatsapp_jid, nome_exibicao, ativo, ultima_foto_em, created_at"),
@@ -438,6 +440,7 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
       naInstancia = {
         http: r.status,
         chaves_resposta: Array.isArray(j) ? "array" : Object.keys(j ?? {}).slice(0, 15),
+        paginacao: Array.isArray(j) ? null : (j?.pagination ?? null),
         total_grupos_na_instancia: listaInstancia.length,
         achados: listaInstancia.filter((g) => casa(g.nome)).map((g) => ({
           nome: g.nome,
@@ -461,6 +464,16 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
     ...encsAchados.map((e) => e.grupo_whatsapp_id).filter(Boolean),
     ...listaInstancia.filter((g) => casa(g.nome)).map((g) => g.jid),
   ]);
+  // Grupos que mandaram mensagem com esse nome (pelo nome que vem no payload).
+  if (termos[0]) {
+    const { data: porNome } = await sbAny
+      .from("eventos_raw")
+      .select("chat_id")
+      .ilike("payload->chat->>name", `%${termos[0]}%`)
+      .gte("created_at", desde)
+      .limit(200);
+    for (const x of (porNome ?? []) as Array<{ chat_id: string }>) if (x.chat_id) jids.add(x.chat_id);
+  }
   const porJid: Record<string, unknown>[] = [];
   for (const jid of jids) {
     const { data: ev } = await sbAny
@@ -488,6 +501,9 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
       jid: curto(jid),
       nome_no_cadastro: ((grupos ?? []) as any[]).find((g) => g.whatsapp_jid === jid)?.nome_exibicao ?? null,
       encarregados: enc.map((e) => ({ nome: e.nome, ativo: e.ativo })),
+      encarregados_mesmo_numero: ((encs ?? []) as any[])
+        .filter((e) => e.grupo_whatsapp_id !== jid && semSufixo(e.grupo_whatsapp_id) === semSufixo(jid))
+        .map((e) => ({ nome: e.nome, ativo: e.ativo })),
       eventos_no_webhook: lista.length,
       imagens_no_webhook: lista.filter((x) => x.tipo_evento === "image").length,
       ultimo_evento: horaBrt(lista[0]?.created_at),
@@ -513,13 +529,14 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
     .gte("created_at", desde)
     .order("created_at", { ascending: false })
     .limit(5000);
+  // Mesmo critério do webhook: JID exato ou igual sem sufixo (@g.us/-group).
   const ligados = new Set(
-    ((encs ?? []) as any[]).filter((e) => e.ativo).map((e) => e.grupo_whatsapp_id),
+    ((encs ?? []) as any[]).filter((e) => e.ativo).map((e) => semSufixo(e.grupo_whatsapp_id)),
   );
   const soltos = new Map<string, { qtd: number; ultima: string }>();
   for (const x of (imgs ?? []) as Array<Record<string, any>>) {
     const c = String(x.chat_id ?? "");
-    if (!c.includes("@g.us") || ligados.has(c)) continue;
+    if (!c.includes("@g.us") || ligados.has(semSufixo(c))) continue;
     const a = soltos.get(c) ?? { qtd: 0, ultima: x.created_at };
     a.qtd++;
     soltos.set(c, a);
