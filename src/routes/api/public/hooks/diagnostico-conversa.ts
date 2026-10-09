@@ -437,6 +437,7 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
       }
       naInstancia = {
         http: r.status,
+        chaves_resposta: Array.isArray(j) ? "array" : Object.keys(j ?? {}).slice(0, 15),
         total_grupos_na_instancia: listaInstancia.length,
         achados: listaInstancia.filter((g) => casa(g.nome)).map((g) => ({
           nome: g.nome,
@@ -503,8 +504,57 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
     .limit(500);
   const ev = (ultimosEv ?? []) as Array<Record<string, any>>;
 
+  // Grupos que mandaram imagem e não estão ligados a nenhum encarregado ativo
+  // (fotos que chegam e são descartadas), com os nomes que vêm no payload.
+  const { data: imgs } = await sbAny
+    .from("eventos_raw")
+    .select("chat_id, created_at")
+    .eq("tipo_evento", "image")
+    .gte("created_at", desde)
+    .order("created_at", { ascending: false })
+    .limit(5000);
+  const ligados = new Set(
+    ((encs ?? []) as any[]).filter((e) => e.ativo).map((e) => e.grupo_whatsapp_id),
+  );
+  const soltos = new Map<string, { qtd: number; ultima: string }>();
+  for (const x of (imgs ?? []) as Array<Record<string, any>>) {
+    const c = String(x.chat_id ?? "");
+    if (!c.includes("@g.us") || ligados.has(c)) continue;
+    const a = soltos.get(c) ?? { qtd: 0, ultima: x.created_at };
+    a.qtd++;
+    soltos.set(c, a);
+  }
+  const gruposSoltos: Record<string, unknown>[] = [];
+  for (const [c, a] of [...soltos.entries()].sort((p, q) => q[1].qtd - p[1].qtd).slice(0, 25)) {
+    const { data: amostra } = await sbAny
+      .from("eventos_raw")
+      .select("payload")
+      .eq("chat_id", c)
+      .eq("tipo_evento", "image")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const pl = ((amostra ?? [])[0]?.payload ?? {}) as Record<string, any>;
+    const dd = (pl.data ?? pl.message ?? pl) as Record<string, any>;
+    const ch = (dd.chat ?? pl.chat ?? {}) as Record<string, any>;
+    gruposSoltos.push({
+      jid: curto(c),
+      imagens: a.qtd,
+      ultima: horaBrt(a.ultima),
+      nome_no_cadastro: ((grupos ?? []) as any[]).find((g) => g.whatsapp_jid === c)?.nome_exibicao ?? null,
+      nomes_no_payload: {
+        chatName: pl.chatName ?? dd.chatName ?? null,
+        chat_name: ch.name ?? ch.wa_name ?? ch.wa_contactName ?? null,
+        groupName: dd.groupName ?? pl.groupName ?? null,
+        senderName: dd.senderName ?? null,
+      },
+      chaves_payload: Object.keys(pl).slice(0, 15),
+      chaves_chat: Object.keys(ch).slice(0, 25),
+    });
+  }
+
   return {
     relatorio: "grupos",
+    grupos_mandando_foto_sem_encarregado: gruposSoltos,
     busca,
     horas,
     agora: horaBrt(new Date().toISOString()),
