@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth-context";
 import { BotStatusIndicator } from "@/components/bot-status-indicator";
 import { supabase } from "@/integrations/supabase/client";
+import { chaveJid } from "@/lib/jid";
 import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye, ClipboardList, BadgeCheck } from "lucide-react";
 import { useRoles } from "@/lib/use-roles";
 
@@ -78,8 +79,8 @@ function GruposPendentesLink() {
         supabase.from("grupos").select("whatsapp_jid").eq("ativo", true),
         supabase.from("encarregados").select("grupo_whatsapp_id"),
       ]);
-      const ativados = new Set((encs ?? []).map((e) => e.grupo_whatsapp_id));
-      return (grupos ?? []).filter((g) => !ativados.has(g.whatsapp_jid)).length;
+      const ativados = new Set((encs ?? []).map((e) => chaveJid(e.grupo_whatsapp_id)));
+      return (grupos ?? []).filter((g) => !ativados.has(chaveJid(g.whatsapp_jid))).length;
     },
     refetchInterval: 30_000,
   });

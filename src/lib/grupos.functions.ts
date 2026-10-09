@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { z } from "zod";
+import { listarGruposUazapi, reprocessarFotosDoGrupo } from "@/lib/uazapi-grupos.server";
 
 // === Autenticação reutilizada ===
 async function getAuthContext() {
@@ -36,14 +38,6 @@ async function getAuthContext() {
   return { supabase, userId: data.claims.sub };
 }
 
-type UazapiGroup = {
-  JID?: string;
-  jid?: string;
-  Name?: string;
-  name?: string;
-  Subject?: string;
-  subject?: string;
-};
 
 /**
  * Sincroniza a lista de grupos do WhatsApp consultando diretamente a UazAPI
@@ -54,48 +48,8 @@ export const sincronizarGruposZapi = createServerFn({ method: "POST" })
   .handler(async () => {
     const { supabase } = await getAuthContext();
 
-    const baseUrl = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
-    const token = process.env.UAZAPI_INSTANCE_TOKEN;
-    if (!token) {
-      throw new Error("UAZAPI_INSTANCE_TOKEN ausente no servidor.");
-    }
-
-    // A UazAPI devolve a lista de grupos em cache — um grupo criado agora
-    // (ou em que o número foi adicionado agora) só aparece pedindo
-    // atualização direto do WhatsApp. Se a instância não aceitar o
-    // parâmetro, refaz a chamada sem ele.
-    const pedirLista = async (comForce: boolean) =>
-      fetch(`${baseUrl}/group/list`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", token },
-        body: JSON.stringify(comForce ? { force: true } : {}),
-      });
-
-    let res = await pedirLista(true);
-    if (!res.ok) res = await pedirLista(false);
-
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`UazAPI /group/list respondeu ${res.status}: ${txt.slice(0, 200)}`);
-    }
-
-    const json = (await res.json()) as
-      | { groups?: UazapiGroup[]; data?: UazapiGroup[] }
-      | UazapiGroup[];
-    const lista: UazapiGroup[] = Array.isArray(json)
-      ? json
-      : (json.groups ?? json.data ?? []);
-
-    const grupos: { jid: string; nome: string }[] = [];
-    const seen = new Set<string>();
-    for (const g of lista) {
-      const jid = (g.JID || g.jid || "").trim();
-      if (!jid) continue;
-      if (seen.has(jid)) continue;
-      seen.add(jid);
-      const nome = (g.Name || g.name || g.Subject || g.subject || "").trim() || jid;
-      grupos.push({ jid, nome });
-    }
+    // Todas as páginas (a UazAPI devolve 50 grupos por vez).
+    const grupos = await listarGruposUazapi();
 
     if (grupos.length === 0) {
       return { criados: 0, atualizados: 0, total: 0 };
@@ -171,3 +125,21 @@ export const verificarStatusZapi = createServerFn({ method: "GET" }).handler(
     }
   },
 );
+
+/**
+ * Recupera as fotos que o grupo mandou antes de ser ativado (ficam guardadas
+ * em eventos_raw e eram descartadas por "grupo não cadastrado").
+ */
+export const recuperarFotosDoGrupo = createServerFn({ method: "POST" })
+  .inputValidator((i) => z.object({ jid: z.string().min(5).max(120), dias: z.number().min(1).max(30).optional() }).parse(i))
+  .handler(async ({ data }) => {
+    await getAuthContext();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const origem = new URL(getRequest().url).origin;
+    return reprocessarFotosDoGrupo(
+      supabaseAdmin as unknown as { from: (t: string) => any },
+      data.jid,
+      origem,
+      { dias: data.dias ?? 7, maximo: 60 },
+    );
+  });

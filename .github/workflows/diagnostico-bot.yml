@@ -14,6 +14,10 @@ name: Diagnóstico do bot
 #   - modo "grupos-de-fotos": por nome do grupo, se ele está cadastrado, ligado
 #     a um encarregado, se a instância de fotos participa dele e se as fotos
 #     chegaram ao webhook nas últimas horas.
+#   - modo "corrigir-nomes-grupos": acerta o nome dos grupos cadastrados pelo
+#     nome real no WhatsApp (e inclui grupos da instância que faltavam).
+#   - modo "religar-grupo": liga o encarregado (nome exato em "busca") ao grupo
+#     cujo JID termina em "grupo" e recupera as fotos dos últimos "horas" dias.
 #   - modo "fila": chama uma vez a fila de respostas (o mesmo que o job do banco
 #     faz a cada minuto) e mostra o que o servidor devolveu.
 on:
@@ -24,7 +28,7 @@ on:
         required: true
         type: choice
         default: conversa
-        options: ["conversa", "envios-do-dia", "alertas", "erros-do-site", "grupos-de-fotos", "teste-registro-de-erro", "ajustar-tipos-de-arquivo", "fila"]
+        options: ["conversa", "envios-do-dia", "alertas", "erros-do-site", "grupos-de-fotos", "corrigir-nomes-grupos", "religar-grupo", "teste-registro-de-erro", "ajustar-tipos-de-arquivo", "fila"]
       telefone:
         description: "Telefone do contato (modo conversa) — bastam os 8 últimos dígitos"
         required: false
@@ -34,7 +38,11 @@ on:
         required: false
         type: string
       busca:
-        description: "Nome (ou parte) do grupo — modo grupos-de-fotos"
+        description: "Nome (ou parte) do grupo — modo grupos-de-fotos; nome exato do encarregado — modo religar-grupo"
+        required: false
+        type: string
+      grupo:
+        description: "Final do JID do grupo (modo religar-grupo)"
         required: false
         type: string
       horas:
@@ -57,6 +65,7 @@ jobs:
           HORAS: ${{ github.event.inputs.horas }}
           DATA: ${{ github.event.inputs.data }}
           BUSCA: ${{ github.event.inputs.busca }}
+          GRUPO: ${{ github.event.inputs.grupo }}
         run: |
           if [ "$MODO" = "fila" ]; then
             URL="$BASE/enviar-respostas-pendentes"; BODY='{}'
@@ -64,6 +73,13 @@ jobs:
             URL="$BASE/diagnostico-conversa"; BODY='{"relatorio":"ajustar-bucket"}'
           elif [ "$MODO" = "teste-registro-de-erro" ]; then
             URL="$BASE/erro-cliente"; BODY='{"origem":"teste-automatico","mensagem":"erro de teste do workflow","caminho":"/f/teste","navegador":"GitHub Actions"}'
+          elif [ "$MODO" = "corrigir-nomes-grupos" ]; then
+            URL="$BASE/diagnostico-conversa"; BODY='{"relatorio":"corrigir-nomes-grupos"}'
+          elif [ "$MODO" = "religar-grupo" ]; then
+            B=$(printf '%s' "$BUSCA" | tr -d '"\\')
+            G=$(printf '%s' "$GRUPO" | tr -cd '0-9a-zA-Z-')
+            H=$(printf '%s' "${HORAS:-7}" | tr -cd '0-9')
+            URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"religar-grupo\",\"busca\":\"$B\",\"grupo\":\"$G\",\"horas\":${H:-7}}"
           elif [ "$MODO" = "grupos-de-fotos" ]; then
             H=$(printf '%s' "${HORAS:-48}" | tr -cd '0-9')
             B=$(printf '%s' "$BUSCA" | tr -d '"\\')

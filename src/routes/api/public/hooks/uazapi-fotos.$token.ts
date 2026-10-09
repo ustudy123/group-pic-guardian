@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { nomeDoGrupo } from "@/lib/uazapi-grupos.server";
 import type { Json } from "@/integrations/supabase/types";
 
 // Webhook UazAPI — recebe fotos de grupos do WhatsApp.
@@ -171,12 +172,16 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
         const mediaType = String(pick<string>(d, "mediaType") || "").toLowerCase();
         const contentMime = String(pick<string>(content, "mimetype", "mimeType", "mime") || "").toLowerCase();
 
+        // Reprocessamento (recuperar fotos de grupo recém-ativado): o evento já
+        // está em eventos_raw, não grava de novo.
+        const reprocessando = request.headers.get("x-reprocessar") === "1";
+
         // === Auditoria: sempre grava em eventos_raw ===
         const tipoEvento =
           messageType.includes("image") || mediaType === "image" || contentMime.includes("image") || d.image
             ? "image"
             : messageType || "message";
-        try {
+        if (!reprocessando) try {
           await supabaseAdmin.from("eventos_raw").insert({
             tipo_evento: tipoEvento,
             chat_id: chatId || null,
@@ -261,11 +266,9 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
         }
 
         if (!enc) {
-          const chatName = String(
-            pick<string>(body, "chatName") ||
-              pick<string>(d, "chatName", "senderName", "pushName") ||
-              "?",
-          );
+          // Nome do GRUPO (chat.name / groupName). Nunca senderName/pushName:
+          // isso é o nome de quem mandou a foto (ver uazapi-grupos.server.ts).
+          const chatName = nomeDoGrupo(body) || "?";
           // Registra o grupo desconhecido para aparecer em "Aguardando ativação".
           // (Antes só logava e descartava — grupo novo nunca aparecia sozinho na tela,
           // só via botão "Sincronizar do WhatsApp".)
@@ -283,8 +286,9 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
                 ultima_foto_em: new Date().toISOString(),
               });
               console.log(`[uazapi-fotos] Grupo novo registrado p/ ativação: ${chatId} (${chatName})`);
-            } else if (chatName !== "?" && (jaExiste.nome_exibicao ?? "").includes("@")) {
-              // tinha sido salvo com o JID como nome; aproveita para corrigir
+            } else if (chatName !== "?" && (jaExiste.nome_exibicao ?? "") !== chatName) {
+              // Nome errado (JID ou nome de quem mandou) ou grupo renomeado:
+              // vale o nome atual do grupo no WhatsApp.
               await supabaseAdmin
                 .from("grupos")
                 .update({ nome_exibicao: chatName })

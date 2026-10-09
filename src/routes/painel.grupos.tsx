@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { sincronizarGruposZapi } from "@/lib/grupos.functions";
+import { recuperarFotosDoGrupo, sincronizarGruposZapi } from "@/lib/grupos.functions";
+import { chaveJid, semAcento } from "@/lib/jid";
 import { Users, ArrowLeft, Check, RotateCcw, RefreshCw, Archive, Trash2, Search } from "lucide-react";
 import {
   AlertDialog,
@@ -64,14 +65,16 @@ function GruposDescobertos() {
       ]);
       if (ge) throw ge;
       if (ee) throw ee;
-      const ativadosSet = new Set((encs ?? []).map((e) => e.grupo_whatsapp_id));
+      // Mesmo grupo em outro formato de ID (@g.us / -group) também conta como ativado.
+      const ativadosSet = new Set((encs ?? []).map((e) => chaveJid(e.grupo_whatsapp_id)));
       return (grupos ?? []).map((g) => ({
         ...g,
-        ja_ativado: ativadosSet.has(g.whatsapp_jid),
+        ja_ativado: ativadosSet.has(chaveJid(g.whatsapp_jid)),
       }));
     },
   });
 
+  const recuperarFn = useServerFn(recuperarFotosDoGrupo);
   const ativar = useMutation({
     mutationFn: async (args: { jid: string; nomeGrupo: string; nome: string }) => {
       const { error } = await supabase.from("encarregados").insert({
@@ -80,9 +83,19 @@ function GruposDescobertos() {
         grupo_whatsapp_nome: args.nomeGrupo,
       });
       if (error) throw error;
+      // Fotos que o grupo mandou antes de ser ativado (últimos 7 dias).
+      try {
+        return await recuperarFn({ data: { jid: args.jid, dias: 7 } });
+      } catch {
+        return null;
+      }
     },
-    onSuccess: () => {
-      toast.success("Encarregado ativado");
+    onSuccess: (rec) => {
+      toast.success(
+        rec && rec.salvas > 0
+          ? `Encarregado ativado — ${rec.salvas} foto(s) dos últimos dias recuperada(s)`
+          : "Encarregado ativado",
+      );
       qc.invalidateQueries({ queryKey: ["grupos-descobertos"] });
       qc.invalidateQueries({ queryKey: ["painel-encarregados"] });
       qc.invalidateQueries({ queryKey: ["grupos-pendentes-count"] });
@@ -132,9 +145,9 @@ function GruposDescobertos() {
     onError: (e: Error) => toast.error("Falha ao sincronizar: " + e.message),
   });
 
-  const termo = busca.trim().toLowerCase();
+  const termo = semAcento(busca.trim());
   const pendentes = (data ?? []).filter((g) => g.ativo && !g.ja_ativado);
-  const pendentesFiltrados = pendentes.filter((g) => g.nome_exibicao.toLowerCase().includes(termo));
+  const pendentesFiltrados = pendentes.filter((g) => semAcento(g.nome_exibicao).includes(termo));
   const ativados = (data ?? []).filter((g) => g.ativo && g.ja_ativado);
   const recusados = (data ?? []).filter((g) => !g.ativo);
 

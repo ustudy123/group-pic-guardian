@@ -12,6 +12,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { listarGruposUazapi, nomeDoGrupo, reprocessarFotosDoGrupo } from "@/lib/uazapi-grupos.server";
 import {
   ehCumprimento,
   ehDespedidaCurta,
@@ -600,6 +601,102 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
   };
 }
 
+/**
+ * Corrige o nome dos grupos cadastrados: vale o nome do grupo na instância
+ * (todas as páginas) e, para os que mandaram foto, o nome que veio no payload.
+ * Grupo que a instância conhece e ainda não estava cadastrado é incluído.
+ */
+async function corrigirNomesGrupos(): Promise<Record<string, unknown>> {
+  const sbAny = supabaseAdmin as unknown as { from: (t: string) => any };
+  const { data: grupos } = await sbAny.from("grupos").select("id, whatsapp_jid, nome_exibicao");
+  const porJid = new Map<string, { id: string; nome: string }>(
+    ((grupos ?? []) as any[]).map((g) => [g.whatsapp_jid, { id: g.id, nome: g.nome_exibicao ?? "" }]),
+  );
+  const nomeCerto = new Map<string, string>();
+  let naInstancia = 0;
+  try {
+    for (const g of await listarGruposUazapi()) {
+      naInstancia++;
+      if (g.nome && g.nome !== g.jid) nomeCerto.set(g.jid, g.nome);
+    }
+  } catch (e) {
+    console.error("[corrigir-grupos] group/list:", e);
+  }
+  const desde = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+  const { data: ev } = await sbAny
+    .from("eventos_raw")
+    .select("chat_id, payload")
+    .eq("tipo_evento", "image")
+    .gte("created_at", desde)
+    .order("created_at", { ascending: false })
+    .limit(3000);
+  for (const e of (ev ?? []) as Array<{ chat_id: string; payload: Record<string, unknown> }>) {
+    if (!e.chat_id || nomeCerto.has(e.chat_id)) continue;
+    const nome = nomeDoGrupo(e.payload ?? {});
+    if (nome) nomeCerto.set(e.chat_id, nome);
+  }
+
+  const renomeados: Array<{ de: string; para: string }> = [];
+  const incluidos: string[] = [];
+  for (const [jid, nome] of nomeCerto) {
+    const atual = porJid.get(jid);
+    if (atual) {
+      if (atual.nome !== nome) {
+        const { error } = await sbAny.from("grupos").update({ nome_exibicao: nome }).eq("id", atual.id);
+        if (!error) renomeados.push({ de: atual.nome, para: nome });
+      }
+    } else {
+      const { error } = await sbAny
+        .from("grupos")
+        .insert({ whatsapp_jid: jid, nome_exibicao: nome, ativo: true });
+      if (!error) incluidos.push(nome);
+    }
+  }
+  return {
+    relatorio: "corrigir-nomes-grupos",
+    grupos_na_instancia: naInstancia,
+    renomeados,
+    incluidos,
+  };
+}
+
+/** Liga um encarregado (pelo nome exato) a outro grupo e recupera as fotos dele. */
+async function religarGrupo(
+  nomeEncarregado: string,
+  finalJid: string,
+  origem: string,
+  dias: number,
+): Promise<Record<string, unknown>> {
+  const sbAny = supabaseAdmin as unknown as { from: (t: string) => any };
+  const fim = finalJid.replace(/[^0-9a-z-]/gi, "");
+  if (fim.length < 5) return { erro: "informe o final do JID do grupo (5+ caracteres)" };
+  const { data: encs } = await sbAny
+    .from("encarregados")
+    .select("id, nome, grupo_whatsapp_id, ativo")
+    .eq("nome", nomeEncarregado);
+  if (!encs || encs.length !== 1) return { erro: `encarregado "${nomeEncarregado}" encontrado ${encs?.length ?? 0} vez(es)` };
+  const { data: gs } = await sbAny
+    .from("grupos")
+    .select("whatsapp_jid, nome_exibicao")
+    .like("whatsapp_jid", `%${fim}@g.us`);
+  if (!gs || gs.length !== 1) return { erro: `grupo terminado em ${fim} encontrado ${gs?.length ?? 0} vez(es)` };
+  const enc = encs[0];
+  const g = gs[0];
+  const { error } = await sbAny
+    .from("encarregados")
+    .update({ grupo_whatsapp_id: g.whatsapp_jid, grupo_whatsapp_nome: g.nome_exibicao })
+    .eq("id", enc.id);
+  if (error) return { erro: error.message };
+  const recuperacao = await reprocessarFotosDoGrupo(sbAny, g.whatsapp_jid, origem, { dias, maximo: 60 });
+  return {
+    relatorio: "religar-grupo",
+    encarregado: enc.nome,
+    grupo_antes: String(enc.grupo_whatsapp_id ?? "").slice(-12),
+    grupo_agora: { nome: g.nome_exibicao, jid: `…${String(g.whatsapp_jid).slice(-12)}` },
+    recuperacao,
+  };
+}
+
 async function relatorioErrosCliente(dias: number): Promise<Record<string, unknown>> {
   const bucket = supabaseAdmin.storage.from("fotos-obras");
   const saida: Array<Record<string, unknown>> = [];
@@ -652,7 +749,7 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
           request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
         if (provided !== expected) return json({ error: "Unauthorized" }, 401);
 
-        let body: { telefone?: string; horas?: number; uazapi?: boolean; relatorio?: string; data?: string; busca?: string } = {};
+        let body: { telefone?: string; horas?: number; uazapi?: boolean; relatorio?: string; data?: string; busca?: string; grupo?: string } = {};
         try {
           body = await request.json();
         } catch {
@@ -688,6 +785,14 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
             depois: depois?.allowed_mime_types,
             tamanho_maximo_bytes: depois?.file_size_limit,
           });
+        }
+        if (body.relatorio === "corrigir-nomes-grupos") {
+          return json(await corrigirNomesGrupos());
+        }
+        if (body.relatorio === "religar-grupo") {
+          const origem = new URL(request.url).origin;
+          const dias = Math.min(Math.max(Number(body.horas) || 7, 1), 30);
+          return json(await religarGrupo(String(body.busca ?? ""), String(body.grupo ?? ""), origem, dias));
         }
         if (body.relatorio === "grupos") {
           const horas = Math.min(Math.max(Number(body.horas) || 48, 1), 24 * 14);
