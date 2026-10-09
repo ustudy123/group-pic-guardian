@@ -384,6 +384,155 @@ async function relatorioAlertas(dias: number): Promise<Record<string, unknown>> 
  * Erros registrados pelo navegador dos usuários (tela de erro e falha no envio
  * do formulário). O link do formulário sai só com o final, sem o nome.
  */
+/**
+ * Grupos de fotos (WhatsApp → painel): por nome do grupo, mostra se ele está
+ * cadastrado, ligado a um encarregado, se a instância de fotos está nele e se
+ * as fotos estão chegando ao webhook. Log público: JID só com o final.
+ */
+async function relatorioGrupos(busca: string, horas: number): Promise<Record<string, unknown>> {
+  const sbAny = supabaseAdmin as unknown as { from: (t: string) => any };
+  const norm = (t: unknown) =>
+    String(t ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const termos = norm(busca).split(" ").filter((t) => t.length > 1);
+  const casa = (nome: unknown) => termos.length > 0 && termos.every((t) => norm(nome).includes(t));
+  const curto = (jid: unknown) => {
+    const v = String(jid ?? "");
+    return v ? `…${v.replace(/@g\.us$/, "").slice(-6)}${v.endsWith("@g.us") ? "@g.us" : ""}` : null;
+  };
+  const desde = new Date(Date.now() - horas * 3600_000).toISOString();
+
+  const [{ data: grupos }, { data: encs }] = await Promise.all([
+    sbAny.from("grupos").select("whatsapp_jid, nome_exibicao, ativo, ultima_foto_em, created_at"),
+    sbAny.from("encarregados").select("id, nome, grupo_whatsapp_id, grupo_whatsapp_nome, ativo"),
+  ]);
+  const gruposAchados = ((grupos ?? []) as Array<Record<string, any>>).filter((g) => casa(g.nome_exibicao));
+  const jidsAchados = new Set(gruposAchados.map((g) => g.whatsapp_jid));
+  const encsAchados = ((encs ?? []) as Array<Record<string, any>>).filter(
+    (e) => casa(e.nome) || casa(e.grupo_whatsapp_nome) || jidsAchados.has(e.grupo_whatsapp_id),
+  );
+
+  // A instância de fotos participa do grupo?
+  let naInstancia: unknown = null;
+  const listaInstancia: Array<{ jid: string; nome: string }> = [];
+  try {
+    const base = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
+    const token = process.env.UAZAPI_INSTANCE_TOKEN;
+    if (token) {
+      const r = await fetch(`${base}/group/list`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token },
+        body: JSON.stringify({ force: true }),
+      });
+      const j = (await r.json().catch(() => null)) as any;
+      const lista: any[] = Array.isArray(j) ? j : (j?.groups ?? j?.data ?? []);
+      for (const g of lista) {
+        const jid = String(g.JID || g.jid || "");
+        const nome = String(g.Name || g.name || g.Subject || g.subject || "");
+        if (jid) listaInstancia.push({ jid, nome });
+      }
+      naInstancia = {
+        http: r.status,
+        total_grupos_na_instancia: listaInstancia.length,
+        achados: listaInstancia.filter((g) => casa(g.nome)).map((g) => ({
+          nome: g.nome,
+          jid: curto(g.jid),
+          cadastrado_em_grupos: ((grupos ?? []) as any[]).some((x) => x.whatsapp_jid === g.jid),
+          encarregado: ((encs ?? []) as any[])
+            .filter((e) => e.grupo_whatsapp_id === g.jid)
+            .map((e) => ({ nome: e.nome, ativo: e.ativo })),
+        })),
+      };
+    } else {
+      naInstancia = "UAZAPI_INSTANCE_TOKEN ausente";
+    }
+  } catch (e) {
+    naInstancia = { erro: e instanceof Error ? e.message : String(e) };
+  }
+
+  // Eventos que chegaram ao webhook de fotos para esses grupos.
+  const jids = new Set<string>([
+    ...jidsAchados,
+    ...encsAchados.map((e) => e.grupo_whatsapp_id).filter(Boolean),
+    ...listaInstancia.filter((g) => casa(g.nome)).map((g) => g.jid),
+  ]);
+  const porJid: Record<string, unknown>[] = [];
+  for (const jid of jids) {
+    const { data: ev } = await sbAny
+      .from("eventos_raw")
+      .select("tipo_evento, created_at, processado, erro")
+      .eq("chat_id", jid)
+      .gte("created_at", desde)
+      .order("created_at", { ascending: false })
+      .limit(300);
+    const lista = (ev ?? []) as Array<Record<string, any>>;
+    const enc = ((encs ?? []) as any[]).filter((e) => e.grupo_whatsapp_id === jid);
+    let fotos: unknown = null;
+    if (enc.length) {
+      const { data: f } = await sbAny
+        .from("fotos")
+        .select("data_envio, status")
+        .in("encarregado_id", enc.map((e) => e.id))
+        .gte("created_at", desde)
+        .order("created_at", { ascending: false })
+        .limit(300);
+      const fl = (f ?? []) as Array<Record<string, any>>;
+      fotos = { quantidade: fl.length, ultima: horaBrt(fl[0]?.data_envio) };
+    }
+    porJid.push({
+      jid: curto(jid),
+      nome_no_cadastro: ((grupos ?? []) as any[]).find((g) => g.whatsapp_jid === jid)?.nome_exibicao ?? null,
+      encarregados: enc.map((e) => ({ nome: e.nome, ativo: e.ativo })),
+      eventos_no_webhook: lista.length,
+      imagens_no_webhook: lista.filter((x) => x.tipo_evento === "image").length,
+      ultimo_evento: horaBrt(lista[0]?.created_at),
+      fotos_salvas: fotos,
+    });
+  }
+
+  // O webhook está recebendo alguma coisa de grupos?
+  const { data: ultimosEv } = await sbAny
+    .from("eventos_raw")
+    .select("chat_id, tipo_evento, created_at")
+    .gte("created_at", desde)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  const ev = (ultimosEv ?? []) as Array<Record<string, any>>;
+
+  return {
+    relatorio: "grupos",
+    busca,
+    horas,
+    agora: horaBrt(new Date().toISOString()),
+    webhook_geral: {
+      eventos_recebidos: ev.length,
+      imagens_de_grupo: ev.filter((x) => x.tipo_evento === "image" && String(x.chat_id).includes("@g.us")).length,
+      ultimo_evento: horaBrt(ev[0]?.created_at),
+    },
+    cadastro_grupos: gruposAchados.map((g) => ({
+      nome: g.nome_exibicao,
+      jid: curto(g.whatsapp_jid),
+      ativo: g.ativo,
+      ligado_a_encarregado_ativo: ((encs ?? []) as any[]).some((e) => e.ativo && e.grupo_whatsapp_id === g.whatsapp_jid),
+      ultima_foto_em: horaBrt(g.ultima_foto_em),
+      criado_em: horaBrt(g.created_at),
+    })),
+    encarregados: encsAchados.map((e) => ({
+      nome: e.nome,
+      ativo: e.ativo,
+      grupo_nome: e.grupo_whatsapp_nome,
+      jid: curto(e.grupo_whatsapp_id),
+      jid_cadastrado_em_grupos: ((grupos ?? []) as any[]).some((g) => g.whatsapp_jid === e.grupo_whatsapp_id),
+    })),
+    instancia_fotos: naInstancia,
+    por_grupo: porJid,
+  };
+}
+
 async function relatorioErrosCliente(dias: number): Promise<Record<string, unknown>> {
   const bucket = supabaseAdmin.storage.from("fotos-obras");
   const saida: Array<Record<string, unknown>> = [];
@@ -436,7 +585,7 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
           request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
         if (provided !== expected) return json({ error: "Unauthorized" }, 401);
 
-        let body: { telefone?: string; horas?: number; uazapi?: boolean; relatorio?: string; data?: string } = {};
+        let body: { telefone?: string; horas?: number; uazapi?: boolean; relatorio?: string; data?: string; busca?: string } = {};
         try {
           body = await request.json();
         } catch {
@@ -472,6 +621,10 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
             depois: depois?.allowed_mime_types,
             tamanho_maximo_bytes: depois?.file_size_limit,
           });
+        }
+        if (body.relatorio === "grupos") {
+          const horas = Math.min(Math.max(Number(body.horas) || 48, 1), 24 * 14);
+          return json(await relatorioGrupos(String(body.busca ?? ""), horas));
         }
         if (body.relatorio === "erros") {
           const dias = Math.min(Math.max(Number(body.horas) || 3, 1), 14);

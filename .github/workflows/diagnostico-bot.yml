@@ -11,6 +11,9 @@ name: Diagnóstico do bot
 #     coordenadores e se o bot procurou o encarregado na manhã seguinte.
 #   - modo "erros-do-site": erros que aconteceram no navegador dos usuários
 #     (tela de erro, falha ao enviar formulário) nos últimos dias.
+#   - modo "grupos-de-fotos": por nome do grupo, se ele está cadastrado, ligado
+#     a um encarregado, se a instância de fotos participa dele e se as fotos
+#     chegaram ao webhook nas últimas horas.
 #   - modo "fila": chama uma vez a fila de respostas (o mesmo que o job do banco
 #     faz a cada minuto) e mostra o que o servidor devolveu.
 on:
@@ -21,13 +24,17 @@ on:
         required: true
         type: choice
         default: conversa
-        options: ["conversa", "envios-do-dia", "alertas", "erros-do-site", "teste-registro-de-erro", "ajustar-tipos-de-arquivo", "fila"]
+        options: ["conversa", "envios-do-dia", "alertas", "erros-do-site", "grupos-de-fotos", "teste-registro-de-erro", "ajustar-tipos-de-arquivo", "fila"]
       telefone:
         description: "Telefone do contato (modo conversa) — bastam os 8 últimos dígitos"
         required: false
         type: string
       data:
         description: "Dia do relatório envios-do-dia (AAAA-MM-DD; vazio = hoje)"
+        required: false
+        type: string
+      busca:
+        description: "Nome (ou parte) do grupo — modo grupos-de-fotos"
         required: false
         type: string
       horas:
@@ -49,6 +56,7 @@ jobs:
           TELEFONE: ${{ github.event.inputs.telefone }}
           HORAS: ${{ github.event.inputs.horas }}
           DATA: ${{ github.event.inputs.data }}
+          BUSCA: ${{ github.event.inputs.busca }}
         run: |
           if [ "$MODO" = "fila" ]; then
             URL="$BASE/enviar-respostas-pendentes"; BODY='{}'
@@ -56,6 +64,10 @@ jobs:
             URL="$BASE/diagnostico-conversa"; BODY='{"relatorio":"ajustar-bucket"}'
           elif [ "$MODO" = "teste-registro-de-erro" ]; then
             URL="$BASE/erro-cliente"; BODY='{"origem":"teste-automatico","mensagem":"erro de teste do workflow","caminho":"/f/teste","navegador":"GitHub Actions"}'
+          elif [ "$MODO" = "grupos-de-fotos" ]; then
+            H=$(printf '%s' "${HORAS:-48}" | tr -cd '0-9')
+            B=$(printf '%s' "$BUSCA" | tr -d '"\\')
+            URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"grupos\",\"busca\":\"$B\",\"horas\":${H:-48}}"
           elif [ "$MODO" = "erros-do-site" ]; then
             H=$(printf '%s' "${HORAS:-3}" | tr -cd '0-9')
             URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"erros\",\"horas\":${H:-3}}"
