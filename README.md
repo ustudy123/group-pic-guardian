@@ -1,5 +1,7 @@
 # Macro Ambiental
 
+📘 **Documentação técnica (arquitetura, banco de dados, integrações): [docs/ARQUITETURA.md](docs/ARQUITETURA.md)**
+
 Analise esses 2 arquivos, entenda a demanda do cliente , que quer um bot ou i.a  dentro dos grupos de whatsapp para baixar as fotos, enviar para one drive , supabase ou algum banco de dados . e organiza-las em pastas por grupo e dentro dessas pastas de cada grupo, ter subpastas do mes e do dia que as fotos foram enviadas nos grupos. Analise minunciosamente a necessidade do cliente, conforme os documentos da reuniao de alinhamento ( com a transcriçao e anotaçoes ). Se fica com alguma dúvida, me pergunte antes de implementar. ha outras demandas dele ( agente de ia para responder no wahtsapp,   Ia para analisar as imagens/fotos dos grupos e gerar um relatorio. Porem a principio, vamos começar pela implementação do bot ou ia dentro dos grupos de whatsapp, para baixar as imagens e mandar para algum banco de dados ou painel aqui no projeto no lovable.
 
 This project was built with [Lovable](https://lovable.dev).
