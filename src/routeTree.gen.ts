@@ -9,68 +9,48 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ServicosRouteImport } from './routes/servicos'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as PortalRouteImport } from './routes/portal'
-import { Route as PainelRouteImport } from './routes/painel'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as FormulariosRouteImport } from './routes/formularios'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PainelIndexRouteImport } from './routes/painel.index'
-import { Route as PainelVistoriasRouteImport } from './routes/painel.vistorias'
-import { Route as PainelVisaoRouteImport } from './routes/painel.visao'
-import { Route as PainelQualidadeRouteImport } from './routes/painel.qualidade'
-import { Route as PainelGuiaRouteImport } from './routes/painel.guia'
-import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
-import { Route as PainelFormulariosRouteImport } from './routes/painel.formularios'
-import { Route as PainelChecklistRouteImport } from './routes/painel.checklist'
-import { Route as PainelAiBotRouteImport } from './routes/painel.ai-bot'
-import { Route as PainelAdminRouteImport } from './routes/painel.admin'
-import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
+import { Route as FormulariosRouteImport } from './routes/formularios'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as PainelRouteImport } from './routes/painel'
+import { Route as PortalRouteImport } from './routes/portal'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ServicosRouteImport } from './routes/servicos'
 import { Route as FSlugRouteImport } from './routes/f.$slug'
-import { Route as PainelVistoriasIndexRouteImport } from './routes/painel.vistorias.index'
+import { Route as PainelIndexRouteImport } from './routes/painel.index'
+import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
+import { Route as PainelAdminRouteImport } from './routes/painel.admin'
+import { Route as PainelAiBotRouteImport } from './routes/painel.ai-bot'
+import { Route as PainelChecklistRouteImport } from './routes/painel.checklist'
+import { Route as PainelFormulariosRouteImport } from './routes/painel.formularios'
+import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
+import { Route as PainelGuiaRouteImport } from './routes/painel.guia'
+import { Route as PainelQualidadeRouteImport } from './routes/painel.qualidade'
+import { Route as PainelVisaoRouteImport } from './routes/painel.visao'
+import { Route as PainelVistoriasRouteImport } from './routes/painel.vistorias'
 import { Route as PainelEncarregadoIndexRouteImport } from './routes/painel.$encarregado.index'
-import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistorias.admin'
-import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
 import { Route as PainelFormulariosIdRouteImport } from './routes/painel.formularios.$id'
-import { Route as PainelFormulariosIdRespostasRouteImport } from './routes/painel.formularios.$id.respostas'
-import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
-import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public/hooks/uazapi-bot'
-import { Route as ApiPublicHooksResumoAlertasDiarioRouteImport } from './routes/api/public/hooks/resumo-alertas-diario'
-import { Route as ApiPublicHooksReenviarAlertasRouteImport } from './routes/api/public/hooks/reenviar-alertas'
-import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
-import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
-import { Route as ApiPublicHooksNotificarReprovacoesRouteImport } from './routes/api/public/hooks/notificar-reprovacoes'
-import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes/api/public/hooks/mensagens-programadas'
-import { Route as ApiPublicHooksErroClienteRouteImport } from './routes/api/public/hooks/erro-cliente'
-import { Route as ApiPublicHooksEnviarRespostasPendentesRouteImport } from './routes/api/public/hooks/enviar-respostas-pendentes'
-import { Route as ApiPublicHooksDiagnosticoConversaRouteImport } from './routes/api/public/hooks/diagnostico-conversa'
+import { Route as PainelVistoriasIndexRouteImport } from './routes/painel.vistorias.index'
+import { Route as PainelVistoriasRuaIdRouteImport } from './routes/painel.vistorias.$ruaId'
+import { Route as PainelVistoriasAdminRouteImport } from './routes/painel.vistorias.admin'
 import { Route as ApiPublicHooksAiBotRouteImport } from './routes/api/public/hooks/ai-bot'
+import { Route as ApiPublicHooksDiagnosticoConversaRouteImport } from './routes/api/public/hooks/diagnostico-conversa'
+import { Route as ApiPublicHooksEnviarRespostasPendentesRouteImport } from './routes/api/public/hooks/enviar-respostas-pendentes'
+import { Route as ApiPublicHooksErroClienteRouteImport } from './routes/api/public/hooks/erro-cliente'
+import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes/api/public/hooks/mensagens-programadas'
+import { Route as ApiPublicHooksNotificarReprovacoesRouteImport } from './routes/api/public/hooks/notificar-reprovacoes'
+import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
+import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
+import { Route as ApiPublicHooksReenviarAlertasRouteImport } from './routes/api/public/hooks/reenviar-alertas'
+import { Route as ApiPublicHooksResumoAlertasDiarioRouteImport } from './routes/api/public/hooks/resumo-alertas-diario'
+import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public/hooks/uazapi-bot'
+import { Route as PainelEncarregadoAnoMesDiaRouteImport } from './routes/painel.$encarregado.$anoMes.$dia'
+import { Route as PainelFormulariosIdRespostasRouteImport } from './routes/painel.formularios.$id.respostas'
 import { Route as ApiPublicHooksUazapiFotosTokenRouteImport } from './routes/api/public/hooks/uazapi-fotos.$token'
 
-const ServicosRoute = ServicosRouteImport.update({
-  id: '/servicos',
-  path: '/servicos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PortalRoute = PortalRouteImport.update({
-  id: '/portal',
-  path: '/portal',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PainelRoute = PainelRouteImport.update({
-  id: '/painel',
-  path: '/painel',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FormulariosRoute = FormulariosRouteImport.update({
@@ -78,9 +58,34 @@ const FormulariosRoute = FormulariosRouteImport.update({
   path: '/formularios',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PainelRoute = PainelRouteImport.update({
+  id: '/painel',
+  path: '/painel',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicosRoute = ServicosRouteImport.update({
+  id: '/servicos',
+  path: '/servicos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FSlugRoute = FSlugRouteImport.update({
+  id: '/f/$slug',
+  path: '/f/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PainelIndexRoute = PainelIndexRouteImport.update({
@@ -88,44 +93,9 @@ const PainelIndexRoute = PainelIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PainelRoute,
 } as any)
-const PainelVistoriasRoute = PainelVistoriasRouteImport.update({
-  id: '/vistorias',
-  path: '/vistorias',
-  getParentRoute: () => PainelRoute,
-} as any)
-const PainelVisaoRoute = PainelVisaoRouteImport.update({
-  id: '/visao',
-  path: '/visao',
-  getParentRoute: () => PainelRoute,
-} as any)
-const PainelQualidadeRoute = PainelQualidadeRouteImport.update({
-  id: '/qualidade',
-  path: '/qualidade',
-  getParentRoute: () => PainelRoute,
-} as any)
-const PainelGuiaRoute = PainelGuiaRouteImport.update({
-  id: '/guia',
-  path: '/guia',
-  getParentRoute: () => PainelRoute,
-} as any)
-const PainelGruposRoute = PainelGruposRouteImport.update({
-  id: '/grupos',
-  path: '/grupos',
-  getParentRoute: () => PainelRoute,
-} as any)
-const PainelFormulariosRoute = PainelFormulariosRouteImport.update({
-  id: '/formularios',
-  path: '/formularios',
-  getParentRoute: () => PainelRoute,
-} as any)
-const PainelChecklistRoute = PainelChecklistRouteImport.update({
-  id: '/checklist',
-  path: '/checklist',
-  getParentRoute: () => PainelRoute,
-} as any)
-const PainelAiBotRoute = PainelAiBotRouteImport.update({
-  id: '/ai-bot',
-  path: '/ai-bot',
+const PainelEncarregadoRoute = PainelEncarregadoRouteImport.update({
+  id: '/$encarregado',
+  path: '/$encarregado',
   getParentRoute: () => PainelRoute,
 } as any)
 const PainelAdminRoute = PainelAdminRouteImport.update({
@@ -133,29 +103,59 @@ const PainelAdminRoute = PainelAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => PainelRoute,
 } as any)
-const PainelEncarregadoRoute = PainelEncarregadoRouteImport.update({
-  id: '/$encarregado',
-  path: '/$encarregado',
+const PainelAiBotRoute = PainelAiBotRouteImport.update({
+  id: '/ai-bot',
+  path: '/ai-bot',
   getParentRoute: () => PainelRoute,
 } as any)
-const FSlugRoute = FSlugRouteImport.update({
-  id: '/f/$slug',
-  path: '/f/$slug',
-  getParentRoute: () => rootRouteImport,
+const PainelChecklistRoute = PainelChecklistRouteImport.update({
+  id: '/checklist',
+  path: '/checklist',
+  getParentRoute: () => PainelRoute,
 } as any)
-const PainelVistoriasIndexRoute = PainelVistoriasIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PainelVistoriasRoute,
+const PainelFormulariosRoute = PainelFormulariosRouteImport.update({
+  id: '/formularios',
+  path: '/formularios',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelGruposRoute = PainelGruposRouteImport.update({
+  id: '/grupos',
+  path: '/grupos',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelGuiaRoute = PainelGuiaRouteImport.update({
+  id: '/guia',
+  path: '/guia',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelQualidadeRoute = PainelQualidadeRouteImport.update({
+  id: '/qualidade',
+  path: '/qualidade',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelVisaoRoute = PainelVisaoRouteImport.update({
+  id: '/visao',
+  path: '/visao',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelVistoriasRoute = PainelVistoriasRouteImport.update({
+  id: '/vistorias',
+  path: '/vistorias',
+  getParentRoute: () => PainelRoute,
 } as any)
 const PainelEncarregadoIndexRoute = PainelEncarregadoIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PainelEncarregadoRoute,
 } as any)
-const PainelVistoriasAdminRoute = PainelVistoriasAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const PainelFormulariosIdRoute = PainelFormulariosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => PainelFormulariosRoute,
+} as any)
+const PainelVistoriasIndexRoute = PainelVistoriasIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => PainelVistoriasRoute,
 } as any)
 const PainelVistoriasRuaIdRoute = PainelVistoriasRuaIdRouteImport.update({
@@ -163,68 +163,20 @@ const PainelVistoriasRuaIdRoute = PainelVistoriasRuaIdRouteImport.update({
   path: '/$ruaId',
   getParentRoute: () => PainelVistoriasRoute,
 } as any)
-const PainelFormulariosIdRoute = PainelFormulariosIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => PainelFormulariosRoute,
+const PainelVistoriasAdminRoute = PainelVistoriasAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => PainelVistoriasRoute,
 } as any)
-const PainelFormulariosIdRespostasRoute =
-  PainelFormulariosIdRespostasRouteImport.update({
-    id: '/respostas',
-    path: '/respostas',
-    getParentRoute: () => PainelFormulariosIdRoute,
-  } as any)
-const PainelEncarregadoAnoMesDiaRoute =
-  PainelEncarregadoAnoMesDiaRouteImport.update({
-    id: '/$anoMes/$dia',
-    path: '/$anoMes/$dia',
-    getParentRoute: () => PainelEncarregadoRoute,
-  } as any)
-const ApiPublicHooksUazapiBotRoute = ApiPublicHooksUazapiBotRouteImport.update({
-  id: '/api/public/hooks/uazapi-bot',
-  path: '/api/public/hooks/uazapi-bot',
+const ApiPublicHooksAiBotRoute = ApiPublicHooksAiBotRouteImport.update({
+  id: '/api/public/hooks/ai-bot',
+  path: '/api/public/hooks/ai-bot',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicHooksResumoAlertasDiarioRoute =
-  ApiPublicHooksResumoAlertasDiarioRouteImport.update({
-    id: '/api/public/hooks/resumo-alertas-diario',
-    path: '/api/public/hooks/resumo-alertas-diario',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksReenviarAlertasRoute =
-  ApiPublicHooksReenviarAlertasRouteImport.update({
-    id: '/api/public/hooks/reenviar-alertas',
-    path: '/api/public/hooks/reenviar-alertas',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksProcessarRelatoriosRoute =
-  ApiPublicHooksProcessarRelatoriosRouteImport.update({
-    id: '/api/public/hooks/processar-relatorios',
-    path: '/api/public/hooks/processar-relatorios',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksProcessarAnalisesRoute =
-  ApiPublicHooksProcessarAnalisesRouteImport.update({
-    id: '/api/public/hooks/processar-analises',
-    path: '/api/public/hooks/processar-analises',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksNotificarReprovacoesRoute =
-  ApiPublicHooksNotificarReprovacoesRouteImport.update({
-    id: '/api/public/hooks/notificar-reprovacoes',
-    path: '/api/public/hooks/notificar-reprovacoes',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksMensagensProgramadasRoute =
-  ApiPublicHooksMensagensProgramadasRouteImport.update({
-    id: '/api/public/hooks/mensagens-programadas',
-    path: '/api/public/hooks/mensagens-programadas',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksErroClienteRoute =
-  ApiPublicHooksErroClienteRouteImport.update({
-    id: '/api/public/hooks/erro-cliente',
-    path: '/api/public/hooks/erro-cliente',
+const ApiPublicHooksDiagnosticoConversaRoute =
+  ApiPublicHooksDiagnosticoConversaRouteImport.update({
+    id: '/api/public/hooks/diagnostico-conversa',
+    path: '/api/public/hooks/diagnostico-conversa',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksEnviarRespostasPendentesRoute =
@@ -233,17 +185,65 @@ const ApiPublicHooksEnviarRespostasPendentesRoute =
     path: '/api/public/hooks/enviar-respostas-pendentes',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksDiagnosticoConversaRoute =
-  ApiPublicHooksDiagnosticoConversaRouteImport.update({
-    id: '/api/public/hooks/diagnostico-conversa',
-    path: '/api/public/hooks/diagnostico-conversa',
+const ApiPublicHooksErroClienteRoute =
+  ApiPublicHooksErroClienteRouteImport.update({
+    id: '/api/public/hooks/erro-cliente',
+    path: '/api/public/hooks/erro-cliente',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksAiBotRoute = ApiPublicHooksAiBotRouteImport.update({
-  id: '/api/public/hooks/ai-bot',
-  path: '/api/public/hooks/ai-bot',
+const ApiPublicHooksMensagensProgramadasRoute =
+  ApiPublicHooksMensagensProgramadasRouteImport.update({
+    id: '/api/public/hooks/mensagens-programadas',
+    path: '/api/public/hooks/mensagens-programadas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksNotificarReprovacoesRoute =
+  ApiPublicHooksNotificarReprovacoesRouteImport.update({
+    id: '/api/public/hooks/notificar-reprovacoes',
+    path: '/api/public/hooks/notificar-reprovacoes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksProcessarAnalisesRoute =
+  ApiPublicHooksProcessarAnalisesRouteImport.update({
+    id: '/api/public/hooks/processar-analises',
+    path: '/api/public/hooks/processar-analises',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksProcessarRelatoriosRoute =
+  ApiPublicHooksProcessarRelatoriosRouteImport.update({
+    id: '/api/public/hooks/processar-relatorios',
+    path: '/api/public/hooks/processar-relatorios',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksReenviarAlertasRoute =
+  ApiPublicHooksReenviarAlertasRouteImport.update({
+    id: '/api/public/hooks/reenviar-alertas',
+    path: '/api/public/hooks/reenviar-alertas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksResumoAlertasDiarioRoute =
+  ApiPublicHooksResumoAlertasDiarioRouteImport.update({
+    id: '/api/public/hooks/resumo-alertas-diario',
+    path: '/api/public/hooks/resumo-alertas-diario',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksUazapiBotRoute = ApiPublicHooksUazapiBotRouteImport.update({
+  id: '/api/public/hooks/uazapi-bot',
+  path: '/api/public/hooks/uazapi-bot',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PainelEncarregadoAnoMesDiaRoute =
+  PainelEncarregadoAnoMesDiaRouteImport.update({
+    id: '/$anoMes/$dia',
+    path: '/$anoMes/$dia',
+    getParentRoute: () => PainelEncarregadoRoute,
+  } as any)
+const PainelFormulariosIdRespostasRoute =
+  PainelFormulariosIdRespostasRouteImport.update({
+    id: '/respostas',
+    path: '/respostas',
+    getParentRoute: () => PainelFormulariosIdRoute,
+  } as any)
 const ApiPublicHooksUazapiFotosTokenRoute =
   ApiPublicHooksUazapiFotosTokenRouteImport.update({
     id: '/api/public/hooks/uazapi-fotos/$token',
@@ -514,39 +514,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/servicos': {
-      id: '/servicos'
-      path: '/servicos'
-      fullPath: '/servicos'
-      preLoaderRoute: typeof ServicosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/portal': {
-      id: '/portal'
-      path: '/portal'
-      fullPath: '/portal'
-      preLoaderRoute: typeof PortalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/painel': {
-      id: '/painel'
-      path: '/painel'
-      fullPath: '/painel'
-      preLoaderRoute: typeof PainelRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/formularios': {
@@ -556,11 +528,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FormulariosRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/painel': {
+      id: '/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof PainelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/servicos': {
+      id: '/servicos'
+      path: '/servicos'
+      fullPath: '/servicos'
+      preLoaderRoute: typeof ServicosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/f/$slug': {
+      id: '/f/$slug'
+      path: '/f/$slug'
+      fullPath: '/f/$slug'
+      preLoaderRoute: typeof FSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/painel/': {
@@ -570,60 +577,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelIndexRouteImport
       parentRoute: typeof PainelRoute
     }
-    '/painel/vistorias': {
-      id: '/painel/vistorias'
-      path: '/vistorias'
-      fullPath: '/painel/vistorias'
-      preLoaderRoute: typeof PainelVistoriasRouteImport
-      parentRoute: typeof PainelRoute
-    }
-    '/painel/visao': {
-      id: '/painel/visao'
-      path: '/visao'
-      fullPath: '/painel/visao'
-      preLoaderRoute: typeof PainelVisaoRouteImport
-      parentRoute: typeof PainelRoute
-    }
-    '/painel/qualidade': {
-      id: '/painel/qualidade'
-      path: '/qualidade'
-      fullPath: '/painel/qualidade'
-      preLoaderRoute: typeof PainelQualidadeRouteImport
-      parentRoute: typeof PainelRoute
-    }
-    '/painel/guia': {
-      id: '/painel/guia'
-      path: '/guia'
-      fullPath: '/painel/guia'
-      preLoaderRoute: typeof PainelGuiaRouteImport
-      parentRoute: typeof PainelRoute
-    }
-    '/painel/grupos': {
-      id: '/painel/grupos'
-      path: '/grupos'
-      fullPath: '/painel/grupos'
-      preLoaderRoute: typeof PainelGruposRouteImport
-      parentRoute: typeof PainelRoute
-    }
-    '/painel/formularios': {
-      id: '/painel/formularios'
-      path: '/formularios'
-      fullPath: '/painel/formularios'
-      preLoaderRoute: typeof PainelFormulariosRouteImport
-      parentRoute: typeof PainelRoute
-    }
-    '/painel/checklist': {
-      id: '/painel/checklist'
-      path: '/checklist'
-      fullPath: '/painel/checklist'
-      preLoaderRoute: typeof PainelChecklistRouteImport
-      parentRoute: typeof PainelRoute
-    }
-    '/painel/ai-bot': {
-      id: '/painel/ai-bot'
-      path: '/ai-bot'
-      fullPath: '/painel/ai-bot'
-      preLoaderRoute: typeof PainelAiBotRouteImport
+    '/painel/$encarregado': {
+      id: '/painel/$encarregado'
+      path: '/$encarregado'
+      fullPath: '/painel/$encarregado'
+      preLoaderRoute: typeof PainelEncarregadoRouteImport
       parentRoute: typeof PainelRoute
     }
     '/painel/admin': {
@@ -633,26 +591,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelAdminRouteImport
       parentRoute: typeof PainelRoute
     }
-    '/painel/$encarregado': {
-      id: '/painel/$encarregado'
-      path: '/$encarregado'
-      fullPath: '/painel/$encarregado'
-      preLoaderRoute: typeof PainelEncarregadoRouteImport
+    '/painel/ai-bot': {
+      id: '/painel/ai-bot'
+      path: '/ai-bot'
+      fullPath: '/painel/ai-bot'
+      preLoaderRoute: typeof PainelAiBotRouteImport
       parentRoute: typeof PainelRoute
     }
-    '/f/$slug': {
-      id: '/f/$slug'
-      path: '/f/$slug'
-      fullPath: '/f/$slug'
-      preLoaderRoute: typeof FSlugRouteImport
-      parentRoute: typeof rootRouteImport
+    '/painel/checklist': {
+      id: '/painel/checklist'
+      path: '/checklist'
+      fullPath: '/painel/checklist'
+      preLoaderRoute: typeof PainelChecklistRouteImport
+      parentRoute: typeof PainelRoute
     }
-    '/painel/vistorias/': {
-      id: '/painel/vistorias/'
-      path: '/'
-      fullPath: '/painel/vistorias/'
-      preLoaderRoute: typeof PainelVistoriasIndexRouteImport
-      parentRoute: typeof PainelVistoriasRoute
+    '/painel/formularios': {
+      id: '/painel/formularios'
+      path: '/formularios'
+      fullPath: '/painel/formularios'
+      preLoaderRoute: typeof PainelFormulariosRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/grupos': {
+      id: '/painel/grupos'
+      path: '/grupos'
+      fullPath: '/painel/grupos'
+      preLoaderRoute: typeof PainelGruposRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/guia': {
+      id: '/painel/guia'
+      path: '/guia'
+      fullPath: '/painel/guia'
+      preLoaderRoute: typeof PainelGuiaRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/qualidade': {
+      id: '/painel/qualidade'
+      path: '/qualidade'
+      fullPath: '/painel/qualidade'
+      preLoaderRoute: typeof PainelQualidadeRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/visao': {
+      id: '/painel/visao'
+      path: '/visao'
+      fullPath: '/painel/visao'
+      preLoaderRoute: typeof PainelVisaoRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/vistorias': {
+      id: '/painel/vistorias'
+      path: '/vistorias'
+      fullPath: '/painel/vistorias'
+      preLoaderRoute: typeof PainelVistoriasRouteImport
+      parentRoute: typeof PainelRoute
     }
     '/painel/$encarregado/': {
       id: '/painel/$encarregado/'
@@ -661,11 +654,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelEncarregadoIndexRouteImport
       parentRoute: typeof PainelEncarregadoRoute
     }
-    '/painel/vistorias/admin': {
-      id: '/painel/vistorias/admin'
-      path: '/admin'
-      fullPath: '/painel/vistorias/admin'
-      preLoaderRoute: typeof PainelVistoriasAdminRouteImport
+    '/painel/formularios/$id': {
+      id: '/painel/formularios/$id'
+      path: '/$id'
+      fullPath: '/painel/formularios/$id'
+      preLoaderRoute: typeof PainelFormulariosIdRouteImport
+      parentRoute: typeof PainelFormulariosRoute
+    }
+    '/painel/vistorias/': {
+      id: '/painel/vistorias/'
+      path: '/'
+      fullPath: '/painel/vistorias/'
+      preLoaderRoute: typeof PainelVistoriasIndexRouteImport
       parentRoute: typeof PainelVistoriasRoute
     }
     '/painel/vistorias/$ruaId': {
@@ -675,88 +675,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelVistoriasRuaIdRouteImport
       parentRoute: typeof PainelVistoriasRoute
     }
-    '/painel/formularios/$id': {
-      id: '/painel/formularios/$id'
-      path: '/$id'
-      fullPath: '/painel/formularios/$id'
-      preLoaderRoute: typeof PainelFormulariosIdRouteImport
-      parentRoute: typeof PainelFormulariosRoute
+    '/painel/vistorias/admin': {
+      id: '/painel/vistorias/admin'
+      path: '/admin'
+      fullPath: '/painel/vistorias/admin'
+      preLoaderRoute: typeof PainelVistoriasAdminRouteImport
+      parentRoute: typeof PainelVistoriasRoute
     }
-    '/painel/formularios/$id/respostas': {
-      id: '/painel/formularios/$id/respostas'
-      path: '/respostas'
-      fullPath: '/painel/formularios/$id/respostas'
-      preLoaderRoute: typeof PainelFormulariosIdRespostasRouteImport
-      parentRoute: typeof PainelFormulariosIdRoute
-    }
-    '/painel/$encarregado/$anoMes/$dia': {
-      id: '/painel/$encarregado/$anoMes/$dia'
-      path: '/$anoMes/$dia'
-      fullPath: '/painel/$encarregado/$anoMes/$dia'
-      preLoaderRoute: typeof PainelEncarregadoAnoMesDiaRouteImport
-      parentRoute: typeof PainelEncarregadoRoute
-    }
-    '/api/public/hooks/uazapi-bot': {
-      id: '/api/public/hooks/uazapi-bot'
-      path: '/api/public/hooks/uazapi-bot'
-      fullPath: '/api/public/hooks/uazapi-bot'
-      preLoaderRoute: typeof ApiPublicHooksUazapiBotRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/resumo-alertas-diario': {
-      id: '/api/public/hooks/resumo-alertas-diario'
-      path: '/api/public/hooks/resumo-alertas-diario'
-      fullPath: '/api/public/hooks/resumo-alertas-diario'
-      preLoaderRoute: typeof ApiPublicHooksResumoAlertasDiarioRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/reenviar-alertas': {
-      id: '/api/public/hooks/reenviar-alertas'
-      path: '/api/public/hooks/reenviar-alertas'
-      fullPath: '/api/public/hooks/reenviar-alertas'
-      preLoaderRoute: typeof ApiPublicHooksReenviarAlertasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/processar-relatorios': {
-      id: '/api/public/hooks/processar-relatorios'
-      path: '/api/public/hooks/processar-relatorios'
-      fullPath: '/api/public/hooks/processar-relatorios'
-      preLoaderRoute: typeof ApiPublicHooksProcessarRelatoriosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/processar-analises': {
-      id: '/api/public/hooks/processar-analises'
-      path: '/api/public/hooks/processar-analises'
-      fullPath: '/api/public/hooks/processar-analises'
-      preLoaderRoute: typeof ApiPublicHooksProcessarAnalisesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/notificar-reprovacoes': {
-      id: '/api/public/hooks/notificar-reprovacoes'
-      path: '/api/public/hooks/notificar-reprovacoes'
-      fullPath: '/api/public/hooks/notificar-reprovacoes'
-      preLoaderRoute: typeof ApiPublicHooksNotificarReprovacoesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/mensagens-programadas': {
-      id: '/api/public/hooks/mensagens-programadas'
-      path: '/api/public/hooks/mensagens-programadas'
-      fullPath: '/api/public/hooks/mensagens-programadas'
-      preLoaderRoute: typeof ApiPublicHooksMensagensProgramadasRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/erro-cliente': {
-      id: '/api/public/hooks/erro-cliente'
-      path: '/api/public/hooks/erro-cliente'
-      fullPath: '/api/public/hooks/erro-cliente'
-      preLoaderRoute: typeof ApiPublicHooksErroClienteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/enviar-respostas-pendentes': {
-      id: '/api/public/hooks/enviar-respostas-pendentes'
-      path: '/api/public/hooks/enviar-respostas-pendentes'
-      fullPath: '/api/public/hooks/enviar-respostas-pendentes'
-      preLoaderRoute: typeof ApiPublicHooksEnviarRespostasPendentesRouteImport
+    '/api/public/hooks/ai-bot': {
+      id: '/api/public/hooks/ai-bot'
+      path: '/api/public/hooks/ai-bot'
+      fullPath: '/api/public/hooks/ai-bot'
+      preLoaderRoute: typeof ApiPublicHooksAiBotRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/diagnostico-conversa': {
@@ -766,12 +696,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksDiagnosticoConversaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/ai-bot': {
-      id: '/api/public/hooks/ai-bot'
-      path: '/api/public/hooks/ai-bot'
-      fullPath: '/api/public/hooks/ai-bot'
-      preLoaderRoute: typeof ApiPublicHooksAiBotRouteImport
+    '/api/public/hooks/enviar-respostas-pendentes': {
+      id: '/api/public/hooks/enviar-respostas-pendentes'
+      path: '/api/public/hooks/enviar-respostas-pendentes'
+      fullPath: '/api/public/hooks/enviar-respostas-pendentes'
+      preLoaderRoute: typeof ApiPublicHooksEnviarRespostasPendentesRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/erro-cliente': {
+      id: '/api/public/hooks/erro-cliente'
+      path: '/api/public/hooks/erro-cliente'
+      fullPath: '/api/public/hooks/erro-cliente'
+      preLoaderRoute: typeof ApiPublicHooksErroClienteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/mensagens-programadas': {
+      id: '/api/public/hooks/mensagens-programadas'
+      path: '/api/public/hooks/mensagens-programadas'
+      fullPath: '/api/public/hooks/mensagens-programadas'
+      preLoaderRoute: typeof ApiPublicHooksMensagensProgramadasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/notificar-reprovacoes': {
+      id: '/api/public/hooks/notificar-reprovacoes'
+      path: '/api/public/hooks/notificar-reprovacoes'
+      fullPath: '/api/public/hooks/notificar-reprovacoes'
+      preLoaderRoute: typeof ApiPublicHooksNotificarReprovacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/processar-analises': {
+      id: '/api/public/hooks/processar-analises'
+      path: '/api/public/hooks/processar-analises'
+      fullPath: '/api/public/hooks/processar-analises'
+      preLoaderRoute: typeof ApiPublicHooksProcessarAnalisesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/processar-relatorios': {
+      id: '/api/public/hooks/processar-relatorios'
+      path: '/api/public/hooks/processar-relatorios'
+      fullPath: '/api/public/hooks/processar-relatorios'
+      preLoaderRoute: typeof ApiPublicHooksProcessarRelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/reenviar-alertas': {
+      id: '/api/public/hooks/reenviar-alertas'
+      path: '/api/public/hooks/reenviar-alertas'
+      fullPath: '/api/public/hooks/reenviar-alertas'
+      preLoaderRoute: typeof ApiPublicHooksReenviarAlertasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/resumo-alertas-diario': {
+      id: '/api/public/hooks/resumo-alertas-diario'
+      path: '/api/public/hooks/resumo-alertas-diario'
+      fullPath: '/api/public/hooks/resumo-alertas-diario'
+      preLoaderRoute: typeof ApiPublicHooksResumoAlertasDiarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/uazapi-bot': {
+      id: '/api/public/hooks/uazapi-bot'
+      path: '/api/public/hooks/uazapi-bot'
+      fullPath: '/api/public/hooks/uazapi-bot'
+      preLoaderRoute: typeof ApiPublicHooksUazapiBotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/painel/$encarregado/$anoMes/$dia': {
+      id: '/painel/$encarregado/$anoMes/$dia'
+      path: '/$anoMes/$dia'
+      fullPath: '/painel/$encarregado/$anoMes/$dia'
+      preLoaderRoute: typeof PainelEncarregadoAnoMesDiaRouteImport
+      parentRoute: typeof PainelEncarregadoRoute
+    }
+    '/painel/formularios/$id/respostas': {
+      id: '/painel/formularios/$id/respostas'
+      path: '/respostas'
+      fullPath: '/painel/formularios/$id/respostas'
+      preLoaderRoute: typeof PainelFormulariosIdRespostasRouteImport
+      parentRoute: typeof PainelFormulariosIdRoute
     }
     '/api/public/hooks/uazapi-fotos/$token': {
       id: '/api/public/hooks/uazapi-fotos/$token'
