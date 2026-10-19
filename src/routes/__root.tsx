@@ -35,15 +35,16 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error }: { error: Error; reset: () => void }) {
-  console.error(error);
+function ErrorComponent({ error }: { error: unknown }) {
+  const err = error instanceof Error ? error : new Error(String(error));
+  console.error(err);
 
   useEffect(() => {
-    reportarErroCliente("tela-de-erro", error);
+    reportarErroCliente("tela-de-erro", err);
     // Arquivo da página que não baixou (rede oscilando, versão nova publicada
     // com a aba aberta): recarregar resolve. Uma vez por minuto no máximo, para
     // nunca entrar em loop.
-    if (ehErroDeCarregamento(error)) {
+    if (ehErroDeCarregamento(err)) {
       try {
         const ultima = Number(sessionStorage.getItem("recarregou-apos-erro") || 0);
         if (Date.now() - ultima > 60_000) {
