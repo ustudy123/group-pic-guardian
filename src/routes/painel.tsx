@@ -180,8 +180,7 @@ function PainelLayout() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <GruposPendentesLink />
-            {(user?.email === "wallasmonteiro019@gmail.com" ||
-              user?.email === "arthur.freitas@macroambiental.eng.br") && (
+            {user?.email === "wallasmonteiro019@gmail.com" && (
               <>
                 <Link
                   to="/painel/vistorias"
@@ -192,14 +191,6 @@ function PainelLayout() {
                   <span className="hidden sm:inline">Vistorias</span>
                 </Link>
                 <Link
-                  to="/painel/ai-bot"
-                  className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
-                  title="Macro I.A"
-                >
-                  <Bot size={15} />
-                  <span className="hidden sm:inline">Macro I.A</span>
-                </Link>
-                <Link
                   to="/painel/visao"
                   className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
                   title="Visão IA — análise de fotos"
@@ -208,6 +199,17 @@ function PainelLayout() {
                   <span className="hidden sm:inline">Visão IA</span>
                 </Link>
               </>
+            )}
+            {(user?.email === "wallasmonteiro019@gmail.com" ||
+              user?.email === "arthur.freitas@macroambiental.eng.br") && (
+              <Link
+                to="/painel/ai-bot"
+                className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+                title="Macro I.A"
+              >
+                <Bot size={15} />
+                <span className="hidden sm:inline">Macro I.A</span>
+              </Link>
             )}
             <QualidadeLink />
             <FormulariosLink />
