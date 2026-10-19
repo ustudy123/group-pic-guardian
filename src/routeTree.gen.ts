@@ -23,6 +23,7 @@ import { Route as PainelQualidadeRouteImport } from './routes/painel.qualidade'
 import { Route as PainelGuiaRouteImport } from './routes/painel.guia'
 import { Route as PainelGruposRouteImport } from './routes/painel.grupos'
 import { Route as PainelFormulariosRouteImport } from './routes/painel.formularios'
+import { Route as PainelChecklistRouteImport } from './routes/painel.checklist'
 import { Route as PainelAiBotRouteImport } from './routes/painel.ai-bot'
 import { Route as PainelAdminRouteImport } from './routes/painel.admin'
 import { Route as PainelEncarregadoRouteImport } from './routes/painel.$encarregado'
@@ -115,6 +116,11 @@ const PainelGruposRoute = PainelGruposRouteImport.update({
 const PainelFormulariosRoute = PainelFormulariosRouteImport.update({
   id: '/formularios',
   path: '/formularios',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelChecklistRoute = PainelChecklistRouteImport.update({
+  id: '/checklist',
+  path: '/checklist',
   getParentRoute: () => PainelRoute,
 } as any)
 const PainelAiBotRoute = PainelAiBotRouteImport.update({
@@ -257,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
+  '/painel/checklist': typeof PainelChecklistRoute
   '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
@@ -294,6 +301,7 @@ export interface FileRoutesByTo {
   '/f/$slug': typeof FSlugRoute
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
+  '/painel/checklist': typeof PainelChecklistRoute
   '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/painel/$encarregado': typeof PainelEncarregadoRouteWithChildren
   '/painel/admin': typeof PainelAdminRoute
   '/painel/ai-bot': typeof PainelAiBotRoute
+  '/painel/checklist': typeof PainelChecklistRoute
   '/painel/formularios': typeof PainelFormulariosRouteWithChildren
   '/painel/grupos': typeof PainelGruposRoute
   '/painel/guia': typeof PainelGuiaRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/admin'
     | '/painel/ai-bot'
+    | '/painel/checklist'
     | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/f/$slug'
     | '/painel/admin'
     | '/painel/ai-bot'
+    | '/painel/checklist'
     | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
@@ -449,6 +460,7 @@ export interface FileRouteTypes {
     | '/painel/$encarregado'
     | '/painel/admin'
     | '/painel/ai-bot'
+    | '/painel/checklist'
     | '/painel/formularios'
     | '/painel/grupos'
     | '/painel/guia'
@@ -598,6 +610,13 @@ declare module '@tanstack/react-router' {
       path: '/formularios'
       fullPath: '/painel/formularios'
       preLoaderRoute: typeof PainelFormulariosRouteImport
+      parentRoute: typeof PainelRoute
+    }
+    '/painel/checklist': {
+      id: '/painel/checklist'
+      path: '/checklist'
+      fullPath: '/painel/checklist'
+      preLoaderRoute: typeof PainelChecklistRouteImport
       parentRoute: typeof PainelRoute
     }
     '/painel/ai-bot': {
@@ -819,6 +838,7 @@ interface PainelRouteChildren {
   PainelEncarregadoRoute: typeof PainelEncarregadoRouteWithChildren
   PainelAdminRoute: typeof PainelAdminRoute
   PainelAiBotRoute: typeof PainelAiBotRoute
+  PainelChecklistRoute: typeof PainelChecklistRoute
   PainelFormulariosRoute: typeof PainelFormulariosRouteWithChildren
   PainelGruposRoute: typeof PainelGruposRoute
   PainelGuiaRoute: typeof PainelGuiaRoute
@@ -832,6 +852,7 @@ const PainelRouteChildren: PainelRouteChildren = {
   PainelEncarregadoRoute: PainelEncarregadoRouteWithChildren,
   PainelAdminRoute: PainelAdminRoute,
   PainelAiBotRoute: PainelAiBotRoute,
+  PainelChecklistRoute: PainelChecklistRoute,
   PainelFormulariosRoute: PainelFormulariosRouteWithChildren,
   PainelGruposRoute: PainelGruposRoute,
   PainelGuiaRoute: PainelGuiaRoute,

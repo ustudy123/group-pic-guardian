@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { BotStatusIndicator } from "@/components/bot-status-indicator";
 import { supabase } from "@/integrations/supabase/client";
 import { chaveJid } from "@/lib/jid";
-import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye, ClipboardList, BadgeCheck } from "lucide-react";
+import { Inbox, BookOpen, ShieldCheck, Camera, Bot, Eye, ClipboardList, ClipboardCheck, BadgeCheck } from "lucide-react";
 import { useRoles } from "@/lib/use-roles";
 
 function QualidadeLink() {
@@ -39,6 +39,23 @@ function FormulariosLink() {
     >
       <ClipboardList size={15} />
       <span className="hidden sm:inline">Rede</span>
+    </Link>
+  );
+}
+
+/** Checklist de fotos (todas as equipes do dia, exportação e tipos) — só admin. */
+function ChecklistLink() {
+  const { isAdmin } = useRoles();
+  if (!isAdmin) return null;
+  return (
+    <Link
+      to="/painel/checklist"
+      search={{}}
+      className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent transition"
+      title="Checklist de fotos"
+    >
+      <ClipboardCheck size={15} />
+      <span className="hidden sm:inline">Checklist</span>
     </Link>
   );
 }
@@ -194,6 +211,7 @@ function PainelLayout() {
             )}
             <QualidadeLink />
             <FormulariosLink />
+            <ChecklistLink />
             <AdminLink />
             <Link
               to="/painel/guia"

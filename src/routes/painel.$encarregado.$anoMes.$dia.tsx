@@ -4,6 +4,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import JSZip from "jszip";
 import { Download, Loader2, Trash2, Upload, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useRoles } from "@/lib/use-roles";
+import { ChecklistFotosPainel } from "@/components/checklist-fotos-painel";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +47,7 @@ function DiaPage() {
   const [enviando, setEnviando] = useState(false);
   const [removendoId, setRemovendoId] = useState<string | null>(null);
   const [confirmarExcluir, setConfirmarExcluir] = useState<Foto | null>(null);
+  const { isAdmin } = useRoles();
 
   const { data: result, isLoading } = useQuery({
     queryKey: ["fotos-dia", encarregado, dataPasta],
@@ -208,6 +211,8 @@ function DiaPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [aberta, filtradas]);
 
+  const mostrarChecklist = isAdmin && Boolean(encarregadoId);
+
   const tituloData = useMemo(() => {
     const [y, m, d] = dataPasta.split("-");
     return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString("pt-BR", {
@@ -325,110 +330,122 @@ function DiaPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border bg-card">
-        <input
-          type="text"
-          placeholder="Buscar por legenda ou remetente..."
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-        />
-        <select
-          value={remetenteFiltro}
-          onChange={(e) => setRemetenteFiltro(e.target.value)}
-          className="rounded-md border border-input bg-background px-2 py-2 text-sm"
-        >
-          <option value="todos">Todos remetentes</option>
-          {remetentes.map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <div className="flex items-center gap-1 text-xs">
-          <span className="text-muted-foreground">Hora:</span>
-          <input
-            type="time"
-            value={horaInicio}
-            onChange={(e) => setHoraInicio(e.target.value)}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          />
-          <span className="text-muted-foreground">até</span>
-          <input
-            type="time"
-            value={horaFim}
-            onChange={(e) => setHoraFim(e.target.value)}
-            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-          />
-        </div>
-        <select
-          value={ordem}
-          onChange={(e) => setOrdem(e.target.value as "asc" | "desc")}
-          className="rounded-md border border-input bg-background px-2 py-2 text-sm"
-        >
-          <option value="asc">Mais antigas primeiro</option>
-          <option value="desc">Mais recentes primeiro</option>
-        </select>
-        {(busca || remetenteFiltro !== "todos" || horaInicio || horaFim) && (
-          <button
-            onClick={() => { setBusca(""); setRemetenteFiltro("todos"); setHoraInicio(""); setHoraFim(""); }}
-            className="rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent"
-          >
-            Limpar
-          </button>
+      {/* Checklist do dia fixo ao lado das fotos (só administradores): a pessoa
+          rola as fotos e marca as etapas sem perder o checklist de vista. */}
+      <div className={mostrarChecklist ? "flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start" : ""}>
+        {mostrarChecklist && (
+          <aside className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+            <ChecklistFotosPainel encarregadoId={encarregadoId!} data={dataPasta} />
+          </aside>
         )}
-      </div>
+        <div className="space-y-4 min-w-0 lg:col-start-1 lg:row-start-1">
+        <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl border bg-card">
+          <input
+            type="text"
+            placeholder="Buscar por legenda ou remetente..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="flex-1 min-w-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+          <select
+            value={remetenteFiltro}
+            onChange={(e) => setRemetenteFiltro(e.target.value)}
+            className="rounded-md border border-input bg-background px-2 py-2 text-sm"
+          >
+            <option value="todos">Todos remetentes</option>
+            {remetentes.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-muted-foreground">Hora:</span>
+            <input
+              type="time"
+              value={horaInicio}
+              onChange={(e) => setHoraInicio(e.target.value)}
+              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            />
+            <span className="text-muted-foreground">até</span>
+            <input
+              type="time"
+              value={horaFim}
+              onChange={(e) => setHoraFim(e.target.value)}
+              className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+          <select
+            value={ordem}
+            onChange={(e) => setOrdem(e.target.value as "asc" | "desc")}
+            className="rounded-md border border-input bg-background px-2 py-2 text-sm"
+          >
+            <option value="asc">Mais antigas primeiro</option>
+            <option value="desc">Mais recentes primeiro</option>
+          </select>
+          {(busca || remetenteFiltro !== "todos" || horaInicio || horaFim) && (
+            <button
+              onClick={() => { setBusca(""); setRemetenteFiltro("todos"); setHoraInicio(""); setHoraFim(""); }}
+              className="rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
 
-      {isLoading && (
+        {isLoading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="aspect-square rounded-md bg-muted animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {!isLoading && filtradas.length === 0 && (
+          <p className="text-muted-foreground py-8 text-center border rounded-md">
+            Nenhuma foto registrada nesse dia
+          </p>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="aspect-square rounded-md bg-muted animate-pulse" />
+          {filtradas.map((f) => (
+            <div
+              key={f.id}
+              onClick={() => setAberta(f)}
+              className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
+            >
+              {f.storage_url ? (
+                <img
+                  src={f.storage_url}
+                  alt={f.caption ?? "Foto"}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
+                  sem preview
+                </div>
+              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); setConfirmarExcluir(f); }}
+                disabled={removendoId === f.id}
+                title="Excluir foto"
+                className="absolute top-2 right-2 z-10 rounded-md bg-black/60 hover:bg-red-600 text-white p-1.5 opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
+              >
+                {removendoId === f.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              </button>
+              <div className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-xs px-2 py-1.5 opacity-0 group-hover:opacity-100 transition flex items-center justify-between gap-2 pointer-events-none">
+                <span className="font-medium">
+                  {f.data_envio &&
+                    new Date(f.data_envio).toLocaleTimeString("pt-BR", {
+                      timeZone: "America/Sao_Paulo",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                </span>
+                {f.caption && <span className="truncate">{f.caption}</span>}
+              </div>
+            </div>
           ))}
         </div>
-      )}
 
-      {!isLoading && filtradas.length === 0 && (
-        <p className="text-muted-foreground py-8 text-center border rounded-md">
-          Nenhuma foto registrada nesse dia
-        </p>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-        {filtradas.map((f) => (
-          <div
-            key={f.id}
-            onClick={() => setAberta(f)}
-            className="group relative aspect-square overflow-hidden rounded-md border bg-muted cursor-pointer"
-          >
-            {f.storage_url ? (
-              <img
-                src={f.storage_url}
-                alt={f.caption ?? "Foto"}
-                loading="lazy"
-                className="w-full h-full object-cover group-hover:scale-105 transition"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground">
-                sem preview
-              </div>
-            )}
-            <button
-              onClick={(e) => { e.stopPropagation(); setConfirmarExcluir(f); }}
-              disabled={removendoId === f.id}
-              title="Excluir foto"
-              className="absolute top-2 right-2 z-10 rounded-md bg-black/60 hover:bg-red-600 text-white p-1.5 opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
-            >
-              {removendoId === f.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            </button>
-            <div className="absolute bottom-0 inset-x-0 bg-black/70 text-white text-xs px-2 py-1.5 opacity-0 group-hover:opacity-100 transition flex items-center justify-between gap-2 pointer-events-none">
-              <span className="font-medium">
-                {f.data_envio &&
-                  new Date(f.data_envio).toLocaleTimeString("pt-BR", {
-                    timeZone: "America/Sao_Paulo",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-              </span>
-              {f.caption && <span className="truncate">{f.caption}</span>}
-            </div>
-          </div>
-        ))}
+        </div>
       </div>
 
       {aberta && (() => {
