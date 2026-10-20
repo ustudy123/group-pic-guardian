@@ -20,7 +20,7 @@ import {
 
 const BUCKET = "fotos-obras";
 const dataValida = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const status = z.enum(["enviado", "pendente", "na"]);
+const status = z.enum(["enviado", "pendente", "na", "inutilizavel"]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function exigirAdmin(context: { supabase: any; userId: string; claims?: any }) {

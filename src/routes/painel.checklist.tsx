@@ -43,11 +43,13 @@ export const Route = createFileRoute("/painel/checklist")({
   component: ChecklistPage,
 });
 
-const SIMBOLO: Record<StatusItem, string> = { enviado: "X", pendente: "-", na: "NA" };
+// Mesmos símbolos da planilha antiga ("O" = foto não utilizável).
+const SIMBOLO: Record<StatusItem, string> = { enviado: "X", pendente: "-", na: "NA", inutilizavel: "O" };
 const COR_CELULA: Record<StatusItem, string> = {
   enviado: "bg-emerald-100 text-emerald-800",
   pendente: "bg-red-100 text-red-800",
   na: "bg-amber-100 text-amber-900",
+  inutilizavel: "bg-blue-100 text-blue-800",
 };
 
 /** Agrupa os checklists do dia por tipo, como as seções da planilha antiga. */
@@ -78,10 +80,11 @@ function abaDoDia(data: string, checklists: ChecklistDia[], tipos: TipoChecklist
       { v: "X = Enviado", s: E.verde },
       { v: "- = Não enviado", s: E.vermelho },
       { v: "NA = Não se aplica", s: E.amarelo },
+      { v: "O = Foto não utilizável", s: E.azul },
     ],
     [],
   ];
-  let maxCols = 3;
+  let maxCols = 4;
   for (const g of agruparPorTipo(checklists, tipos)) {
     maxCols = Math.max(maxCols, g.checklists.length + 1);
     linhas.push([
@@ -94,7 +97,14 @@ function abaDoDia(data: string, checklists: ChecklistDia[], tipos: TipoChecklist
         ...g.checklists.map((c) => {
           const it = c.itens.find((i) => i.nome === nome);
           if (!it) return { v: "", s: E.item };
-          const s = it.status === "enviado" ? E.verde : it.status === "na" ? E.amarelo : E.vermelho;
+          const s =
+            it.status === "enviado"
+              ? E.verde
+              : it.status === "na"
+                ? E.amarelo
+                : it.status === "inutilizavel"
+                  ? E.azul
+                  : E.vermelho;
           return { v: SIMBOLO[it.status], s };
         }),
       ]);
@@ -252,7 +262,14 @@ function VisaoDoDia() {
                         {c.encarregado_nome}
                       </Link>
                       <div className="text-[10px] font-normal text-muted-foreground">
-                        {n.pendente > 0 ? `${n.pendente} pendente(s)` : "completo"}
+                        {n.pendente + n.inutilizavel > 0
+                          ? [
+                              n.pendente > 0 ? `${n.pendente} pendente(s)` : "",
+                              n.inutilizavel > 0 ? `${n.inutilizavel} não utiliz.` : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")
+                          : "completo"}
                       </div>
                     </th>
                   );

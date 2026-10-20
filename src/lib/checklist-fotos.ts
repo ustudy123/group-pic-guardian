@@ -4,18 +4,21 @@
 // encarregado, a equipe administrativa escolhe o tipo de serviço do dia e
 // marca cada etapa como Enviado / Pendente / Não se aplica (sem classificar
 // foto por foto). Depois gera uma imagem e manda no grupo do encarregado.
+// 4º status (pedido de 21/10): "Foto não utilizável" — enviou, mas a foto não
+// serve para o relatório e precisa ser refeita (azul).
 //
 // Fica em JSON no storage (sem tabela nova):
 //   checklist-fotos/tipos.json                      tipos e itens (editáveis)
 //   checklist-fotos/dias/AAAA-MM-DD/{encarregado}.json   checklist do dia
 //   checklist-fotos/encarregados/{encarregado}.json      último tipo usado
 
-export type StatusItem = "enviado" | "pendente" | "na";
+export type StatusItem = "enviado" | "pendente" | "na" | "inutilizavel";
 
 export const STATUS: { valor: StatusItem; rotulo: string; curto: string }[] = [
   { valor: "enviado", rotulo: "Enviado", curto: "✓" },
   { valor: "pendente", rotulo: "Pendente", curto: "✗" },
   { valor: "na", rotulo: "Não se aplica", curto: "NA" },
+  { valor: "inutilizavel", rotulo: "Foto não utilizável", curto: "●" },
 ];
 
 export type ItemTipo = { id: string; nome: string };
@@ -166,7 +169,7 @@ export function checklistNovo(
 }
 
 export function contarStatus(c: Pick<ChecklistDia, "itens">) {
-  const n = { enviado: 0, pendente: 0, na: 0 };
+  const n = { enviado: 0, pendente: 0, na: 0, inutilizavel: 0 };
   for (const i of c.itens) n[i.status]++;
   return n;
 }

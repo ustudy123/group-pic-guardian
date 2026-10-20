@@ -7,6 +7,7 @@ const CORES: Record<StatusItem, { fundo: string; texto: string; rotulo: string }
   enviado: { fundo: "#c9efd3", texto: "#156b2e", rotulo: "✓ Enviado" },
   pendente: { fundo: "#ffcccc", texto: "#9b1c1c", rotulo: "✗ Pendente" },
   na: { fundo: "#fff1a8", texto: "#7a5b00", rotulo: "NA" },
+  inutilizavel: { fundo: "#cfe0ff", texto: "#1d4ed8", rotulo: "● Não utilizável" },
 };
 
 const FONTE = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
@@ -61,7 +62,7 @@ export async function gerarImagemChecklist(c: ChecklistDia): Promise<{ blob: Blo
   const ESCALA = 2;
   const L = 540;
   const M = 18;
-  const COL_STATUS = 124;
+  const COL_STATUS = 150;
   const larguraNome = L - M * 2 - COL_STATUS - 16;
 
   const medidor = document.createElement("canvas").getContext("2d")!;
@@ -70,7 +71,7 @@ export async function gerarImagemChecklist(c: ChecklistDia): Promise<{ blob: Blo
   const alturas = linhas.map((l) => Math.max(30, 12 + l.length * 18));
   const ALT_TOPO = 92;
   const ALT_RESUMO = 34;
-  const altura = M + ALT_TOPO + 10 + ALT_RESUMO + 10 + alturas.reduce((a, b) => a + b, 0) + 40;
+  const altura = M + ALT_TOPO + 10 + ALT_RESUMO + 10 + alturas.reduce((a, b) => a + b, 0) + 54;
 
   const canvas = document.createElement("canvas");
   canvas.width = L * ESCALA;
@@ -108,15 +109,16 @@ export async function gerarImagemChecklist(c: ChecklistDia): Promise<{ blob: Blo
     [`${n.enviado} enviada(s)`, "#d9f2df", "#156b2e"],
     [`${n.pendente} pendente(s)`, "#ffd6d6", "#9b1c1c"],
     [`${n.na} não se aplica`, "#fff3bf", "#7a5b00"],
+    [`${n.inutilizavel} não utilizável`, "#dbe8ff", "#1d4ed8"],
   ];
-  const lc = (L - M * 2 - 12) / 3;
+  const lc = (L - M * 2 - 18) / 4;
   caixas.forEach(([t, fundo, cor], k) => {
     const x = M + k * (lc + 6);
     ctx.fillStyle = fundo;
     retangulo(ctx, x, y, lc, ALT_RESUMO, 8);
     ctx.fill();
     ctx.fillStyle = cor;
-    ctx.font = `bold 13px ${FONTE}`;
+    ctx.font = `bold 12px ${FONTE}`;
     ctx.textAlign = "center";
     ctx.fillText(t, x + lc / 2, y + ALT_RESUMO / 2);
     ctx.textAlign = "left";
@@ -128,7 +130,8 @@ export async function gerarImagemChecklist(c: ChecklistDia): Promise<{ blob: Blo
   c.itens.forEach((item, k) => {
     const h = alturas[k];
     const cor = CORES[item.status];
-    ctx.fillStyle = item.status === "pendente" ? "#fff5f5" : "#ffffff";
+    ctx.fillStyle =
+      item.status === "pendente" ? "#fff5f5" : item.status === "inutilizavel" ? "#f2f6ff" : "#ffffff";
     ctx.fillRect(M, y, xStatus - M, h);
     ctx.fillStyle = cor.fundo;
     ctx.fillRect(xStatus, y, COL_STATUS, h);
@@ -157,9 +160,9 @@ export async function gerarImagemChecklist(c: ChecklistDia): Promise<{ blob: Blo
   // Legenda
   ctx.fillStyle = "#5b6875";
   ctx.font = `11px ${FONTE}`;
-  ctx.fillText("✓ Enviado   ✗ Pendente (falta enviar)   NA Não se aplica", M, y + 20);
+  ctx.fillText("✓ Enviado   ✗ Pendente (falta enviar)   NA Não se aplica   ● Não utilizável (enviar de novo)", M, y + 20);
   ctx.textAlign = "right";
-  ctx.fillText("Macro Ambiental", L - M, y + 20);
+  ctx.fillText("Macro Ambiental", L - M, y + 36);
   ctx.textAlign = "left";
 
   const blob: Blob = await new Promise((ok, falha) =>

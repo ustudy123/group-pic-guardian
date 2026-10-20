@@ -32,12 +32,17 @@ const ESTILO: Record<StatusItem, { ativo: string; inativo: string }> = {
     ativo: "bg-amber-400 text-amber-950 border-amber-400",
     inativo: "text-amber-800 border-amber-200 hover:bg-amber-50",
   },
+  inutilizavel: {
+    ativo: "bg-blue-600 text-white border-blue-600",
+    inativo: "text-blue-700 border-blue-200 hover:bg-blue-50",
+  },
 };
 
 const FUNDO_LINHA: Record<StatusItem, string> = {
   enviado: "bg-emerald-50",
   pendente: "bg-red-50/60",
   na: "bg-amber-50",
+  inutilizavel: "bg-blue-50",
 };
 
 /**
@@ -160,10 +165,13 @@ export function ChecklistFotosPainel({
     try {
       const { base64 } = await imagemAtual();
       const n = contarStatus(checklist);
-      const legenda =
-        n.pendente > 0
-          ? `📋 Checklist de fotos de hoje — faltam ${n.pendente} foto(s), marcadas em vermelho.`
-          : "📋 Checklist de fotos de hoje — tudo enviado. Obrigado!";
+      const partes = [
+        n.pendente > 0 ? `faltam ${n.pendente} foto(s), marcadas em vermelho` : "",
+        n.inutilizavel > 0 ? `${n.inutilizavel} foto(s) precisam ser enviadas de novo (em azul, não deu para usar)` : "",
+      ].filter(Boolean);
+      const legenda = partes.length
+        ? `📋 Checklist de fotos de hoje — ${partes.join("; ")}.`
+        : "📋 Checklist de fotos de hoje — tudo enviado. Obrigado!";
       const r = await enviar({ data: { encarregadoId, data, imagemBase64: base64, legenda } });
       setChecklist((c) => (c ? { ...c, enviado_grupo_em: new Date().toISOString() } : c));
       toast.success(`Checklist enviado no grupo${r.grupo ? ` "${r.grupo}"` : ""}`);
@@ -220,10 +228,11 @@ export function ChecklistFotosPainel({
           </p>
         )}
         {checklist && n && (
-          <div className="grid grid-cols-3 gap-1 text-center text-xs font-semibold">
+          <div className="grid grid-cols-4 gap-1 text-center text-[11px] font-semibold leading-tight">
             <span className="rounded bg-emerald-50 text-emerald-700 py-1">{n.enviado} enviada(s)</span>
             <span className="rounded bg-red-50 text-red-700 py-1">{n.pendente} pendente(s)</span>
             <span className="rounded bg-amber-50 text-amber-800 py-1">{n.na} NA</span>
+            <span className="rounded bg-blue-50 text-blue-700 py-1">{n.inutilizavel} não utiliz.</span>
           </div>
         )}
       </div>
@@ -241,7 +250,7 @@ export function ChecklistFotosPainel({
                       onClick={() => item.status !== s.valor && mudarStatus([{ id: item.id, status: s.valor }])}
                       title={s.rotulo}
                       aria-pressed={item.status === s.valor}
-                      className={`w-8 h-7 rounded border text-xs font-bold transition ${
+                      className={`w-7 h-7 rounded border text-xs font-bold transition ${
                         item.status === s.valor ? ESTILO[s.valor].ativo : `bg-background ${ESTILO[s.valor].inativo}`
                       }`}
                     >
