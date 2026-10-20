@@ -111,7 +111,7 @@ jobs:
           echo "HTTP: $(printf '%s' "$RESP" | sed -n 's/.*__HTTP__//p')"
           echo "Resp: $(printf '%s' "$RESP" | sed 's/__HTTP__[0-9]*$//')"
           # Também como anotações do job (dá para ler pela API sem baixar o log).
-          printf '%s' "$RESP" | sed 's/__HTTP__[0-9]*$//' | tr -d '\r\n' | fold -w 3500 | head -n 45 | while IFS= read -r parte; do
+          printf '%s' "$RESP" | sed 's/__HTTP__[0-9]*$//' | tr -d '\r\n' | fold -w 3500 | head -n 45 | while IFS= read -r parte || [ -n "$parte" ]; do
             parte="${parte//%/%25}"
             echo "::notice title=resp::$parte"
           done
