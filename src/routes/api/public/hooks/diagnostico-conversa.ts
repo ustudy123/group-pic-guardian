@@ -727,6 +727,8 @@ async function relatorioFotosDoDia(dataRef: string): Promise<Record<string, unkn
     http_status: st.http,
     conectada: st.corpo?.status?.connected ?? inst.status ?? null,
     estado: inst.status ?? st.corpo?.status ?? null,
+    numero_final: String(inst.owner ?? "").replace(/\D/g, "").slice(-4) || null,
+    perfil: inst.profileName ?? null,
     ultima_desconexao: inst.lastDisconnect ?? inst.last_disconnect ?? null,
     motivo_desconexao: inst.lastDisconnectReason ?? null,
     webhooks: listaWh.map((w: any) => ({
@@ -838,8 +840,33 @@ async function relatorioFotosDoDia(dataRef: string): Promise<Record<string, unkn
         const v = Number(m.messageTimestamp ?? m.timestamp ?? 0);
         return v ? new Date(v > 1e12 ? v : v * 1000).toISOString() : null;
       };
+      // O número de fotos ainda é membro do grupo?
+      let membro: unknown = null;
+      try {
+        const gi = await fetch(`${base}/group/info`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", token },
+          body: JSON.stringify({ groupjid: chatid, getInviteLink: false, force: true }),
+        });
+        const gj = (await gi.json().catch(() => null)) as any;
+        const parts = (gj?.Participants ?? gj?.participants ?? []) as any[];
+        const dono = String(inst.owner ?? st.corpo?.instance?.owner ?? "").replace(/\D/g, "");
+        const fim8 = (v: unknown) => String(v ?? "").replace(/\D/g, "").slice(-8);
+        membro = {
+          http: gi.status,
+          participantes: parts.length,
+          numero_de_fotos_no_grupo: dono
+            ? parts.some((p) => [p.JID, p.jid, p.PhoneNumber, p.phoneNumber, p.LID].some((x) => fim8(x) === dono.slice(-8)))
+            : "sem número da instância",
+          so_admins_enviam: gj?.IsAnnounce ?? gj?.announce ?? null,
+          erro: gi.ok ? undefined : String(gj?.error ?? gj?.message ?? "").slice(0, 120),
+        };
+      } catch (e) {
+        membro = { erro: e instanceof Error ? e.message : String(e) };
+      }
       naUazapi.push({
         encarregado: enc?.nome,
+        grupo: membro,
         fotos_semana_anterior: qtd,
         http: r.status,
         mensagens_na_uazapi: msgs.length,
