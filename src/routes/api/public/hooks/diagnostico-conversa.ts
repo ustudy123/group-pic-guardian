@@ -697,6 +697,119 @@ async function religarGrupo(
   };
 }
 
+/**
+ * Fotos de um dia: a instância de fotos está conectada e com webhook? Quantas
+ * imagens de grupo chegaram (por hora e por grupo) e quantas viraram foto
+ * salva. Serve para responder "nenhum grupo recebeu foto hoje".
+ */
+async function relatorioFotosDoDia(dataRef: string): Promise<Record<string, unknown>> {
+  const sbAny = supabaseAdmin as unknown as { from: (t: string) => any };
+  const ini = new Date(`${dataRef}T03:00:00Z`);
+  const fim = new Date(ini.getTime() + 24 * 3600_000);
+  const semSufixo = (v: unknown) =>
+    String(v ?? "").trim().toLowerCase().replace(/@g\.us$/, "").replace(/-group$/, "");
+
+  // Instância de fotos: conexão e webhook.
+  const base = (process.env.UAZAPI_BASE_URL || "https://api.uazapi.com").replace(/\/+$/, "");
+  const token = process.env.UAZAPI_INSTANCE_TOKEN ?? "";
+  const pegar = async (caminho: string) => {
+    try {
+      const r = await fetch(`${base}${caminho}`, { headers: { token } });
+      return { http: r.status, corpo: (await r.json().catch(() => null)) as any };
+    } catch (e) {
+      return { http: 0, corpo: { erro: e instanceof Error ? e.message : String(e) } };
+    }
+  };
+  const [st, wh] = await Promise.all([pegar("/instance/status"), pegar("/webhook")]);
+  const inst = st.corpo?.instance ?? st.corpo ?? {};
+  const listaWh = Array.isArray(wh.corpo) ? wh.corpo : wh.corpo ? [wh.corpo] : [];
+  const instancia = {
+    http_status: st.http,
+    conectada: st.corpo?.status?.connected ?? inst.status ?? null,
+    estado: inst.status ?? st.corpo?.status ?? null,
+    ultima_desconexao: inst.lastDisconnect ?? inst.last_disconnect ?? null,
+    motivo_desconexao: inst.lastDisconnectReason ?? null,
+    webhooks: listaWh.map((w: any) => ({
+      ativo: w.enabled ?? w.active ?? null,
+      url_final: String(w.url ?? "").replace(/\/uazapi-fotos\/[^/?]+/, "/uazapi-fotos/***").slice(-60),
+      eventos: w.events ?? null,
+      excluir: w.excludeMessages ?? null,
+    })),
+  };
+
+  const { data: ev } = await sbAny
+    .from("eventos_raw")
+    .select("chat_id, tipo_evento, created_at")
+    .gte("created_at", ini.toISOString())
+    .lt("created_at", fim.toISOString())
+    .order("created_at", { ascending: true })
+    .limit(10000);
+  const eventos = (ev ?? []) as Array<{ chat_id: string; tipo_evento: string; created_at: string }>;
+  const porHora: Record<string, number> = {};
+  for (const e of eventos) {
+    const h = new Date(e.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", timeZone: "America/Sao_Paulo" });
+    porHora[h] = (porHora[h] ?? 0) + 1;
+  }
+  const { data: encs } = await sbAny.from("encarregados").select("id, nome, grupo_whatsapp_id, ativo");
+  const { data: grupos } = await sbAny.from("grupos").select("whatsapp_jid, nome_exibicao");
+  const nomeGrupo = new Map(((grupos ?? []) as any[]).map((g) => [semSufixo(g.whatsapp_jid), g.nome_exibicao]));
+  const { data: fotos } = await sbAny
+    .from("fotos")
+    .select("encarregado_id, created_at")
+    .gte("created_at", ini.toISOString())
+    .lt("created_at", fim.toISOString())
+    .limit(10000);
+  const fotosPorEnc = new Map<string, number>();
+  for (const f of (fotos ?? []) as any[]) fotosPorEnc.set(f.encarregado_id, (fotosPorEnc.get(f.encarregado_id) ?? 0) + 1);
+
+  const imgsPorChat = new Map<string, { qtd: number; ultima: string }>();
+  for (const e of eventos) {
+    if (e.tipo_evento !== "image" || !String(e.chat_id).includes("@g.us")) continue;
+    const a = imgsPorChat.get(e.chat_id) ?? { qtd: 0, ultima: e.created_at };
+    a.qtd++;
+    a.ultima = e.created_at;
+    imgsPorChat.set(e.chat_id, a);
+  }
+  const porGrupo = [...imgsPorChat.entries()]
+    .sort((a, b) => b[1].qtd - a[1].qtd)
+    .map(([chat, a]) => {
+      const ligados = ((encs ?? []) as any[]).filter((x) => semSufixo(x.grupo_whatsapp_id) === semSufixo(chat));
+      return {
+        grupo: nomeGrupo.get(semSufixo(chat)) ?? `…${chat.slice(-10)}`,
+        imagens_recebidas: a.qtd,
+        ultima: horaBrt(a.ultima),
+        encarregados: ligados.map((x) => ({ nome: x.nome, ativo: x.ativo, fotos_salvas_no_dia: fotosPorEnc.get(x.id) ?? 0 })),
+      };
+    });
+
+  // Para comparar: mesmo dia da semana passada.
+  const iniSemana = new Date(ini.getTime() - 7 * 24 * 3600_000);
+  const { count: semanaPassada } = await sbAny
+    .from("eventos_raw")
+    .select("id", { count: "exact", head: true })
+    .eq("tipo_evento", "image")
+    .gte("created_at", iniSemana.toISOString())
+    .lt("created_at", new Date(iniSemana.getTime() + 24 * 3600_000).toISOString());
+  const { count: fotosSemanaPassada } = await sbAny
+    .from("fotos")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", iniSemana.toISOString())
+    .lt("created_at", new Date(iniSemana.getTime() + 24 * 3600_000).toISOString());
+
+  return {
+    relatorio: "fotos-do-dia",
+    data: dataRef,
+    agora: horaBrt(new Date().toISOString()),
+    instancia_fotos: instancia,
+    eventos_no_dia: eventos.length,
+    imagens_de_grupo_no_dia: porGrupo.reduce((s, g) => s + g.imagens_recebidas, 0),
+    fotos_salvas_no_dia: (fotos ?? []).length,
+    mesmo_dia_semana_passada: { imagens_recebidas: semanaPassada ?? null, fotos_salvas: fotosSemanaPassada ?? null },
+    eventos_por_hora: porHora,
+    por_grupo: porGrupo,
+  };
+}
+
 async function relatorioErrosCliente(dias: number): Promise<Record<string, unknown>> {
   const bucket = supabaseAdmin.storage.from("fotos-obras");
   const saida: Array<Record<string, unknown>> = [];
@@ -785,6 +898,11 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
             depois: depois?.allowed_mime_types,
             tamanho_maximo_bytes: depois?.file_size_limit,
           });
+        }
+        if (body.relatorio === "fotos-do-dia") {
+          const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+          const d = /^\d{4}-\d{2}-\d{2}$/.test(String(body.data ?? "")) ? String(body.data) : hoje;
+          return json(await relatorioFotosDoDia(d));
         }
         if (body.relatorio === "corrigir-nomes-grupos") {
           return json(await corrigirNomesGrupos());
