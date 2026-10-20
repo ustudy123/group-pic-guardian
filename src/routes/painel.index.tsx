@@ -36,13 +36,30 @@ function PainelHome() {
         .order("nome");
       if (error) throw error;
 
-      const { data: resumo } = await supabase
-        .from("vw_resumo_diario")
-        .select("encarregado_id, data_pasta, total_fotos, ultima_foto");
+      // O resumo tem uma linha por encarregado e dia e já passou de 1.000
+      // linhas — o limite de cada consulta. Sem paginar, muitos cards
+      // mostravam "Hoje 0 / Total 0" mesmo com fotos salvas (19/10).
+      const resumo: Array<{
+        encarregado_id: string | null;
+        data_pasta: string | null;
+        total_fotos: number | null;
+        ultima_foto: string | null;
+      }> = [];
+      for (let de = 0; de < 100_000; de += 1000) {
+        const { data: lote, error: errResumo } = await supabase
+          .from("vw_resumo_diario")
+          .select("encarregado_id, data_pasta, total_fotos, ultima_foto")
+          .order("data_pasta", { ascending: false })
+          .order("encarregado_id", { ascending: true })
+          .range(de, de + 999);
+        if (errResumo) throw errResumo;
+        resumo.push(...(lote ?? []));
+        if (!lote || lote.length < 1000) break;
+      }
 
       const hoje = todayBRT();
       const map = new Map<string, { total: number; hoje: number; ultima: string | null }>();
-      for (const r of resumo ?? []) {
+      for (const r of resumo) {
         if (!r.encarregado_id) continue;
         const cur = map.get(r.encarregado_id) ?? { total: 0, hoje: 0, ultima: null };
         cur.total += r.total_fotos ?? 0;

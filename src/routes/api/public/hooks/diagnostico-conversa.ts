@@ -737,14 +737,18 @@ async function relatorioFotosDoDia(dataRef: string): Promise<Record<string, unkn
     })),
   };
 
-  const { data: ev } = await sbAny
-    .from("eventos_raw")
-    .select("chat_id, tipo_evento, created_at")
-    .gte("created_at", ini.toISOString())
-    .lt("created_at", fim.toISOString())
-    .order("created_at", { ascending: true })
-    .limit(10000);
-  const eventos = (ev ?? []) as Array<{ chat_id: string; tipo_evento: string; created_at: string }>;
+  const eventos: Array<{ chat_id: string; tipo_evento: string; created_at: string }> = [];
+  for (let de = 0; de < 20000; de += 1000) {
+    const { data: lote } = await sbAny
+      .from("eventos_raw")
+      .select("chat_id, tipo_evento, created_at")
+      .gte("created_at", ini.toISOString())
+      .lt("created_at", fim.toISOString())
+      .order("created_at", { ascending: true })
+      .range(de, de + 999);
+    eventos.push(...((lote ?? []) as typeof eventos));
+    if (!lote || lote.length < 1000) break;
+  }
   const porHora: Record<string, number> = {};
   for (const e of eventos) {
     const h = new Date(e.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -753,14 +757,19 @@ async function relatorioFotosDoDia(dataRef: string): Promise<Record<string, unkn
   const { data: encs } = await sbAny.from("encarregados").select("id, nome, grupo_whatsapp_id, ativo");
   const { data: grupos } = await sbAny.from("grupos").select("whatsapp_jid, nome_exibicao");
   const nomeGrupo = new Map(((grupos ?? []) as any[]).map((g) => [semSufixo(g.whatsapp_jid), g.nome_exibicao]));
-  const { data: fotos } = await sbAny
-    .from("fotos")
-    .select("encarregado_id, created_at")
-    .gte("created_at", ini.toISOString())
-    .lt("created_at", fim.toISOString())
-    .limit(10000);
+  const fotos: Array<{ encarregado_id: string }> = [];
+  for (let de = 0; de < 20000; de += 1000) {
+    const { data: lote } = await sbAny
+      .from("fotos")
+      .select("encarregado_id, created_at")
+      .gte("created_at", ini.toISOString())
+      .lt("created_at", fim.toISOString())
+      .range(de, de + 999);
+    fotos.push(...((lote ?? []) as typeof fotos));
+    if (!lote || lote.length < 1000) break;
+  }
   const fotosPorEnc = new Map<string, number>();
-  for (const f of (fotos ?? []) as any[]) fotosPorEnc.set(f.encarregado_id, (fotosPorEnc.get(f.encarregado_id) ?? 0) + 1);
+  for (const f of fotos as any[]) fotosPorEnc.set(f.encarregado_id, (fotosPorEnc.get(f.encarregado_id) ?? 0) + 1);
 
   const imgsPorChat = new Map<string, { qtd: number; ultima: string }>();
   for (const e of eventos) {
@@ -796,14 +805,61 @@ async function relatorioFotosDoDia(dataRef: string): Promise<Record<string, unkn
     .gte("created_at", iniSemana.toISOString())
     .lt("created_at", new Date(iniSemana.getTime() + 24 * 3600_000).toISOString());
 
+  // Os grupos que mais mandaram foto na última semana: o WhatsApp de fotos
+  // está recebendo mensagem deles? (consulta direto na UazAPI)
+  const desde7 = new Date(ini.getTime() - 7 * 24 * 3600_000).toISOString();
+  const contagem = new Map<string, number>();
+  for (let de = 0; de < 20000; de += 1000) {
+    const { data: lote } = await sbAny
+      .from("fotos")
+      .select("encarregado_id")
+      .gte("created_at", desde7)
+      .lt("created_at", ini.toISOString())
+      .range(de, de + 999);
+    for (const f of (lote ?? []) as any[]) contagem.set(f.encarregado_id, (contagem.get(f.encarregado_id) ?? 0) + 1);
+    if (!lote || lote.length < 1000) break;
+  }
+  const principais = [...contagem.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const naUazapi: Record<string, unknown>[] = [];
+  for (const [encId, qtd] of principais) {
+    const enc = ((encs ?? []) as any[]).find((x) => x.id === encId);
+    const g = String(enc?.grupo_whatsapp_id ?? "");
+    if (!g) continue;
+    const chatid = g.endsWith("@g.us") ? g : `${g.replace(/-group$/, "")}@g.us`;
+    try {
+      const r = await fetch(`${base}/message/find`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token },
+        body: JSON.stringify({ chatid, limit: 5 }),
+      });
+      const j = (await r.json().catch(() => null)) as any;
+      const msgs = (Array.isArray(j) ? j : (j?.messages ?? [])) as any[];
+      const ts = (m: any) => {
+        const v = Number(m.messageTimestamp ?? m.timestamp ?? 0);
+        return v ? new Date(v > 1e12 ? v : v * 1000).toISOString() : null;
+      };
+      naUazapi.push({
+        encarregado: enc?.nome,
+        fotos_semana_anterior: qtd,
+        http: r.status,
+        mensagens_na_uazapi: msgs.length,
+        ultima_mensagem: horaBrt(msgs.map(ts).filter(Boolean).sort().pop() ?? null),
+        tipos: msgs.slice(0, 5).map((m) => m.messageType ?? m.type ?? null),
+      });
+    } catch (e) {
+      naUazapi.push({ encarregado: enc?.nome, erro: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
   return {
     relatorio: "fotos-do-dia",
+    grupos_principais_na_uazapi: naUazapi,
     data: dataRef,
     agora: horaBrt(new Date().toISOString()),
     instancia_fotos: instancia,
     eventos_no_dia: eventos.length,
     imagens_de_grupo_no_dia: porGrupo.reduce((s, g) => s + g.imagens_recebidas, 0),
-    fotos_salvas_no_dia: (fotos ?? []).length,
+    fotos_salvas_no_dia: fotos.length,
     mesmo_dia_semana_passada: { imagens_recebidas: semanaPassada ?? null, fotos_salvas: fotosSemanaPassada ?? null },
     eventos_por_hora: porHora,
     por_grupo: porGrupo,
