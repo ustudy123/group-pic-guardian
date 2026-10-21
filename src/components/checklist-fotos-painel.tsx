@@ -67,19 +67,40 @@ export function ChecklistFotosPainel({
   const { data: info, isLoading, error } = useQuery({
     queryKey: chave,
     queryFn: () => obter({ data: { encarregadoId, data } }),
+    // Reler ao voltar para a aba sobrescrevia a tela com uma versão velha (21/10).
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
   });
 
   // Estado local = o que a pessoa vê; cada clique salva no servidor em seguida.
   const [checklist, setChecklist] = useState<ChecklistDia | null>(null);
   const [tipoEscolhido, setTipoEscolhido] = useState("");
   const [ocupado, setOcupado] = useState<null | "tipo" | "imagem" | "envio">(null);
-  const pendentes = useRef<Promise<unknown>[]>([]);
+  // Fila de gravação: um envio por vez, juntando os cliques feitos enquanto um
+  // envio está em andamento. Antes, cliques rápidos viravam gravações
+  // simultâneas e uma apagava a outra no servidor.
+  const fila = useRef(new Map<string, StatusItem>());
+  const gravando = useRef<Promise<void> | null>(null);
+  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     if (!info) return;
+    if (gravando.current || fila.current.size > 0) return; // não pisa no que ainda está sendo salvo
     setChecklist(info.checklist);
     setTipoEscolhido(info.checklist?.tipo_id ?? info.tipoSugerido ?? info.tipos[0]?.id ?? "");
   }, [info]);
+
+  // Aviso ao fechar a aba com marcação ainda sendo salva.
+  useEffect(() => {
+    if (!salvando) return;
+    const aviso = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", aviso);
+    return () => window.removeEventListener("beforeunload", aviso);
+  }, [salvando]);
+
 
   if (isLoading) {
     return (
@@ -106,6 +127,7 @@ export function ChecklistFotosPainel({
     }
     setOcupado("tipo");
     try {
+      await esvaziarFila(); // termina de salvar as marcações antes de trocar o tipo
       const novo = await definirTipo({ data: { encarregadoId, data, tipoId } });
       setChecklist(novo);
       setTipoEscolhido(novo.tipo_id);
@@ -117,31 +139,51 @@ export function ChecklistFotosPainel({
     }
   };
 
+  const esvaziarFila = (): Promise<void> => {
+    if (gravando.current) return gravando.current;
+    const rodada = (async () => {
+      setSalvando(true);
+      try {
+        while (fila.current.size > 0) {
+          const lote = [...fila.current.entries()].map(([id, status]) => ({ id, status }));
+          fila.current.clear();
+          try {
+            const salvo = await marcar({ data: { encarregadoId, data, itens: lote } });
+            // Só o horário/autor: a lista na tela já tem a marcação mais nova.
+            setChecklist((c) =>
+              c ? { ...c, atualizado_em: salvo.atualizado_em, atualizado_por: salvo.atualizado_por } : c,
+            );
+          } catch (e) {
+            fila.current.clear();
+            toast.error(`Não salvou: ${(e as Error).message}. A tela foi recarregada com o que está salvo.`);
+            const atual = await obter({ data: { encarregadoId, data } }).catch(() => null);
+            if (atual) setChecklist(atual.checklist);
+            break;
+          }
+        }
+      } finally {
+        gravando.current = null;
+        setSalvando(false);
+        qc.invalidateQueries({ queryKey: ["checklists-do-dia", data] });
+      }
+    })();
+    gravando.current = rodada;
+    return rodada;
+  };
+
   const mudarStatus = (itens: { id: string; status: StatusItem }[]) => {
     if (!checklist) return;
-    const anterior = checklist;
     const novos = new Map(itens.map((i) => [i.id, i.status]));
     setChecklist({
       ...checklist,
       itens: checklist.itens.map((i) => (novos.has(i.id) ? { ...i, status: novos.get(i.id)! } : i)),
     });
-    const p = marcar({ data: { encarregadoId, data, itens } })
-      .then((salvo) =>
-        // Só atualiza o horário/autor: a lista na tela já está com a marcação mais nova.
-        setChecklist((c) => (c ? { ...c, atualizado_em: salvo.atualizado_em, atualizado_por: salvo.atualizado_por } : c)),
-      )
-      .catch((e: Error) => {
-        setChecklist(anterior);
-        toast.error(`Não salvou: ${e.message}`);
-      });
-    pendentes.current.push(p);
-    p.finally(() => {
-      pendentes.current = pendentes.current.filter((x) => x !== p);
-    });
+    for (const [id, st] of novos) fila.current.set(id, st);
+    void esvaziarFila();
   };
 
   const imagemAtual = async () => {
-    await Promise.all(pendentes.current); // espera as marcações em andamento
+    await esvaziarFila(); // espera as marcações em andamento
     if (!checklist) throw new Error("Sem checklist");
     return gerarImagemChecklist({ ...checklist, atualizado_em: new Date().toISOString() });
   };
@@ -295,7 +337,13 @@ export function ChecklistFotosPainel({
               </button>
             </div>
             <p className="text-[11px] text-muted-foreground leading-snug">
-              Salvo às {horaBrasilia(checklist.atualizado_em)}
+              {salvando ? (
+                <span className="inline-flex items-center gap-1 text-amber-700 font-medium">
+                  <Loader2 size={11} className="animate-spin" /> Salvando…
+                </span>
+              ) : (
+                <>Salvo às {horaBrasilia(checklist.atualizado_em)}</>
+              )}
               {checklist.atualizado_por ? ` por ${checklist.atualizado_por}` : ""}
               {checklist.enviado_grupo_em ? ` · enviado no grupo às ${horaBrasilia(checklist.enviado_grupo_em)}` : ""}
             </p>

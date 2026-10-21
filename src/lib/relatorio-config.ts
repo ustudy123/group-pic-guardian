@@ -21,7 +21,8 @@ export async function lerConfigRelatorio(formularioId: string): Promise<ConfigRe
   try {
     const { data, error } = await supabase.storage
       .from("fotos-obras")
-      .download(RELATORIO_CONFIG_PATH(formularioId));
+      // cacheNonce: sem ele o storage devolve a versão em cache (até 1 h).
+      .download(RELATORIO_CONFIG_PATH(formularioId), { cacheNonce: String(Date.now()) });
     if (error || !data) return CONFIG_RELATORIO_PADRAO;
     const bruto = JSON.parse(await data.text()) as Partial<ConfigRelatorio>;
     const nomeModo: NomeModo =
@@ -38,7 +39,7 @@ export async function salvarConfigRelatorio(formularioId: string, cfg: ConfigRel
   const blob = new Blob([JSON.stringify(cfg)], { type: "application/json" });
   const { error } = await supabase.storage
     .from("fotos-obras")
-    .upload(path, blob, { contentType: "application/json" });
+    .upload(path, blob, { contentType: "application/json", cacheControl: "0" });
   if (error) throw error;
 }
 

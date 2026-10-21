@@ -10,11 +10,14 @@
 type ClienteStorage = {
   storage: {
     from: (bucket: string) => {
-      download: (path: string) => Promise<{ data: Blob | null; error: unknown }>;
+      download: (
+        path: string,
+        opts?: { cacheNonce?: string },
+      ) => Promise<{ data: Blob | null; error: unknown }>;
       upload: (
         path: string,
         body: Blob,
-        opts?: { contentType?: string; upsert?: boolean },
+        opts?: { contentType?: string; upsert?: boolean; cacheControl?: string },
       ) => Promise<{ error: { message: string } | null }>;
       remove: (paths: string[]) => Promise<unknown>;
     };
@@ -120,7 +123,11 @@ export function destinatariosDoAlerta(
 
 export async function lerAreasAlerta(cliente: ClienteStorage): Promise<ConfigAreas | null> {
   try {
-    const { data } = await cliente.storage.from("fotos-obras").download(AREAS_ALERTA_PATH);
+    // cacheNonce: sem ele o storage devolve a versão em cache (até 1 h) e a
+    // mudança salva no painel demorava a valer.
+    const { data } = await cliente.storage
+      .from("fotos-obras")
+      .download(AREAS_ALERTA_PATH, { cacheNonce: String(Date.now()) });
     if (!data) return null;
     const cfg = JSON.parse(await data.text()) as ConfigAreas;
     if (!cfg || !Array.isArray(cfg.areas)) return null;
@@ -138,6 +145,7 @@ export async function salvarAreasAlerta(cliente: ClienteStorage, cfg: ConfigArea
   });
   const { error } = await bucket.upload(AREAS_ALERTA_PATH, corpo, {
     contentType: "application/json",
+    cacheControl: "0",
   });
   if (error) throw new Error(error.message);
 }

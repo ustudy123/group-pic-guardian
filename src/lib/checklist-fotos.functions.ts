@@ -42,7 +42,11 @@ async function exigirAdmin(context: { supabase: any; userId: string; claims?: an
 
 async function lerJson<T>(caminho: string): Promise<T | null> {
   try {
-    const { data } = await supabaseAdmin.storage.from(BUCKET).download(caminho);
+    // cacheNonce: o storage guarda o arquivo em cache por até 1 h; sem isso a
+    // leitura vinha velha e as marcações mais novas "sumiam" (21/10).
+    const { data } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .download(caminho, { cacheNonce: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}` });
     if (!data) return null;
     return JSON.parse(await data.text()) as T;
   } catch {
@@ -56,11 +60,15 @@ async function gravarJson(caminho: string, valor: unknown) {
   const { error } = await bucket.upload(caminho, corpo, {
     contentType: "application/json",
     upsert: true,
+    cacheControl: "0",
   });
   if (!error) return;
   // Se o bucket recusar sobrescrever, apaga e grava de novo.
   await bucket.remove([caminho]);
-  const { error: e2 } = await bucket.upload(caminho, corpo, { contentType: "application/json" });
+  const { error: e2 } = await bucket.upload(caminho, corpo, {
+    contentType: "application/json",
+    cacheControl: "0",
+  });
   if (e2) throw new Error(`Não foi possível salvar o checklist: ${e2.message}`);
 }
 
