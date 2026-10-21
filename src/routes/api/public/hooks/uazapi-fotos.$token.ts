@@ -345,28 +345,34 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
         let bytes: Uint8Array;
         let contentType = mimeHint;
 
-        try {
-          if (imageBase64) {
-            const clean = imageBase64.replace(/^data:[^;]+;base64,/, "");
-            const bin = atob(clean);
-            const arr = new Uint8Array(bin.length);
-            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-            bytes = arr;
-          } else if (imageUrl) {
-            const baixada = isEncryptedWhatsappUrl(imageUrl)
-              ? await baixarMidiaUazapi(messageId, contentType)
-              : await baixarUrl(imageUrl, contentType);
-            bytes = baixada.bytes;
-            contentType = baixada.contentType;
-          } else {
-            const baixada = await baixarMidiaUazapi(messageId, contentType);
-            bytes = baixada.bytes;
-            contentType = baixada.contentType;
+        // Até 3 tentativas (falhas passageiras do WhatsApp/UazAPI são comuns).
+        // Se ainda falhar, a recuperação automática (processar-analises) tenta de novo.
+        let ultimoErro: unknown = null;
+        let carregado: { bytes: Uint8Array; contentType: string } | null = null;
+        for (let tentativa = 1; tentativa <= 3 && !carregado; tentativa++) {
+          try {
+            if (imageBase64) {
+              const clean = imageBase64.replace(/^data:[^;]+;base64,/, "");
+              const bin = atob(clean);
+              const arr = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+              carregado = { bytes: arr, contentType };
+            } else if (imageUrl && !isEncryptedWhatsappUrl(imageUrl)) {
+              carregado = await baixarUrl(imageUrl, contentType);
+            } else {
+              carregado = await baixarMidiaUazapi(messageId, contentType);
+            }
+          } catch (e) {
+            ultimoErro = e;
+            if (tentativa < 3) await new Promise((r) => setTimeout(r, tentativa * 1500));
           }
-        } catch (e) {
-          console.error("[uazapi-fotos] erro baixando imagem:", e);
+        }
+        if (!carregado) {
+          console.error("[uazapi-fotos] erro baixando imagem (3 tentativas):", ultimoErro);
           return json({ ok: true, error: "download_excecao" });
         }
+        bytes = carregado.bytes;
+        contentType = carregado.contentType;
 
         // === Upload Storage ===
         const tsRaw =
