@@ -893,6 +893,60 @@ async function relatorioFotosDoDia(dataRef: string): Promise<Record<string, unkn
   };
 }
 
+/**
+ * Checklist de fotos: o storage grava por cima e devolve a versão nova logo
+ * em seguida? Grava um arquivo de teste várias vezes e relê na hora. Também
+ * lista os checklists de um dia com a data de gravação de cada arquivo.
+ */
+async function relatorioChecklist(dataRef: string): Promise<Record<string, unknown>> {
+  const bucket = supabaseAdmin.storage.from("fotos-obras");
+  const caminho = "checklist-fotos/_teste/consistencia.json";
+  const rodadas: Record<string, unknown>[] = [];
+  for (let i = 1; i <= 6; i++) {
+    const valor = `v${i}-${Date.now()}`;
+    const corpo = new Blob([JSON.stringify({ valor })], { type: "application/json" });
+    const t0 = Date.now();
+    const up = await bucket.upload(caminho, corpo, { contentType: "application/json", upsert: true, cacheControl: "0" });
+    const t1 = Date.now();
+    const comNonce = await bucket.download(caminho, { cacheNonce: `${Date.now()}-${i}` });
+    const lidoNonce = comNonce.data ? JSON.parse(await comNonce.data.text()).valor : null;
+    const semNonce = await bucket.download(caminho);
+    const lidoSem = semNonce.data ? JSON.parse(await semNonce.data.text()).valor : null;
+    rodadas.push({
+      rodada: i,
+      gravou: !up.error,
+      erro_gravacao: up.error?.message ?? null,
+      ms_gravacao: t1 - t0,
+      leitura_com_nonce_ok: lidoNonce === valor,
+      leitura_sem_nonce_ok: lidoSem === valor,
+      erro_leitura: comNonce.error ? String((comNonce.error as Error).message ?? comNonce.error) : null,
+    });
+  }
+  await bucket.remove([caminho]);
+
+  const { data: arquivos, error: errList } = await bucket.list(`checklist-fotos/dias/${dataRef}`, { limit: 500 });
+  const lista: Record<string, unknown>[] = [];
+  for (const a of arquivos ?? []) {
+    if (!a.name.endsWith(".json")) continue;
+    const r = await bucket.download(`checklist-fotos/dias/${dataRef}/${a.name}`, { cacheNonce: String(Date.now()) });
+    let resumo: Record<string, unknown> = {};
+    try {
+      const c = JSON.parse((await r.data?.text()) ?? "{}");
+      const n: Record<string, number> = {};
+      for (const it of c.itens ?? []) n[it.status] = (n[it.status] ?? 0) + 1;
+      resumo = { encarregado: c.encarregado_nome, tipo: c.tipo_nome, status: n, atualizado_em: horaBrt(c.atualizado_em), por: c.atualizado_por ? "sim" : null };
+    } catch {
+      resumo = { erro: "json invalido" };
+    }
+    lista.push({
+      ...resumo,
+      arquivo_gravado_em: horaBrt((a as any).updated_at ?? (a as any).created_at ?? null),
+      cache_control: (a as any).metadata?.cacheControl ?? null,
+    });
+  }
+  return { relatorio: "checklist", data: dataRef, teste_gravacao: rodadas, erro_lista: errList?.message ?? null, checklists: lista };
+}
+
 async function relatorioErrosCliente(dias: number): Promise<Record<string, unknown>> {
   const bucket = supabaseAdmin.storage.from("fotos-obras");
   const saida: Array<Record<string, unknown>> = [];
@@ -981,6 +1035,11 @@ export const Route = createFileRoute("/api/public/hooks/diagnostico-conversa")({
             depois: depois?.allowed_mime_types,
             tamanho_maximo_bytes: depois?.file_size_limit,
           });
+        }
+        if (body.relatorio === "checklist") {
+          const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+          const d = /^\d{4}-\d{2}-\d{2}$/.test(String(body.data ?? "")) ? String(body.data) : hoje;
+          return json(await relatorioChecklist(d));
         }
         if (body.relatorio === "fotos-do-dia") {
           const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });

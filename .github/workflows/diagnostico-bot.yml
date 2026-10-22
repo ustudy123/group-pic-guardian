@@ -30,7 +30,7 @@ on:
         required: true
         type: choice
         default: conversa
-        options: ["conversa", "envios-do-dia", "alertas", "erros-do-site", "grupos-de-fotos", "fotos-do-dia", "corrigir-nomes-grupos", "religar-grupo", "teste-registro-de-erro", "ajustar-tipos-de-arquivo", "fila"]
+        options: ["conversa", "envios-do-dia", "alertas", "erros-do-site", "grupos-de-fotos", "fotos-do-dia", "checklist", "corrigir-nomes-grupos", "religar-grupo", "teste-registro-de-erro", "ajustar-tipos-de-arquivo", "fila"]
       telefone:
         description: "Telefone do contato (modo conversa) — bastam os 8 últimos dígitos"
         required: false
@@ -75,6 +75,9 @@ jobs:
             URL="$BASE/diagnostico-conversa"; BODY='{"relatorio":"ajustar-bucket"}'
           elif [ "$MODO" = "teste-registro-de-erro" ]; then
             URL="$BASE/erro-cliente"; BODY='{"origem":"teste-automatico","mensagem":"erro de teste do workflow","caminho":"/f/teste","navegador":"GitHub Actions"}'
+          elif [ "$MODO" = "checklist" ]; then
+            D=$(printf '%s' "$DATA" | tr -cd '0-9-')
+            URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"checklist\",\"data\":\"$D\"}"
           elif [ "$MODO" = "fotos-do-dia" ]; then
             D=$(printf '%s' "$DATA" | tr -cd '0-9-')
             URL="$BASE/diagnostico-conversa"; BODY="{\"relatorio\":\"fotos-do-dia\",\"data\":\"$D\"}"
