@@ -67,9 +67,13 @@ export function ChecklistFotosPainel({
   const { data: info, isLoading, error } = useQuery({
     queryKey: chave,
     queryFn: () => obter({ data: { encarregadoId, data } }),
-    // Reler ao voltar para a aba sobrescrevia a tela com uma versão velha (21/10).
-    refetchOnWindowFocus: false,
-    staleTime: 60_000,
+    // Sempre do servidor: guardar a cópia anterior fazia a pasta reaberta em
+    // menos de 1 min mostrar o checklist antigo (22/10). A cada 20 s relê,
+    // para quem está marcando ver o que outra pessoa marcou.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: 20_000,
   });
 
   // Estado local = o que a pessoa vê; cada clique salva no servidor em seguida.
@@ -86,8 +90,15 @@ export function ChecklistFotosPainel({
   useEffect(() => {
     if (!info) return;
     if (gravando.current || fila.current.size > 0) return; // não pisa no que ainda está sendo salvo
-    setChecklist(info.checklist);
-    setTipoEscolhido(info.checklist?.tipo_id ?? info.tipoSugerido ?? info.tipos[0]?.id ?? "");
+    const doServidor = info.checklist;
+    setChecklist((local) => {
+      // Só troca a tela por uma versão MAIS NOVA que a dela: uma releitura que
+      // saiu antes do último clique chega com a versão velha e seria ignorada.
+      if (!local || !doServidor) return doServidor ?? local;
+      if (doServidor.tipo_id !== local.tipo_id) return doServidor;
+      return new Date(doServidor.atualizado_em) > new Date(local.atualizado_em) ? doServidor : local;
+    });
+    setTipoEscolhido((t) => doServidor?.tipo_id ?? (t || info.tipoSugerido || info.tipos[0]?.id || ""));
   }, [info]);
 
   // Aviso ao fechar a aba com marcação ainda sendo salva.
@@ -174,25 +185,31 @@ export function ChecklistFotosPainel({
   const mudarStatus = (itens: { id: string; status: StatusItem }[]) => {
     if (!checklist) return;
     const novos = new Map(itens.map((i) => [i.id, i.status]));
-    setChecklist({
-      ...checklist,
-      itens: checklist.itens.map((i) => (novos.has(i.id) ? { ...i, status: novos.get(i.id)! } : i)),
-    });
+    // Atualização em cima do estado mais recente (dois cliques seguidos antes
+    // de a tela redesenhar não se anulam).
+    setChecklist((c) =>
+      c ? { ...c, itens: c.itens.map((i) => (novos.has(i.id) ? { ...i, status: novos.get(i.id)! } : i)) } : c,
+    );
     for (const [id, st] of novos) fila.current.set(id, st);
     void esvaziarFila();
   };
 
   const imagemAtual = async () => {
     await esvaziarFila(); // espera as marcações em andamento
-    if (!checklist) throw new Error("Sem checklist");
-    return gerarImagemChecklist({ ...checklist, atualizado_em: new Date().toISOString() });
+    // A imagem sai do que está SALVO (inclui o que outra pessoa marcou), não
+    // só do que esta tela mostra.
+    const salvo = (await obter({ data: { encarregadoId, data } })).checklist;
+    if (!salvo) throw new Error("Sem checklist salvo para este dia.");
+    setChecklist(salvo);
+    const img = await gerarImagemChecklist({ ...salvo, atualizado_em: new Date().toISOString() });
+    return { ...img, salvo };
   };
 
   const baixarImagem = async () => {
     setOcupado("imagem");
     try {
-      const { blob } = await imagemAtual();
-      baixar(blob, `Checklist ${checklist!.encarregado_nome} ${data}.png`);
+      const { blob, salvo } = await imagemAtual();
+      baixar(blob, `Checklist ${salvo.encarregado_nome} ${data}.png`);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -205,8 +222,8 @@ export function ChecklistFotosPainel({
     if (!confirm(`Enviar o checklist de ${checklist.encarregado_nome} no grupo de WhatsApp dele?`)) return;
     setOcupado("envio");
     try {
-      const { base64 } = await imagemAtual();
-      const n = contarStatus(checklist);
+      const { base64, salvo } = await imagemAtual();
+      const n = contarStatus(salvo); // o que está salvo, igual à imagem
       const partes = [
         n.pendente > 0 ? `faltam ${n.pendente} foto(s), marcadas em vermelho` : "",
         n.inutilizavel > 0 ? `${n.inutilizavel} foto(s) precisam ser enviadas de novo (em azul, não deu para usar)` : "",

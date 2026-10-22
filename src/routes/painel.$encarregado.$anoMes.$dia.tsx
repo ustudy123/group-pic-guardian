@@ -335,7 +335,12 @@ function DiaPage() {
       <div className={mostrarChecklist ? "flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start" : ""}>
         {mostrarChecklist && (
           <aside className="lg:col-start-2 lg:row-start-1 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
-            <ChecklistFotosPainel encarregadoId={encarregadoId!} data={dataPasta} />
+            {/* key: outro dia/encarregado = painel novo, sem sobra do anterior */}
+            <ChecklistFotosPainel
+              key={`${encarregadoId}-${dataPasta}`}
+              encarregadoId={encarregadoId!}
+              data={dataPasta}
+            />
           </aside>
         )}
         <div className="space-y-4 min-w-0 lg:col-start-1 lg:row-start-1">
