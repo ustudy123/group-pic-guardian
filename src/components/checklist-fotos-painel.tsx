@@ -18,6 +18,7 @@ import {
 } from "@/lib/checklist-fotos.functions";
 import { gerarImagemChecklist, horaBrasilia } from "@/lib/checklist-imagem";
 import { baixar } from "@/lib/exportar-respostas";
+import { criarFilaGravacao, type FilaGravacao } from "@/lib/fila-gravacao";
 
 const ESTILO: Record<StatusItem, { ativo: string; inativo: string }> = {
   enviado: {
@@ -81,15 +82,36 @@ export function ChecklistFotosPainel({
   const [tipoEscolhido, setTipoEscolhido] = useState("");
   const [ocupado, setOcupado] = useState<null | "tipo" | "imagem" | "envio">(null);
   // Fila de gravação: um envio por vez, juntando os cliques feitos enquanto um
-  // envio está em andamento. Antes, cliques rápidos viravam gravações
-  // simultâneas e uma apagava a outra no servidor.
-  const fila = useRef(new Map<string, StatusItem>());
-  const gravando = useRef<Promise<void> | null>(null);
+  // envio está em andamento (ver fila-gravacao.ts, com testes).
   const [salvando, setSalvando] = useState(false);
+  const filaRef = useRef<FilaGravacao<string, StatusItem> | null>(null);
+  if (!filaRef.current) {
+    filaRef.current = criarFilaGravacao<string, StatusItem>({
+      enviar: async (lote) => {
+        const salvo = await marcar({
+          data: { encarregadoId, data, itens: lote.map(([id, status]) => ({ id, status })) },
+        });
+        // Só o horário/autor: a lista na tela já tem a marcação mais nova.
+        setChecklist((c) =>
+          c ? { ...c, atualizado_em: salvo.atualizado_em, atualizado_por: salvo.atualizado_por } : c,
+        );
+      },
+      aoFalhar: async (e) => {
+        toast.error(`Não salvou: ${(e as Error).message}. A tela foi recarregada com o que está salvo.`);
+        const atual = await obter({ data: { encarregadoId, data } }).catch(() => null);
+        if (atual) setChecklist(atual.checklist);
+      },
+      aoMudarEstado: (enviando) => {
+        setSalvando(enviando);
+        if (!enviando) qc.invalidateQueries({ queryKey: ["checklists-do-dia", data] });
+      },
+    });
+  }
+  const fila = filaRef.current;
 
   useEffect(() => {
     if (!info) return;
-    if (gravando.current || fila.current.size > 0) return; // não pisa no que ainda está sendo salvo
+    if (filaRef.current?.ocupada()) return; // não pisa no que ainda está sendo salvo
     const doServidor = info.checklist;
     setChecklist((local) => {
       // Só troca a tela por uma versão MAIS NOVA que a dela: uma releitura que
@@ -138,7 +160,7 @@ export function ChecklistFotosPainel({
     }
     setOcupado("tipo");
     try {
-      await esvaziarFila(); // termina de salvar as marcações antes de trocar o tipo
+      await fila.esvaziar(); // termina de salvar as marcações antes de trocar o tipo
       const novo = await definirTipo({ data: { encarregadoId, data, tipoId } });
       setChecklist(novo);
       setTipoEscolhido(novo.tipo_id);
@@ -150,37 +172,6 @@ export function ChecklistFotosPainel({
     }
   };
 
-  const esvaziarFila = (): Promise<void> => {
-    if (gravando.current) return gravando.current;
-    const rodada = (async () => {
-      setSalvando(true);
-      try {
-        while (fila.current.size > 0) {
-          const lote = [...fila.current.entries()].map(([id, status]) => ({ id, status }));
-          fila.current.clear();
-          try {
-            const salvo = await marcar({ data: { encarregadoId, data, itens: lote } });
-            // Só o horário/autor: a lista na tela já tem a marcação mais nova.
-            setChecklist((c) =>
-              c ? { ...c, atualizado_em: salvo.atualizado_em, atualizado_por: salvo.atualizado_por } : c,
-            );
-          } catch (e) {
-            fila.current.clear();
-            toast.error(`Não salvou: ${(e as Error).message}. A tela foi recarregada com o que está salvo.`);
-            const atual = await obter({ data: { encarregadoId, data } }).catch(() => null);
-            if (atual) setChecklist(atual.checklist);
-            break;
-          }
-        }
-      } finally {
-        gravando.current = null;
-        setSalvando(false);
-        qc.invalidateQueries({ queryKey: ["checklists-do-dia", data] });
-      }
-    })();
-    gravando.current = rodada;
-    return rodada;
-  };
 
   const mudarStatus = (itens: { id: string; status: StatusItem }[]) => {
     if (!checklist) return;
@@ -190,12 +181,11 @@ export function ChecklistFotosPainel({
     setChecklist((c) =>
       c ? { ...c, itens: c.itens.map((i) => (novos.has(i.id) ? { ...i, status: novos.get(i.id)! } : i)) } : c,
     );
-    for (const [id, st] of novos) fila.current.set(id, st);
-    void esvaziarFila();
+    void fila.adicionar(novos);
   };
 
   const imagemAtual = async () => {
-    await esvaziarFila(); // espera as marcações em andamento
+    await fila.esvaziar(); // espera as marcações em andamento
     // A imagem sai do que está SALVO (inclui o que outra pessoa marcou), não
     // só do que esta tela mostra.
     const salvo = (await obter({ data: { encarregadoId, data } })).checklist;
