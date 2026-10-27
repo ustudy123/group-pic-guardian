@@ -8,10 +8,14 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { instalarProtecaoTraducao } from "@/lib/protecao-traducao";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import { useEffect } from "react";
 import { ehErroDeCarregamento, reportarErroCliente } from "@/lib/erro-cliente";
+
+// Antes de o React montar a página (ver src/lib/protecao-traducao.ts).
+instalarProtecaoTraducao();
 
 function NotFoundComponent() {
   return (
@@ -91,6 +95,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      // Site em português: o Chrome não deve oferecer/fazer tradução (ela
+      // derrubava a página — ver src/lib/protecao-traducao.ts).
+      { name: "google", content: "notranslate" },
       { title: "Macro Ambiental" },
       { name: "description", content: "Gestão Macro Ambiental" },
       { name: "author", content: "Lovable" },
@@ -119,7 +126,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR" translate="no">
       <head>
         <HeadContent />
       </head>
