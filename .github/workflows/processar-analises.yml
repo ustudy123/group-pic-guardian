@@ -1,8 +1,17 @@
 name: Processar Análises de Visão IA
 
+# Agendamento DESLIGADO em 27/10: desde 02/06 este cron falhava em toda
+# execução (o secret VISAO_WORKER_SECRET nunca foi criado no repositório) e
+# mandava e-mail de falha a cada disparo. A Visão IA continua podendo ser
+# processada pelo botão "Processar agora" do painel.
+#
+# Para religar o automático: criar o secret VISAO_WORKER_SECRET (mesmo valor
+# do servidor) e voltar o bloco abaixo. ATENÇÃO: toda foto nova entra na fila
+# (trigger trg_fotos_enfileira_analise), então a fila acumulada desde junho
+# seria toda analisada pela IA — limpe/limite a fila antes.
+#   schedule:
+#     - cron: "*/2 * * * *"
 on:
-  schedule:
-    - cron: "*/2 * * * *"  # a cada 2 min
   workflow_dispatch: {}
 
 concurrency:

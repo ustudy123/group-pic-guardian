@@ -1,4 +1,6 @@
-// Hook público — chamado pelo cron do GitHub Actions a cada 1 min.
+// Hook público — drena a fila da Visão IA. Sem cron automático hoje (ver
+// .github/workflows/processar-analises.yml); a recuperação de fotos que
+// rodava aqui foi para recuperar-fotos.ts.
 // Auth: header x-visao-secret = VISAO_WORKER_SECRET.
 import { createFileRoute } from "@tanstack/react-router";
 import { processarFila } from "@/lib/visao-analyzer.server";
@@ -26,21 +28,8 @@ export const Route = createFileRoute("/api/public/hooks/processar-analises")({
           // body opcional
         }
 
-        // Recupera fotos de grupos que falharam ao baixar (não bloqueia a fila).
-        let recuperacao: { tentadas: number; salvas: number } | null = null;
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { recuperarFotosFalhas } = await import("@/lib/recuperar-fotos.server");
-          recuperacao = await recuperarFotosFalhas(
-            supabaseAdmin as unknown as { from: (t: string) => any },
-            new URL(request.url).origin,
-          );
-        } catch (e) {
-          console.error("[processar-analises] recuperação de fotos falhou:", e);
-        }
-
         const r = await processarFila(max);
-        return Response.json({ ...r, recuperacao, idle: r.processados === 0 });
+        return Response.json({ ...r, idle: r.processados === 0 });
       },
     },
   },

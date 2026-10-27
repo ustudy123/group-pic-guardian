@@ -41,6 +41,7 @@ import { Route as ApiPublicHooksMensagensProgramadasRouteImport } from './routes
 import { Route as ApiPublicHooksNotificarReprovacoesRouteImport } from './routes/api/public/hooks/notificar-reprovacoes'
 import { Route as ApiPublicHooksProcessarAnalisesRouteImport } from './routes/api/public/hooks/processar-analises'
 import { Route as ApiPublicHooksProcessarRelatoriosRouteImport } from './routes/api/public/hooks/processar-relatorios'
+import { Route as ApiPublicHooksRecuperarFotosRouteImport } from './routes/api/public/hooks/recuperar-fotos'
 import { Route as ApiPublicHooksReenviarAlertasRouteImport } from './routes/api/public/hooks/reenviar-alertas'
 import { Route as ApiPublicHooksResumoAlertasDiarioRouteImport } from './routes/api/public/hooks/resumo-alertas-diario'
 import { Route as ApiPublicHooksUazapiBotRouteImport } from './routes/api/public/hooks/uazapi-bot'
@@ -215,6 +216,12 @@ const ApiPublicHooksProcessarRelatoriosRoute =
     path: '/api/public/hooks/processar-relatorios',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksRecuperarFotosRoute =
+  ApiPublicHooksRecuperarFotosRouteImport.update({
+    id: '/api/public/hooks/recuperar-fotos',
+    path: '/api/public/hooks/recuperar-fotos',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksReenviarAlertasRoute =
   ApiPublicHooksReenviarAlertasRouteImport.update({
     id: '/api/public/hooks/reenviar-alertas',
@@ -284,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
+  '/api/public/hooks/recuperar-fotos': typeof ApiPublicHooksRecuperarFotosRoute
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
   '/api/public/hooks/resumo-alertas-diario': typeof ApiPublicHooksResumoAlertasDiarioRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
@@ -321,6 +329,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
+  '/api/public/hooks/recuperar-fotos': typeof ApiPublicHooksRecuperarFotosRoute
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
   '/api/public/hooks/resumo-alertas-diario': typeof ApiPublicHooksResumoAlertasDiarioRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
@@ -362,6 +371,7 @@ export interface FileRoutesById {
   '/api/public/hooks/notificar-reprovacoes': typeof ApiPublicHooksNotificarReprovacoesRoute
   '/api/public/hooks/processar-analises': typeof ApiPublicHooksProcessarAnalisesRoute
   '/api/public/hooks/processar-relatorios': typeof ApiPublicHooksProcessarRelatoriosRoute
+  '/api/public/hooks/recuperar-fotos': typeof ApiPublicHooksRecuperarFotosRoute
   '/api/public/hooks/reenviar-alertas': typeof ApiPublicHooksReenviarAlertasRoute
   '/api/public/hooks/resumo-alertas-diario': typeof ApiPublicHooksResumoAlertasDiarioRoute
   '/api/public/hooks/uazapi-bot': typeof ApiPublicHooksUazapiBotRoute
@@ -404,6 +414,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
+    | '/api/public/hooks/recuperar-fotos'
     | '/api/public/hooks/reenviar-alertas'
     | '/api/public/hooks/resumo-alertas-diario'
     | '/api/public/hooks/uazapi-bot'
@@ -441,6 +452,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
+    | '/api/public/hooks/recuperar-fotos'
     | '/api/public/hooks/reenviar-alertas'
     | '/api/public/hooks/resumo-alertas-diario'
     | '/api/public/hooks/uazapi-bot'
@@ -481,6 +493,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notificar-reprovacoes'
     | '/api/public/hooks/processar-analises'
     | '/api/public/hooks/processar-relatorios'
+    | '/api/public/hooks/recuperar-fotos'
     | '/api/public/hooks/reenviar-alertas'
     | '/api/public/hooks/resumo-alertas-diario'
     | '/api/public/hooks/uazapi-bot'
@@ -506,6 +519,7 @@ export interface RootRouteChildren {
   ApiPublicHooksNotificarReprovacoesRoute: typeof ApiPublicHooksNotificarReprovacoesRoute
   ApiPublicHooksProcessarAnalisesRoute: typeof ApiPublicHooksProcessarAnalisesRoute
   ApiPublicHooksProcessarRelatoriosRoute: typeof ApiPublicHooksProcessarRelatoriosRoute
+  ApiPublicHooksRecuperarFotosRoute: typeof ApiPublicHooksRecuperarFotosRoute
   ApiPublicHooksReenviarAlertasRoute: typeof ApiPublicHooksReenviarAlertasRoute
   ApiPublicHooksResumoAlertasDiarioRoute: typeof ApiPublicHooksResumoAlertasDiarioRoute
   ApiPublicHooksUazapiBotRoute: typeof ApiPublicHooksUazapiBotRoute
@@ -738,6 +752,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksProcessarRelatoriosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/recuperar-fotos': {
+      id: '/api/public/hooks/recuperar-fotos'
+      path: '/api/public/hooks/recuperar-fotos'
+      fullPath: '/api/public/hooks/recuperar-fotos'
+      preLoaderRoute: typeof ApiPublicHooksRecuperarFotosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/reenviar-alertas': {
       id: '/api/public/hooks/reenviar-alertas'
       path: '/api/public/hooks/reenviar-alertas'
@@ -887,6 +908,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksProcessarAnalisesRoute: ApiPublicHooksProcessarAnalisesRoute,
   ApiPublicHooksProcessarRelatoriosRoute:
     ApiPublicHooksProcessarRelatoriosRoute,
+  ApiPublicHooksRecuperarFotosRoute: ApiPublicHooksRecuperarFotosRoute,
   ApiPublicHooksReenviarAlertasRoute: ApiPublicHooksReenviarAlertasRoute,
   ApiPublicHooksResumoAlertasDiarioRoute:
     ApiPublicHooksResumoAlertasDiarioRoute,

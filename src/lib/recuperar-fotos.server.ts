@@ -1,6 +1,6 @@
 // Recuperação automática de fotos que chegaram pelo webhook mas não foram
-// salvas (falha ao baixar/subir). Roda a cada execução do cron
-// processar-analises. Só considera grupos vinculados a um encarregado ativo
+// salvas (falha ao baixar/subir). Chamada pelo endpoint recuperar-fotos
+// (cron recuperar-fotos.yml). Só considera grupos vinculados a um encarregado ativo
 // (grupos sem encarregado são ignorados de propósito).
 // Limite de tentativas por mensagem: contador em eventos_raw.erro ("recuperacao:N").
 

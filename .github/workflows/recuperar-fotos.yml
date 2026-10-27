@@ -1,0 +1,51 @@
+name: Recuperar Fotos de Grupo
+
+# Tenta de novo salvar as fotos de grupo que chegaram pelo webhook nas últimas
+# 24 h mas não viraram foto salva (falha ao baixar/subir). Cada mensagem tem
+# no máximo 8 tentativas. O cron do GitHub sofre throttling e dispara menos
+# vezes que o pedido — sem problema, o que sobrar fica para o próximo disparo.
+
+on:
+  schedule:
+    - cron: "*/15 10-23 * * *"   # 07:00–20:59 BRT, todo dia
+  workflow_dispatch: {}
+
+concurrency:
+  group: recuperar-fotos
+  cancel-in-progress: false
+
+jobs:
+  recuperar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Recuperar fotos que falharam
+        env:
+          ENDPOINT: https://project--07528081-b16b-457c-89ce-f6cbc3387af7.lovable.app/api/public/hooks/recuperar-fotos
+          SECRET: ${{ secrets.AI_BOT_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "AI_BOT_WEBHOOK_SECRET não configurado nos secrets do repo."
+            exit 1
+          fi
+
+          for i in 1 2 3 4; do
+            RESP=$(curl -sS -X POST "$ENDPOINT" \
+              -H "Content-Type: application/json" \
+              -H "X-Bot-Secret: $SECRET" \
+              -w "\n__HTTP__%{http_code}" \
+              -d '{"limite":5}')
+            CODIGO=$(printf '%s' "$RESP" | sed -n 's/.*__HTTP__//p')
+            CORPO=$(printf '%s' "$RESP" | sed 's/__HTTP__[0-9]*$//')
+            echo "Rodada $i — HTTP: $CODIGO — Resp: $CORPO"
+
+            if [ "$CODIGO" != "200" ]; then
+              echo "ERRO: endpoint respondeu HTTP $CODIGO."
+              exit 1
+            fi
+            # Nada mais para tentar agora.
+            if printf '%s' "$CORPO" | grep -q '"tentadas":0'; then
+              break
+            fi
+            sleep 2
+          done
