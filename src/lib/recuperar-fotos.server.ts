@@ -6,7 +6,10 @@
 
 type Cliente = { from: (t: string) => any };
 
-const MAX_TENTATIVAS = 8;
+// ~2h de tentativas (cron roda a cada 2 min): mídias "[Undecryptable]" só
+// ficam baixáveis depois que o celular da instância abre o WhatsApp e
+// sincroniza as chaves — pode demorar.
+const MAX_TENTATIVAS = 60;
 
 export async function recuperarFotosFalhas(
   sb: Cliente,

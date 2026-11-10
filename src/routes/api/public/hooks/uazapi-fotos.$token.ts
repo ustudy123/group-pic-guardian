@@ -341,11 +341,14 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
             pick<string>(d, "base64", "fileBase64") ||
             "",
         );
-        const caption = text(
-          pick<string>(img, "caption") ||
-            pick<string>(d, "caption", "text", "content") ||
-            "",
-        ) || null;
+        const caption =
+          (imagemIndescriptografavel
+            ? null
+            : text(
+                pick<string>(img, "caption") ||
+                  pick<string>(d, "caption", "text", "content") ||
+                  "",
+              )) || null;
         const mimeHint = text(
           pick<string>(img, "mimetype", "mimeType", "mime") ||
             pick<string>(d, "mimetype", "mimeType") ||
