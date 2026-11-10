@@ -227,7 +227,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
         // messageType "error" com texto "[Undecryptable] [media] [image] ...".
         // Tratamos como imagem: o download via UazAPI pode funcionar depois
         // que o celular da instância sincronizar as chaves (a recuperação
-        // automática reenvia o evento a cada 2 min por ~2h).
+        // automática — cron recuperar-fotos — reenvia o evento por até 24 h).
         const textoMsg = String(
           pick<string>(d, "text", "content", "message", "body") || "",
         );
@@ -362,7 +362,7 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
         let contentType = mimeHint;
 
         // Até 3 tentativas (falhas passageiras do WhatsApp/UazAPI são comuns).
-        // Se ainda falhar, a recuperação automática (processar-analises) tenta de novo.
+        // Se ainda falhar, a recuperação automática (cron recuperar-fotos) tenta de novo.
         let ultimoErro: unknown = null;
         let carregado: { bytes: Uint8Array; contentType: string } | null = null;
         for (let tentativa = 1; tentativa <= 3 && !carregado; tentativa++) {

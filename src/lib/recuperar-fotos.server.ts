@@ -6,9 +6,10 @@
 
 type Cliente = { from: (t: string) => any };
 
-// ~2h de tentativas (cron roda a cada 2 min): mídias "[Undecryptable]" só
-// ficam baixáveis depois que o celular da instância abre o WhatsApp e
-// sincroniza as chaves — pode demorar.
+// Mídias "[Undecryptable]" só ficam baixáveis depois que o celular da
+// instância abre o WhatsApp e sincroniza as chaves — pode demorar. O cron
+// recuperar-fotos.yml roda a cada ~15 min (07h–21h, o GitHub atrasa), então
+// na prática as tentativas cobrem toda a janela de 24 h.
 const MAX_TENTATIVAS = 60;
 
 export async function recuperarFotosFalhas(

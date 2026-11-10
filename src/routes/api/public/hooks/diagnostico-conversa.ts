@@ -498,6 +498,39 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
       const fl = (f ?? []) as Array<Record<string, any>>;
       fotos = { quantidade: fl.length, ultima: horaBrt(fl[0]?.data_envio) };
     }
+    // Linha do tempo das últimas mensagens do grupo: tipo, se o WhatsApp não
+    // conseguiu descriptografar e quem mandou (só os 4 últimos dígitos).
+    const { data: ultimas } = await sbAny
+      .from("eventos_raw")
+      .select("tipo_evento, created_at, processado, erro, message_id, payload")
+      .eq("chat_id", jid)
+      .gte("created_at", desde)
+      .order("created_at", { ascending: false })
+      .limit(40);
+    const idsUltimas = ((ultimas ?? []) as any[]).map((x) => x.message_id).filter(Boolean);
+    const { data: salvasUltimas } = idsUltimas.length
+      ? await sbAny.from("fotos").select("message_id").in("message_id", idsUltimas)
+      : { data: [] };
+    const jaSalvas = new Set(((salvasUltimas ?? []) as any[]).map((f) => f.message_id));
+    const linhaDoTempo = ((ultimas ?? []) as any[]).map((x) => {
+      const p = (x.payload ?? {}) as Record<string, any>;
+      const m = (p.message ?? p.data ?? p) as Record<string, any>;
+      const texto = String(m.text ?? m.content ?? m.body ?? "");
+      const remetente = String(m.participantPhone ?? m.sender_pn ?? m.sender ?? m.participant ?? "")
+        .replace(/@.*/, "")
+        .replace(/\D/g, "");
+      return {
+        quando: horaBrt(x.created_at),
+        tipo: x.tipo_evento,
+        messageType: m.messageType ?? m.type ?? null,
+        indecifravel: /\[undecryptable\]/i.test(texto),
+        midia: /\[(image|video|audio|document)\]/i.exec(texto)?.[1] ?? (m.mediaType || null),
+        remetente: remetente ? `…${remetente.slice(-4)}` : null,
+        processado: x.processado,
+        erro: x.erro ? String(x.erro).slice(0, 80) : null,
+        virou_foto: x.message_id ? jaSalvas.has(x.message_id) : false,
+      };
+    });
     porJid.push({
       jid: curto(jid),
       nome_no_cadastro: ((grupos ?? []) as any[]).find((g) => g.whatsapp_jid === jid)?.nome_exibicao ?? null,
@@ -509,6 +542,7 @@ async function relatorioGrupos(busca: string, horas: number): Promise<Record<str
       imagens_no_webhook: lista.filter((x) => x.tipo_evento === "image").length,
       ultimo_evento: horaBrt(lista[0]?.created_at),
       fotos_salvas: fotos,
+      linha_do_tempo: linhaDoTempo,
     });
   }
 
