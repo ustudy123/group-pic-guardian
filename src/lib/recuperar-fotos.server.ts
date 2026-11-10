@@ -29,15 +29,27 @@ export async function recuperarFotosFalhas(
   const ate = new Date(Date.now() - 3 * 60_000).toISOString(); // dá tempo do fluxo normal
   const { data: eventos } = await sb
     .from("eventos_raw")
-    .select("id, message_id, payload, erro")
-    .eq("tipo_evento", "image")
+    .select("id, message_id, payload, erro, tipo_evento")
+    .in("tipo_evento", ["image", "error"])
     .in("chat_id", jids)
     .gte("created_at", desde)
     .lte("created_at", ate)
     .order("created_at", { ascending: false })
     .limit(300);
 
-  const lista = (eventos ?? []) as Array<{ id: string; message_id: string | null; payload: unknown; erro: string | null }>;
+  // Eventos "error" só entram se forem mídia de imagem não descriptografada;
+  // outros erros (texto corrompido etc.) não têm o que recuperar.
+  const lista = ((eventos ?? []) as Array<{
+    id: string;
+    message_id: string | null;
+    payload: unknown;
+    erro: string | null;
+    tipo_evento: string | null;
+  }>).filter((e) => {
+    if (e.tipo_evento !== "error") return true;
+    const t = JSON.stringify(e.payload ?? "");
+    return /\[undecryptable\]/i.test(t) && /\[image\]/i.test(t);
+  });
   const ids = [...new Set(lista.map((e) => e.message_id).filter((m): m is string => !!m))];
   if (ids.length === 0) return { tentadas: 0, salvas: 0 };
 
