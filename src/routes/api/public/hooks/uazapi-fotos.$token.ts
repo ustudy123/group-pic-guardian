@@ -223,13 +223,26 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
           }
         }
 
+        // Mídia que o WhatsApp não conseguiu descriptografar chega como
+        // messageType "error" com texto "[Undecryptable] [media] [image] ...".
+        // Tratamos como imagem: o download via UazAPI pode funcionar depois
+        // que o celular da instância sincronizar as chaves (a recuperação
+        // automática reenvia o evento a cada 2 min por ~2h).
+        const textoMsg = String(
+          pick<string>(d, "text", "content", "message", "body") || "",
+        );
+        const imagemIndescriptografavel =
+          (messageType === "error" || /\[undecryptable\]/i.test(textoMsg)) &&
+          /\[image\]/i.test(textoMsg);
+
         const isImage =
           messageType.includes("image") ||
           mediaType === "image" ||
           contentMime.includes("image") ||
           Boolean(d.image) ||
           Boolean(pick(d, "imageMessage")) ||
-          tipoEvento === "image";
+          tipoEvento === "image" ||
+          imagemIndescriptografavel;
 
         if (!isImage) {
           return json({ ok: true, ignored: "nao_eh_imagem" });
@@ -328,11 +341,14 @@ export const Route = createFileRoute("/api/public/hooks/uazapi-fotos/$token")({
             pick<string>(d, "base64", "fileBase64") ||
             "",
         );
-        const caption = text(
-          pick<string>(img, "caption") ||
-            pick<string>(d, "caption", "text", "content") ||
-            "",
-        ) || null;
+        const caption =
+          (imagemIndescriptografavel
+            ? null
+            : text(
+                pick<string>(img, "caption") ||
+                  pick<string>(d, "caption", "text", "content") ||
+                  "",
+              )) || null;
         const mimeHint = text(
           pick<string>(img, "mimetype", "mimeType", "mime") ||
             pick<string>(d, "mimetype", "mimeType") ||
